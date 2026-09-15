@@ -147,6 +147,10 @@ const SUBPRODUCTO_CATEGORIA_CANONICA: Record<string, 'RES' | 'CERDO'> = {
   '1700': 'RES',
   '3243': 'RES',
   '3208': 'RES',
+  '2404': 'RES',
+  '2405': 'RES',
+  '2406': 'RES',
+  '2422': 'RES',
   // Subproductos de CERDO (porcino)
   '4002': 'CERDO',
   '4010': 'CERDO',
