@@ -47,21 +47,25 @@ function DispatchCard({ order }: { order: CanalOrder }) {
   const siesaMutation = useSendCanalOrderToSiesa();
 
   const isSynced = order.status === 'synced';
+  const hasManualFrigoData =
+    frigoAppId.trim() && Number(frigoKg) > 0 && Number(frigoGanchos) > 0;
+  const hasSavedFrigoData =
+    !!order.frigoAppId && Number(order.frigoKg ?? 0) > 0 && Number(order.frigoGanchos ?? 0) > 0;
   const canSubmit =
-    remisionNumber.trim() && frigoAppId.trim() && frigoKg && frigoGanchos;
+    remisionNumber.trim() && (hasManualFrigoData || hasSavedFrigoData || !!file);
 
   const handleSave = async (sendToSiesa: boolean) => {
     if (!canSubmit) {
-      setError('Completa la remisión y los datos de Frigo App.');
+      setError('Diligencia remisión y adjunta PDF Frigo App (o ingresa ID, kg y ganchos).');
       return;
     }
     try {
       await dispatchMutation.mutateAsync({
         id: order.id,
         remisionNumber: remisionNumber.trim(),
-        frigoAppId: frigoAppId.trim(),
-        frigoKg: Number(frigoKg),
-        frigoGanchos: Number(frigoGanchos),
+        frigoAppId: frigoAppId.trim() || undefined,
+        frigoKg: frigoKg ? Number(frigoKg) : undefined,
+        frigoGanchos: frigoGanchos ? Number(frigoGanchos) : undefined,
         file,
         sendToSiesa,
       });
@@ -132,39 +136,44 @@ function DispatchCard({ order }: { order: CanalOrder }) {
               />
             </label>
             <label className="space-y-1 text-xs font-medium text-muted-foreground">
-              ID Frigo App
+              ID Frigo App (opcional)
               <Input
                 value={frigoAppId}
                 onChange={(e) => setFrigoAppId(e.target.value)}
-                placeholder="ID Frigo App"
+                placeholder="Se autoextrae del PDF"
                 disabled={isSynced}
               />
             </label>
             <label className="space-y-1 text-xs font-medium text-muted-foreground">
-              Kg (Frigo App)
+              Kg Frío total (opcional)
               <Input
                 inputMode="decimal"
                 value={frigoKg}
                 onChange={(e) =>
                   setFrigoKg(e.target.value.replace(/[^\d.]/g, ''))
                 }
-                placeholder="0"
+                placeholder="Se autoextrae del PDF"
                 disabled={isSynced}
               />
             </label>
             <label className="space-y-1 text-xs font-medium text-muted-foreground">
-              Ganchos
+              Ganchos/Piezas (opcional)
               <Input
                 inputMode="numeric"
                 value={frigoGanchos}
                 onChange={(e) =>
                   setFrigoGanchos(e.target.value.replace(/[^\d]/g, ''))
                 }
-                placeholder="0"
+                placeholder="Se autoextrae del PDF"
                 disabled={isSynced}
               />
             </label>
           </div>
+
+          <p className="text-xs text-muted-foreground">
+            El sistema toma del PDF: No. de reporte (ID Frigo App), total FRÍO(kg)
+            y PIEZAS (ganchos). Si lo necesitas, puedes sobreescribirlos manualmente.
+          </p>
 
           <label
             className={cn(

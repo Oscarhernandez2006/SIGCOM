@@ -530,17 +530,19 @@ export function useDispatchCanalOrder() {
     }: {
       id: string;
       remisionNumber: string;
-      frigoAppId: string;
-      frigoKg: number;
-      frigoGanchos: number;
+      frigoAppId?: string;
+      frigoKg?: number;
+      frigoGanchos?: number;
       file?: File | null;
       sendToSiesa?: boolean;
     }) => {
       const form = new FormData();
       form.append('remisionNumber', remisionNumber);
-      form.append('frigoAppId', frigoAppId);
-      form.append('frigoKg', String(frigoKg));
-      form.append('frigoGanchos', String(frigoGanchos));
+      if (frigoAppId) form.append('frigoAppId', frigoAppId);
+      if (frigoKg != null) form.append('frigoKg', String(frigoKg));
+      if (frigoGanchos != null) {
+        form.append('frigoGanchos', String(frigoGanchos));
+      }
       if (sendToSiesa) form.append('sendToSiesa', 'true');
       if (file) form.append('file', file);
       const res = await api.post<CanalOrder>(

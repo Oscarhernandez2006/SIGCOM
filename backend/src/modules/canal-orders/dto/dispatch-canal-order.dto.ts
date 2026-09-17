@@ -12,20 +12,23 @@ export class DispatchCanalOrderDto {
   remisionNumber: string;
 
   /** ID del documento de Frigo App (clave para relacionar la operación). */
+  @IsOptional()
   @IsString()
-  frigoAppId: string;
+  frigoAppId?: string;
 
   /** Kilos reales que trae el documento de Frigo App. */
   @Type(() => Number)
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  frigoKg: number;
+  frigoKg?: number;
 
   /** Ganchos que trae el documento de Frigo App. */
   @Type(() => Number)
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  frigoGanchos: number;
+  frigoGanchos?: number;
 
   /** Enviar automáticamente a Siesa tras despachar. */
   @IsOptional()

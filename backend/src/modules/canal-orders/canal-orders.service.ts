@@ -17,6 +17,7 @@ import { CreateCanalOrderDto } from './dto/create-canal-order.dto';
 import { UpdateCanalOrderDto } from './dto/update-canal-order.dto';
 import { CarteraDecisionDto } from './dto/cartera-decision.dto';
 import { DispatchCanalOrderDto } from './dto/dispatch-canal-order.dto';
+import pdfParse from 'pdf-parse';
 import { User, UserRole } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { ClientsService } from '../clients/clients.service';
@@ -46,6 +47,13 @@ export interface CupoInfo {
   available: number;
   exceeds: boolean;
   hasOverdue: boolean;
+}
+
+interface ParsedFrigoDoc {
+  frigoAppId?: string;
+  frigoKg?: number;
+  frigoGanchos?: number;
+  customerCode?: string;
 }
 
 @Injectable()
@@ -543,10 +551,34 @@ export class CanalOrdersService implements OnModuleInit {
       );
     }
 
+    const parsedFromPdf = await this.extractFrigoDataFromPdf(
+      file?.buffer,
+      order.frigoPdfBase64,
+    );
+    const frigoAppId = (dto.frigoAppId ?? parsedFromPdf.frigoAppId ?? '').trim();
+    const frigoKg = Number(dto.frigoKg ?? parsedFromPdf.frigoKg ?? 0);
+    const frigoGanchos = Number(dto.frigoGanchos ?? parsedFromPdf.frigoGanchos ?? 0);
+
+    if (parsedFromPdf.customerCode) {
+      const parsedNit = parsedFromPdf.customerCode.trim();
+      const orderNit = order.clientCode.trim();
+      if (parsedNit && orderNit && parsedNit !== orderNit) {
+        throw new BadRequestException(
+          `El NIT del PDF (${parsedNit}) no coincide con el cliente del pedido (${orderNit}).`,
+        );
+      }
+    }
+
+    if (!frigoAppId || !Number.isFinite(frigoKg) || frigoKg <= 0 || !Number.isFinite(frigoGanchos) || frigoGanchos <= 0) {
+      throw new BadRequestException(
+        'No se pudo completar la información de Frigo App. Adjunta un PDF válido o diligencia ID, kg y ganchos manualmente.',
+      );
+    }
+
     order.remisionNumber = dto.remisionNumber;
-    order.frigoAppId = dto.frigoAppId;
-    order.frigoKg = Number(dto.frigoKg);
-    order.frigoGanchos = Number(dto.frigoGanchos);
+    order.frigoAppId = frigoAppId;
+    order.frigoKg = Number(frigoKg.toFixed(3));
+    order.frigoGanchos = Math.round(frigoGanchos);
     if (file) {
       order.frigoPdfBase64 = file.buffer.toString('base64');
       order.frigoPdfName = file.originalname;
@@ -562,6 +594,88 @@ export class CanalOrdersService implements OnModuleInit {
       return this.sendToSiesa(companyId, id, user);
     }
     return order;
+  }
+
+  /** Convierte números del PDF (3,973.8 / 3.973,8 / 3973.8) a number. */
+  private parseLocaleNumber(raw: string | undefined): number | undefined {
+    if (!raw) return undefined;
+    const value = raw.replace(/\s/g, '');
+    if (!value) return undefined;
+    const comma = value.lastIndexOf(',');
+    const dot = value.lastIndexOf('.');
+    if (comma !== -1 && dot !== -1) {
+      if (dot > comma) {
+        const n = Number(value.replace(/,/g, ''));
+        return Number.isFinite(n) ? n : undefined;
+      }
+      const normalized = value.replace(/\./g, '').replace(',', '.');
+      const n = Number(normalized);
+      return Number.isFinite(n) ? n : undefined;
+    }
+    if (comma !== -1) {
+      const decimals = value.length - comma - 1;
+      const normalized =
+        decimals <= 2 ? value.replace(',', '.') : value.replace(/,/g, '');
+      const n = Number(normalized);
+      return Number.isFinite(n) ? n : undefined;
+    }
+    const n = Number(value);
+    return Number.isFinite(n) ? n : undefined;
+  }
+
+  /** Extrae ID Frigo App, kg fríos totales y ganchos desde el PDF. */
+  private parseFrigoText(text: string): ParsedFrigoDoc {
+    const result: ParsedFrigoDoc = {};
+    const normalized = text.replace(/\r/g, '');
+
+    const noMatch = normalized.match(/REPORTE\s+DESPACHO[\s\S]{0,120}?No\.\s*([A-Za-z0-9-]+)/i);
+    if (noMatch?.[1]) {
+      result.frigoAppId = noMatch[1].trim();
+    }
+
+    const nitMatch = normalized.match(/CLIENTE\s*[\n\s]+\d{4}-\d{2}-\d{2}\s+([0-9]{6,})\s*-/i);
+    if (nitMatch?.[1]) {
+      result.customerCode = nitMatch[1].trim();
+    }
+
+    const totalsMatch = normalized.match(
+      /PIEZAS\s+CALIENTE\(kg\)\s+FR[ÍI]O\(kg\)[\s\S]{0,200}?([0-9]+)\s+([0-9.,]+)\s+([0-9.,]+)/i,
+    );
+    if (totalsMatch) {
+      result.frigoGanchos = Number(totalsMatch[1]);
+      result.frigoKg = this.parseLocaleNumber(totalsMatch[3]);
+    }
+
+    if (!result.frigoGanchos || !result.frigoKg) {
+      const flatTotals = normalized.match(
+        /TOTALES[\s\S]{0,220}?([0-9]{1,4})\s+([0-9.,]{3,})\s+([0-9.,]{3,})\s+[0-9.,]+\s+[0-9.,]+\s*\|/i,
+      );
+      if (flatTotals) {
+        result.frigoGanchos = result.frigoGanchos ?? Number(flatTotals[1]);
+        result.frigoKg = result.frigoKg ?? this.parseLocaleNumber(flatTotals[3]);
+      }
+    }
+
+    return result;
+  }
+
+  /** Lee un PDF de Frigo App y devuelve los campos que se pueden inferir. */
+  private async extractFrigoDataFromPdf(
+    newPdfBuffer: Buffer | undefined,
+    existingPdfBase64: string | undefined,
+  ): Promise<ParsedFrigoDoc> {
+    const buffer =
+      newPdfBuffer ??
+      (existingPdfBase64 ? Buffer.from(existingPdfBase64, 'base64') : undefined);
+    if (!buffer) return {};
+    try {
+      const parsed = await pdfParse(buffer);
+      return this.parseFrigoText(parsed.text ?? '');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`No se pudo leer PDF de Frigo App: ${message}`);
+      return {};
+    }
   }
 
   /** PDF de Frigo App relacionado (buffer + nombre). */
