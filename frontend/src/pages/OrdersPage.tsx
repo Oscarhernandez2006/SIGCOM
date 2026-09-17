@@ -10,11 +10,13 @@ import {
   Pencil,
   Lock,
   ArrowRight,
+  Search,
 } from 'lucide-react';
 import {
   useOrders,
   useCancelOrder,
   useSiesaStates,
+  useClients,
   downloadOrderPdf,
 } from '@/hooks/useApi';
 import { useAuth } from '@/auth/useAuth';
@@ -23,10 +25,16 @@ import { formatCurrency, cn, orderNos } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { ApprovalCountdown } from '@/components/ApprovalCountdown';
 import { EditOrderModal } from '@/components/EditOrderModal';
-import type { Order, SiesaState } from '@/types';
+import type { Order, SiesaState, Client } from '@/types';
+
+/** Formatea una fecha como "YYYY-MM-DD" para el input type="date" y la API. */
+function toDateInput(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
 
 /**
  * Trazabilidad del pedido en Siesa: estado (Elaborado / Aprobado / Cumplido /
@@ -93,7 +101,21 @@ const CANCEL_REASONS = [
 const OTHER_REASON = 'Otro';
 
 export function OrdersPage() {
-  const { data: orders = [], isLoading } = useOrders();
+  // Por defecto se filtra el mes en curso para no cargar todo el histórico.
+  const today = new Date();
+  const [fromDate, setFromDate] = useState(
+    toDateInput(new Date(today.getFullYear(), today.getMonth(), 1)),
+  );
+  const [toDate, setToDate] = useState(toDateInput(today));
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [customerFilter, setCustomerFilter] = useState<Client | null>(null);
+
+  const { data: orders = [], isLoading } = useOrders({
+    from: fromDate || undefined,
+    to: toDate || undefined,
+    customerId: customerFilter?.id,
+  });
+  const { data: clientResults = [] } = useClients(customerSearch);
   const { data: siesaStates = {} } = useSiesaStates();
   const cancelMutation = useCancelOrder();
   const navigate = useNavigate();
@@ -163,6 +185,93 @@ export function OrdersPage() {
         </Button>
       </div>
 
+      <Card>
+        <CardContent className="flex flex-wrap items-end gap-4 p-4">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">
+              Desde
+            </label>
+            <Input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="w-40"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">
+              Hasta
+            </label>
+            <Input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="w-40"
+            />
+          </div>
+          <div className="relative min-w-[240px] flex-1 space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">
+              Cliente
+            </label>
+            {customerFilter ? (
+              <div className="flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 text-sm">
+                <span className="truncate">
+                  {customerFilter.name}{' '}
+                  <span className="text-muted-foreground">
+                    (NIT {customerFilter.code})
+                  </span>
+                </span>
+                <button
+                  onClick={() => {
+                    setCustomerFilter(null);
+                    setCustomerSearch('');
+                  }}
+                  aria-label="Quitar filtro de cliente"
+                  className="ml-2 shrink-0 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={customerSearch}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
+                  placeholder="Buscar cliente por nombre o NIT..."
+                  className="pl-9"
+                />
+                {customerSearch && (
+                  <div className="absolute z-10 mt-1 max-h-64 w-full overflow-auto rounded-md border border-border bg-background shadow-md">
+                    {clientResults.length === 0 ? (
+                      <p className="px-3 py-2 text-sm text-muted-foreground">
+                        No se encontraron clientes.
+                      </p>
+                    ) : (
+                      clientResults.map((c) => (
+                        <button
+                          key={c.id}
+                          onClick={() => {
+                            setCustomerFilter(c);
+                            setCustomerSearch('');
+                          }}
+                          className="flex w-full flex-col items-start px-3 py-2 text-left text-sm transition-colors hover:bg-accent"
+                        >
+                          <span className="font-medium">{c.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            NIT {c.code}
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Cargando...</p>
       ) : orders.length === 0 ? (
@@ -170,7 +279,7 @@ export function OrdersPage() {
           <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
             <ClipboardList className="h-8 w-8 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
-              Aun no tienes pedidos.
+              No hay pedidos en el rango o filtro seleccionado.
             </p>
           </CardContent>
         </Card>

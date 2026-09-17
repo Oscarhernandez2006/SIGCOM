@@ -45,8 +45,15 @@ export class OrdersController {
   findMine(
     @CompanyId() companyId: string,
     @CurrentUser('id') sellerId: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('customerId') customerId?: string,
   ) {
-    return this.ordersService.findAllForSeller(companyId, sellerId);
+    return this.ordersService.findAllForSeller(companyId, sellerId, {
+      from,
+      to,
+      customerId,
+    });
   }
 
   /** Avisos pendientes para el vendedor (decisiones de cartera). */

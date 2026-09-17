@@ -6,7 +6,16 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, In, LessThan, Repository } from 'typeorm';
+import {
+  Between,
+  DataSource,
+  EntityManager,
+  In,
+  LessThan,
+  LessThanOrEqual,
+  MoreThanOrEqual,
+  Repository,
+} from 'typeorm';
 import { Order, OrderStatus } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { CreateOrderDto, CreateOrderItemDto } from './dto/create-order.dto';
@@ -967,12 +976,34 @@ export class OrdersService {
     return { items, subtotal, taxes };
   }
 
-  findAllForSeller(companyId: string, sellerId: string): Promise<Order[]> {
+  /**
+   * Pedidos del vendedor, filtrados por rango de fechas y/o cliente. Los
+   * filtros son obligatorios en la práctica (el frontend siempre envía un
+   * rango de fechas por defecto) para no traer todo el histórico de una vez.
+   */
+  findAllForSeller(
+    companyId: string,
+    sellerId: string,
+    filters?: { from?: string; to?: string; customerId?: string },
+  ): Promise<Order[]> {
+    const where: Record<string, unknown> = {
+      companyId,
+      seller: { id: sellerId },
+    };
+
+    const from = filters?.from ? new Date(`${filters.from}T00:00:00`) : undefined;
+    const to = filters?.to ? new Date(`${filters.to}T23:59:59.999`) : undefined;
+    if (from && to) where.createdAt = Between(from, to);
+    else if (from) where.createdAt = MoreThanOrEqual(from);
+    else if (to) where.createdAt = LessThanOrEqual(to);
+
+    if (filters?.customerId) where.customer = { id: filters.customerId };
+
     return this.ordersRepository
       .find({
-        where: { companyId, seller: { id: sellerId } },
+        where,
         order: { createdAt: 'DESC' },
-        take: 100,
+        take: 200,
       })
       .then((orders) => this.withCustomerPriceListName(companyId, orders));
   }

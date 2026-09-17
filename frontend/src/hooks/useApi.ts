@@ -300,12 +300,25 @@ export function useClientPortfolios(nits: string[]) {
   return { balances, portfolios, isLoading };
 }
 
-export function useOrders() {
+export function useOrders(filters?: {
+  from?: string;
+  to?: string;
+  customerId?: string;
+}) {
   const { company } = useCompany();
+  const from = filters?.from;
+  const to = filters?.to;
+  const customerId = filters?.customerId;
   return useQuery({
-    queryKey: ['orders', company?.id],
+    queryKey: ['orders', company?.id, from ?? '', to ?? '', customerId ?? ''],
     queryFn: async () => {
-      const res = await api.get<Order[]>('/orders');
+      const res = await api.get<Order[]>('/orders', {
+        params: {
+          ...(from ? { from } : {}),
+          ...(to ? { to } : {}),
+          ...(customerId ? { customerId } : {}),
+        },
+      });
       return res.data;
     },
   });
