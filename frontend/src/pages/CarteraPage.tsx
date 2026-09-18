@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { isAxiosError } from 'axios';
 import {
   Wallet,
@@ -10,8 +10,6 @@ import {
   Building2,
   Loader2,
   Beef,
-  Search,
-  RefreshCw,
   AlertTriangle,
 } from 'lucide-react';
 import {
@@ -191,74 +189,6 @@ function CanalCarteraCard({ order }: { order: CanalOrder }) {
   );
 }
 
-/** Sección de cartera de canales (validación de cupo), compactada dentro de esta misma página. */
-function CanalCarteraSection() {
-  const { data: orders = [], isLoading, isFetching, refetch } =
-    useCanalCarteraOrders();
-  const [search, setSearch] = useState('');
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return orders;
-    return orders.filter(
-      (o) =>
-        o.clientName.toLowerCase().includes(q) ||
-        o.clientCode.toLowerCase().includes(q),
-    );
-  }, [orders, search]);
-
-  return (
-    <div className="space-y-4 border-t border-border pt-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="flex items-center gap-2 text-lg font-semibold">
-            <Beef className="h-5 w-5 text-primary" />
-            Canales
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            Valida el cupo del cliente y autoriza o rechaza el pedido.
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => refetch()}
-          disabled={isFetching}
-        >
-          <RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin')} />
-          Actualizar
-        </Button>
-      </div>
-
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar por cliente o NIT..."
-          className="pl-9"
-        />
-      </div>
-
-      {isLoading ? (
-        <p className="text-sm text-muted-foreground">Cargando…</p>
-      ) : filtered.length === 0 ? (
-        <Card>
-          <CardContent className="py-10 text-center text-muted-foreground">
-            No hay pedidos de canales pendientes de validación de cartera.
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {filtered.map((order) => (
-            <CanalCarteraCard key={order.id} order={order} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function companyName(id?: string): string {
   return COMPANIES.find((c) => c.id === id)?.name ?? id ?? '—';
 }
@@ -273,6 +203,8 @@ function formatDate(value?: string): string {
 
 export function CarteraPage() {
   const { data: orders = [], isLoading } = useCarteraOrders();
+  const { data: canalOrders = [], isLoading: canalLoading } =
+    useCanalCarteraOrders();
   const approve = useApproveOrder();
   const disapprove = useDisapproveOrder();
 
@@ -324,8 +256,10 @@ export function CarteraPage() {
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Aprobación de cartera</h2>
         <p className="text-muted-foreground">
-          Pedidos retenidos por deuda del cliente. Cada uno tiene 2 horas para
-          ser aprobado o se desaprueba automáticamente y se libera el inventario.
+          Pedidos retenidos por deuda del cliente y pedidos de canales pendientes
+          de validación de cupo. Los de cortes/subproductos tienen 2 horas para
+          ser aprobados o se desaprueban automáticamente y se libera el
+          inventario.
         </p>
       </div>
 
@@ -335,9 +269,9 @@ export function CarteraPage() {
         </p>
       )}
 
-      {isLoading ? (
+      {isLoading || canalLoading ? (
         <p className="text-sm text-muted-foreground">Cargando...</p>
-      ) : orders.length === 0 ? (
+      ) : orders.length === 0 && canalOrders.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
             <ClipboardList className="h-8 w-8 text-muted-foreground" />
@@ -424,10 +358,25 @@ export function CarteraPage() {
               ))}
             </div>
           ))}
+
+          {canalOrders.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between border-b border-border pb-2">
+                <h3 className="flex items-center gap-2 text-lg font-semibold">
+                  <Beef className="h-5 w-5 text-primary" />
+                  Canales
+                </h3>
+                <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                  {canalOrders.length} pedido(s)
+                </span>
+              </div>
+              {canalOrders.map((order) => (
+                <CanalCarteraCard key={order.id} order={order} />
+              ))}
+            </div>
+          )}
         </div>
       )}
-
-      <CanalCarteraSection />
 
       {/* Modal de detalle */}
       {detailTarget && (
