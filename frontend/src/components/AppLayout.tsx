@@ -67,8 +67,13 @@ const adminSections: { label: string; items: typeof sellerNav }[] = [
       { to: '/admin/pedidos', label: 'Administración de pedidos', icon: ClipboardList },
       { to: '/admin/cartera', label: 'Aprobación de cartera', icon: Wallet },
       {
+        to: '/admin/canales-control',
+        label: 'Canales · Control',
+        icon: ClipboardCheck,
+      },
+      {
         to: '/admin/controlador-subproductos',
-        label: 'Control de pedidos',
+        label: 'Controlador Subproductos',
         icon: ClipboardCheck,
       },
     ],

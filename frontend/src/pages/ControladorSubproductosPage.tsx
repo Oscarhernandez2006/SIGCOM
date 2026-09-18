@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+﻿import { useMemo, useState } from 'react';
 import {
   ClipboardCheck,
   Search,
@@ -11,7 +11,6 @@ import {
   RefreshCw,
   Pencil,
   Beef,
-  Save,
 } from 'lucide-react';
 import { isAxiosError } from 'axios';
 import {
@@ -21,16 +20,11 @@ import {
   useApproveControlSubproducto,
   useRejectControlSubproducto,
 } from '@/hooks/useAdminApi';
-import {
-  useCanalControlOrders,
-  useUpdateCanalOrderByControl,
-  useApproveCanalOrderByControl,
-} from '@/hooks/useApi';
-import { formatCurrency, formatDate, cn, orderNos } from '@/lib/utils';
+import { formatCurrency, cn, orderNos } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import type { Order, SellableProduct, CanalOrder, CanalOrderItem } from '@/types';
+import type { Order, SellableProduct } from '@/types';
 
 interface EditLine {
   sku: string;
@@ -48,250 +42,6 @@ function getErrorMessage(error: unknown, fallback: string): string {
     if (typeof msg === 'string') return msg;
   }
   return fallback;
-}
-
-/** Tarjeta de un pedido de canales en revisión: permite ajustar líneas y aprobar. */
-function CanalControlCard({ order }: { order: CanalOrder }) {
-  const [items, setItems] = useState<CanalOrderItem[]>(order.items);
-  const [note, setNote] = useState(order.controlNote ?? '');
-  const [error, setError] = useState('');
-  const updateMutation = useUpdateCanalOrderByControl();
-  const approveMutation = useApproveCanalOrderByControl();
-
-  const setItem = (idx: number, patch: Partial<CanalOrderItem>) => {
-    setItems((prev) =>
-      prev.map((it, i) => {
-        if (i !== idx) return it;
-        const next = { ...it, ...patch };
-        next.estimatedKg = Number(
-          (next.quantity * next.approxWeightKg).toFixed(3),
-        );
-        return next;
-      }),
-    );
-    setError('');
-  };
-
-  const totalKg = useMemo(
-    () => items.reduce((acc, it) => acc + Number(it.estimatedKg || 0), 0),
-    [items],
-  );
-  const totalValue = useMemo(
-    () =>
-      items.reduce(
-        (acc, it) =>
-          acc +
-          Number(it.estimatedKg || 0) * Number(it.price || 0) +
-          Number(it.freight || 0),
-        0,
-      ),
-    [items],
-  );
-
-  const handleSave = async () => {
-    try {
-      await updateMutation.mutateAsync({ id: order.id, items, controlNote: note });
-    } catch (e) {
-      setError(getErrorMessage(e, 'No se pudo completar la acción.'));
-    }
-  };
-
-  const handleApprove = async () => {
-    try {
-      // Guarda cambios pendientes antes de aprobar.
-      await updateMutation.mutateAsync({ id: order.id, items, controlNote: note });
-      await approveMutation.mutateAsync(order.id);
-    } catch (e) {
-      setError(getErrorMessage(e, 'No se pudo completar la acción.'));
-    }
-  };
-
-  return (
-    <Card>
-      <CardContent className="space-y-3 p-4">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div>
-            <p className="font-semibold">
-              Pedido #{order.orderNumber} · {order.clientName}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              NIT {order.clientCode} · Despacho {formatDate(order.dispatchDate)} ·
-              Vendedor {order.sellerName}
-            </p>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm">
-            <thead className="border-b border-border text-left text-xs text-muted-foreground">
-              <tr>
-                <th className="px-2 py-1.5 font-medium">Ítem</th>
-                <th className="px-2 py-1.5 text-right font-medium">Unidades</th>
-                <th className="px-2 py-1.5 text-right font-medium">Kg est.</th>
-                <th className="px-2 py-1.5 font-medium">Rango</th>
-                <th className="px-2 py-1.5 text-right font-medium">Precio/kg</th>
-                <th className="px-2 py-1.5 text-right font-medium">Flete</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {items.map((it, idx) => (
-                <tr key={idx}>
-                  <td className="px-2 py-1.5">
-                    <span className="font-medium">{it.itemName}</span>
-                    <span className="ml-1 text-xs text-muted-foreground">
-                      ({it.especie})
-                    </span>
-                  </td>
-                  <td className="px-2 py-1.5">
-                    <input
-                      inputMode="numeric"
-                      value={it.quantity}
-                      onChange={(e) =>
-                        setItem(idx, { quantity: Number(e.target.value) || 0 })
-                      }
-                      className="w-20 rounded-md border border-input bg-background px-2 py-1 text-right tabular-nums"
-                    />
-                  </td>
-                  <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">
-                    {Number(it.estimatedKg).toLocaleString('es-CO')}
-                  </td>
-                  <td className="px-2 py-1.5 text-xs">{it.specifications || '—'}</td>
-                  <td className="px-2 py-1.5">
-                    <input
-                      inputMode="decimal"
-                      value={it.price}
-                      onChange={(e) =>
-                        setItem(idx, { price: Number(e.target.value) || 0 })
-                      }
-                      className="w-24 rounded-md border border-input bg-background px-2 py-1 text-right tabular-nums"
-                    />
-                  </td>
-                  <td className="px-2 py-1.5">
-                    <input
-                      inputMode="decimal"
-                      value={it.freight}
-                      onChange={(e) =>
-                        setItem(idx, { freight: Number(e.target.value) || 0 })
-                      }
-                      className="w-20 rounded-md border border-input bg-background px-2 py-1 text-right tabular-nums"
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot className="border-t border-border text-sm font-semibold">
-              <tr>
-                <td className="px-2 py-1.5">Totales</td>
-                <td />
-                <td className="px-2 py-1.5 text-right tabular-nums">
-                  {totalKg.toLocaleString('es-CO')} kg
-                </td>
-                <td />
-                <td className="px-2 py-1.5 text-right tabular-nums" colSpan={2}>
-                  {formatCurrency(totalValue)}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-
-        <Input
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Observación del controlador (opcional)"
-        />
-
-        {error && <p className="text-sm text-destructive">{error}</p>}
-
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button
-            variant="outline"
-            onClick={handleSave}
-            disabled={updateMutation.isPending}
-          >
-            <Save className="h-4 w-4" />
-            Guardar cambios
-          </Button>
-          <Button
-            onClick={handleApprove}
-            disabled={approveMutation.isPending || updateMutation.isPending}
-          >
-            <Check className="h-4 w-4" />
-            Aprobar y enviar a cartera
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-/** Sección de control de canales (Zulma), compactada dentro de esta misma página. */
-function CanalControlSection() {
-  const { data: orders = [], isLoading, isFetching, refetch } =
-    useCanalControlOrders();
-  const [search, setSearch] = useState('');
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return orders;
-    return orders.filter(
-      (o) =>
-        o.clientName.toLowerCase().includes(q) ||
-        o.clientCode.toLowerCase().includes(q) ||
-        o.sellerName.toLowerCase().includes(q),
-    );
-  }, [orders, search]);
-
-  return (
-    <div className="space-y-4 border-t border-border pt-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="flex items-center gap-2 text-lg font-semibold">
-            <Beef className="h-5 w-5 text-primary" />
-            Canales
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            Revisa y ajusta los pedidos de canales antes de enviarlos a cartera.
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => refetch()}
-          disabled={isFetching}
-        >
-          <RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin')} />
-          Actualizar
-        </Button>
-      </div>
-
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar por cliente, NIT o vendedor..."
-          className="pl-9"
-        />
-      </div>
-
-      {isLoading ? (
-        <p className="text-sm text-muted-foreground">Cargando…</p>
-      ) : filtered.length === 0 ? (
-        <Card>
-          <CardContent className="py-10 text-center text-muted-foreground">
-            No hay pedidos de canales pendientes de control.
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {filtered.map((order) => (
-            <CanalControlCard key={order.id} order={order} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
 }
 
 export function ControladorSubproductosPage() {
@@ -348,11 +98,11 @@ export function ControladorSubproductosPage() {
         <div>
           <h2 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
             <ClipboardCheck className="h-6 w-6 text-primary" />
-            Control de pedidos
+            Controlador Subproductos
           </h2>
           <p className="text-muted-foreground">
-            Revisa, edita y aprueba los pedidos de subproductos y canales antes
-            de continuar con el flujo (Siesa o cartera).
+            Revisa, edita y aprueba los pedidos de subproductos antes de subirlos
+            a Siesa.
           </p>
         </div>
         <Button
@@ -373,9 +123,7 @@ export function ControladorSubproductosPage() {
         </div>
       )}
 
-      <div className="space-y-3">
-        <h3 className="text-lg font-semibold">Subproductos</h3>
-        {isLoading ? (
+      {isLoading ? (
         <p className="py-10 text-center text-sm text-muted-foreground">
           Cargando…
         </p>
@@ -506,9 +254,6 @@ export function ControladorSubproductosPage() {
           ))}
         </div>
       )}
-      </div>
-
-      <CanalControlSection />
 
       {editing && (
         <EditSubproductoModal
