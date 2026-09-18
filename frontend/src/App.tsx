@@ -9,8 +9,6 @@ import { CompanySelectPage } from '@/pages/CompanySelectPage';
 import { NewOrderPage } from '@/pages/NewOrderPage';
 import { OrdersPage } from '@/pages/OrdersPage';
 import { CanalOrdersPage } from '@/pages/CanalOrdersPage';
-import { CanalControlPage } from '@/pages/CanalControlPage';
-import { CanalCarteraPage } from '@/pages/CanalCarteraPage';
 import { CanalDispatchPage } from '@/pages/CanalDispatchPage';
 import { NewQuotePage } from '@/pages/NewQuotePage';
 import { QuotesPage } from '@/pages/QuotesPage';
@@ -89,8 +87,6 @@ function App() {
         <Route path="presupuestos" element={<BudgetsPage />} />
         <Route path="rentabilidad" element={<RentabilidadPage />} />
         <Route path="cartera" element={<CarteraPage />} />
-        <Route path="canales-control" element={<CanalControlPage />} />
-        <Route path="canales-cartera" element={<CanalCarteraPage />} />
         <Route path="canales-despacho" element={<CanalDispatchPage />} />
         <Route
           path="controlador-subproductos"
@@ -111,7 +107,6 @@ function App() {
         }
       >
         <Route index element={<CarteraPage />} />
-        <Route path="canales" element={<CanalCarteraPage />} />
       </Route>
 
       {/* Área de vendedor / toma de pedidos (requiere compañía) */}
