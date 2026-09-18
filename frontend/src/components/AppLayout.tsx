@@ -258,25 +258,42 @@ export function AppLayout() {
                 />
               </button>
               {open &&
-                group.items.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.end}
-                    onClick={() => setMobileOpen(false)}
-                    className={({ isActive }) =>
-                      cn(
+                group.items.map((item) => {
+                  // Coincidencia por prefijo, pero si un ítem hermano matchea
+                  // con un `to` más específico (p. ej. "/pedidos/canales"
+                  // dentro de "/pedidos"), solo se marca activo el más
+                  // específico para no resaltar dos ítems a la vez.
+                  const matches = (to: string, end?: boolean) =>
+                    end
+                      ? location.pathname === to
+                      : location.pathname === to ||
+                        location.pathname.startsWith(`${to}/`);
+                  const active =
+                    matches(item.to, item.end) &&
+                    !group.items.some(
+                      (other) =>
+                        other.to !== item.to &&
+                        other.to.length > item.to.length &&
+                        matches(other.to, other.end),
+                    );
+                  return (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      end={item.end}
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
                         'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                        isActive
+                        active
                           ? 'bg-primary/10 text-primary'
                           : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                      )
-                    }
-                  >
-                    <item.icon className="h-4 w-4 shrink-0" />
-                    {item.label}
-                  </NavLink>
-                ))}
+                      )}
+                    >
+                      <item.icon className="h-4 w-4 shrink-0" />
+                      {item.label}
+                    </NavLink>
+                  );
+                })}
             </div>
           );
         })}
