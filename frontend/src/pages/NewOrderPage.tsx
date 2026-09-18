@@ -38,6 +38,7 @@ import {
   downloadOrderPdf,
 } from '@/hooks/useApi';
 import { useOrderSchedule } from '@/hooks/useAdminApi';
+import { CanalOrderForm } from '@/components/CanalOrderForm';
 import { formatCurrency, cn, orderNos } from '@/lib/utils';
 import { DeliverySchedulePicker } from '@/components/DeliverySchedulePicker';
 import { isScheduleComplete, formatDeliverySchedule } from '@/lib/delivery-schedule';
@@ -461,40 +462,29 @@ export function NewOrderPage() {
         </div>
       );
     }
-  } else if (tipo !== 'cortes') {
-    const permKey = '/pedidos/canales';
+  } else if (tipo === 'canales') {
     const allowed =
       user?.role === 'admin' ||
-      (company?.permissions ?? []).includes(permKey);
-    const label = 'Canales';
-    return (
-      <div className="mx-auto max-w-lg py-16">
-        <Card>
-          <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-            {allowed ? (
-              <>
-                <PackageOpen className="h-10 w-10 text-muted-foreground" />
-                <h2 className="text-xl font-bold">Pedido de {label}</h2>
-                <p className="text-sm text-muted-foreground">
-                  Esta vista está en construcción y estará disponible pronto.
-                </p>
-              </>
-            ) : (
-              <>
-                <AlertCircle className="h-10 w-10 text-destructive" />
-                <h2 className="text-xl font-bold">Sin permiso</h2>
-                <p className="text-sm text-muted-foreground">
-                  No tienes permiso para tomar pedidos de {label}.
-                </p>
-              </>
-            )}
-            <Button variant="outline" onClick={() => navigate('/pedidos')}>
-              Volver a Pedidos
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
+      (company?.permissions ?? []).includes('/pedidos/canales');
+    if (!allowed) {
+      return (
+        <div className="mx-auto max-w-lg py-16">
+          <Card>
+            <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
+              <AlertCircle className="h-10 w-10 text-destructive" />
+              <h2 className="text-xl font-bold">Sin permiso</h2>
+              <p className="text-sm text-muted-foreground">
+                No tienes permiso para tomar pedidos de Canales.
+              </p>
+              <Button variant="outline" onClick={() => navigate('/pedidos')}>
+                Volver a Pedidos
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+    return <CanalOrderForm />;
   }
 
   return (
