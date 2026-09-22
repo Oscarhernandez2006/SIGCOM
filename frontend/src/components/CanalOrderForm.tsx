@@ -47,6 +47,8 @@ interface Line {
   /** Precio por kilo. */
   price: string;
   freight: string;
+  /** Campo que el usuario editó de último (el otro se autocalcula desde este). */
+  driver: 'kg' | 'quantity';
 }
 
 function emptyLine(id: number): Line {
@@ -58,7 +60,24 @@ function emptyLine(id: number): Line {
     specifications: '',
     price: '',
     freight: '',
+    driver: 'kg',
   };
+}
+
+/** Extrae el promedio (kg) de un rango "X A Y KG" (ej. "80 A 90 KG" -> 85). */
+function parseSpecAverageWeight(spec: string): number | null {
+  const match = spec.match(/(\d+(?:[.,]\d+)?)\s*A\s*(\d+(?:[.,]\d+)?)\s*KG/i);
+  if (!match) return null;
+  const min = Number(match[1].replace(',', '.'));
+  const max = Number(match[2].replace(',', '.'));
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
+  return (min + max) / 2;
+}
+
+/** Redondea a 1 decimal y quita ceros sobrantes ("2975.0" -> "2975"). */
+function roundKg(value: number): string {
+  const rounded = Math.round(value * 10) / 10;
+  return String(rounded);
 }
 
 function getErrorMessage(error: unknown): string {
@@ -97,15 +116,40 @@ export function CanalOrderForm() {
   const approxOf = (itemRef: string) =>
     CANAL_ITEMS.find((i) => i.ref === itemRef)?.approxWeightKg ?? 0;
 
+  /** Peso promedio efectivo: el del rango elegido, o el del ítem si aún no hay rango. */
+  const avgWeightOf = (l: Line): number =>
+    parseSpecAverageWeight(l.specifications) ?? approxOf(l.itemRef);
+
   const estimatedKgOf = (l: Line) =>
-    Number(l.quantity || 0) * approxOf(l.itemRef);
+    Number(l.quantity || 0) * avgWeightOf(l);
 
   /** Al cambiar los kg requeridos se sugieren las unidades (round(kg/peso)). */
   const setKg = (l: Line, kg: string) => {
-    const approx = approxOf(l.itemRef);
+    const avg = avgWeightOf(l);
     const units =
-      approx > 0 && Number(kg) > 0 ? Math.round(Number(kg) / approx) : 0;
-    setLine(l.id, { kg, quantity: units ? String(units) : '' });
+      avg > 0 && Number(kg) > 0 ? Math.round(Number(kg) / avg) : 0;
+    setLine(l.id, { kg, quantity: units ? String(units) : '', driver: 'kg' });
+  };
+
+  /** Viceversa: al cambiar las unidades se sugieren los kg requeridos. */
+  const setQuantity = (l: Line, quantity: string) => {
+    const avg = avgWeightOf(l);
+    const kg = avg > 0 && Number(quantity) > 0 ? roundKg(Number(quantity) * avg) : '';
+    setLine(l.id, { quantity, kg, driver: 'quantity' });
+  };
+
+  /** Al elegir el rango se recalcula el campo que no sea el último editado. */
+  const setSpecifications = (l: Line, specifications: string) => {
+    const avg = parseSpecAverageWeight(specifications) ?? approxOf(l.itemRef);
+    if (l.driver === 'quantity') {
+      const kg =
+        avg > 0 && Number(l.quantity) > 0 ? roundKg(Number(l.quantity) * avg) : l.kg;
+      setLine(l.id, { specifications, kg });
+    } else {
+      const units =
+        avg > 0 && Number(l.kg) > 0 ? Math.round(Number(l.kg) / avg) : 0;
+      setLine(l.id, { specifications, quantity: units ? String(units) : '' });
+    }
   };
 
   const addLine = () => {
@@ -174,7 +218,7 @@ export function CanalOrderForm() {
             especie: def.especie,
             quantity,
             approxWeightKg: def.approxWeightKg,
-            estimatedKg: Number((quantity * def.approxWeightKg).toFixed(3)),
+            estimatedKg: Number((quantity * avgWeightOf(l)).toFixed(3)),
             specifications: l.specifications.trim(),
             price: Number(l.price || 0),
             freight: Number(l.freight || 0),
@@ -314,11 +358,11 @@ export function CanalOrderForm() {
                   <th className="w-24 px-2 py-2 text-right font-medium">
                     Kg requeridos
                   </th>
-                  <th className="w-24 px-2 py-2 text-right font-medium">
-                    Unidades
-                  </th>
                   <th className="px-2 py-2 font-medium">
                     Especificaciones / Novedades
+                  </th>
+                  <th className="w-24 px-2 py-2 text-right font-medium">
+                    Unidades
                   </th>
                   <th className="w-24 px-2 py-2 text-right font-medium">
                     Precio/kg
@@ -348,6 +392,7 @@ export function CanalOrderForm() {
                               itemRef: ref,
                               specifications: '',
                               quantity: units ? String(units) : l.quantity,
+                              driver: 'kg',
                             });
                           }}
                           className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
@@ -375,32 +420,13 @@ export function CanalOrderForm() {
                           className="w-full rounded-md border border-input bg-background px-2 py-1 text-right tabular-nums outline-none focus:ring-2 focus:ring-primary/40"
                         />
                         <p className="mt-0.5 text-[10px] text-muted-foreground">
-                          ≈ {approxOf(l.itemRef).toLocaleString('es-CO')} kg/u
-                        </p>
-                      </td>
-                      <td className="px-2 py-2">
-                        <input
-                          inputMode="numeric"
-                          value={l.quantity}
-                          onChange={(e) =>
-                            setLine(l.id, {
-                              quantity: cleanNumeric(e.target.value),
-                            })
-                          }
-                          placeholder="0"
-                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-right tabular-nums outline-none focus:ring-2 focus:ring-primary/40"
-                        />
-                        <p className="mt-0.5 text-[10px] text-muted-foreground">
-                          {estimatedKgOf(l).toLocaleString('es-CO')} kg
-                          estimados
+                          ≈ {avgWeightOf(l).toLocaleString('es-CO')} kg/u
                         </p>
                       </td>
                       <td className="px-2 py-2">
                         <select
                           value={l.specifications}
-                          onChange={(e) =>
-                            setLine(l.id, { specifications: e.target.value })
-                          }
+                          onChange={(e) => setSpecifications(l, e.target.value)}
                           className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
                         >
                           <option value="">Selecciona el rango...</option>
@@ -410,6 +436,21 @@ export function CanalOrderForm() {
                             </option>
                           ))}
                         </select>
+                      </td>
+                      <td className="px-2 py-2">
+                        <input
+                          inputMode="numeric"
+                          value={l.quantity}
+                          onChange={(e) =>
+                            setQuantity(l, cleanNumeric(e.target.value))
+                          }
+                          placeholder="0"
+                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-right tabular-nums outline-none focus:ring-2 focus:ring-primary/40"
+                        />
+                        <p className="mt-0.5 text-[10px] text-muted-foreground">
+                          {estimatedKgOf(l).toLocaleString('es-CO')} kg
+                          estimados
+                        </p>
                       </td>
                       <td className="px-2 py-2">
                         <input
