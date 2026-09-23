@@ -45,6 +45,14 @@ export default () => ({
     timeoutMs: parseInt(process.env.PRICE_LISTS_TIMEOUT_MS ?? '30000', 10),
   },
 
+  // Carga de pedidos al ERP (mismo gateway que priceLists, pero con más
+  // margen: en horas pico de cierre de pedidos el ERP responde más lento y
+  // 30s no alcanzaba, generando pedidos marcados "Error" que en realidad sí
+  // se habían creado en Siesa.
+  ordersUpload: {
+    timeoutMs: parseInt(process.env.ORDERS_UPLOAD_TIMEOUT_MS ?? '60000', 10),
+  },
+
   // Despacho: endpoints de Siesa con las facturas TAT que se suben a Drivin.
   // Cada compañía tiene su propio endpoint (AGROPECUARIA=3, CARNES FRIAS=8).
   dispatch: {

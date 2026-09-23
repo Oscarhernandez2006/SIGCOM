@@ -95,7 +95,7 @@ export class OrdersErpClient {
   ): Promise<ErpUploadResult> {
     const baseUrl = this.config.get<string>('priceLists.baseUrl');
     const token = this.config.get<string>('priceLists.token');
-    const timeout = this.config.get<number>('priceLists.timeoutMs');
+    const timeout = this.config.get<number>('ordersUpload.timeoutMs');
     const endpoint = getOrderEndpoint(companyId);
 
     // Se registra el cliente y la sucursal de cada línea que se envía al ERP
@@ -162,7 +162,7 @@ export class OrdersErpClient {
   ): Promise<ErpUploadResult> {
     const baseUrl = this.config.get<string>('priceLists.baseUrl');
     const token = this.config.get<string>('priceLists.token');
-    const timeout = this.config.get<number>('priceLists.timeoutMs');
+    const timeout = this.config.get<number>('ordersUpload.timeoutMs');
 
     const post = async (
       path: string,
