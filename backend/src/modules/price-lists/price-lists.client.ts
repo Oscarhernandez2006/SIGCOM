@@ -116,6 +116,33 @@ interface VendorMonthlySalesResponse {
 }
 
 /**
+ * Fila cruda del endpoint de ventas por vendedor Y cliente (mensual). A
+ * diferencia de `dashboard-comercial` (solo vendedor) y `facturas-*-tat` (solo
+ * cliente), este SI cruza vendedor + cliente + valor real facturado, tomado de
+ * las facturas reales del ERP (t461/t470): incluye cualquier canal de venta
+ * (pedidos de la app, EDI, cuentas nacionales, etc.) porque no depende de
+ * cómo se tomó el pedido.
+ */
+export interface VendorClientSaleRaw {
+  Anio?: number;
+  Mes?: number;
+  CodigoVendedor?: string;
+  NombreVendedor?: string;
+  NitCliente?: string;
+  Cliente?: string;
+  ValorSubtotal?: number;
+  KilosTotal?: number;
+  LineasFacturadas?: number;
+}
+
+interface VendorClientSalesResponse {
+  total?: number;
+  has_more?: boolean;
+  next_offset?: number;
+  data: VendorClientSaleRaw[];
+}
+
+/**
  * Clasificación canónica de subproductos (RES=bovino / CERDO=porcino) por
  * referencia. Es la fuente de la verdad para dividir el pedido: si el ERP
  * (`/ventas/subproductos`) no devuelve la categoría de una referencia (o la
@@ -479,6 +506,64 @@ export class PriceListsClient {
       );
       throw new InternalServerErrorException(
         'Error consultando las ventas generales por vendedor en Siesa.',
+      );
+    }
+  }
+
+  /**
+   * Ventas por vendedor Y cliente (facturación real, cualquier canal) para un
+   * rango de fechas: una fila por vendedor+cliente con su venta, kilos y
+   * líneas facturadas.
+   * GET {baseUrl}/ventas/vendedor-clientes-mes?id_cia&fecha_inicio&fecha_fin&token
+   */
+  async fetchVendorClientSales(
+    compania: string,
+    fechaInicio: string,
+    fechaFin: string,
+  ): Promise<VendorClientSaleRaw[]> {
+    const baseUrl = this.config.get<string>('priceLists.baseUrl');
+    const token = this.config.get<string>('priceLists.token');
+    const timeout = this.config.get<number>('priceLists.timeoutMs');
+    const PAGE = 1000;
+    const MAX_PAGES = 20;
+    try {
+      const rows: VendorClientSaleRaw[] = [];
+      let offset = 0;
+      let page = 0;
+      while (page < MAX_PAGES) {
+        const response = await firstValueFrom(
+          this.http.get<VendorClientSalesResponse>(
+            `${baseUrl}/ventas/vendedor-clientes-mes`,
+            {
+              params: {
+                id_cia: compania,
+                fecha_inicio: fechaInicio,
+                fecha_fin: fechaFin,
+                limit: PAGE,
+                offset,
+                token,
+              },
+              timeout,
+            },
+          ),
+        );
+        const batch = response.data?.data ?? [];
+        rows.push(...batch);
+        page++;
+        if (batch.length === 0 || !response.data?.has_more) break;
+        offset = response.data?.next_offset ?? offset + batch.length;
+      }
+      return rows;
+    } catch (error) {
+      const message =
+        error && typeof error === 'object' && 'message' in error
+          ? (error as { message: string }).message
+          : 'Error desconocido';
+      this.logger.error(
+        `Error consultando ventas por vendedor y cliente (compañía ${compania}, ${fechaInicio}..${fechaFin}): ${message}`,
+      );
+      throw new InternalServerErrorException(
+        'Error consultando las ventas por vendedor y cliente en Siesa.',
       );
     }
   }
