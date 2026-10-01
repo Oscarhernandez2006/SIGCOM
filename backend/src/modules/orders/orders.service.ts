@@ -16,7 +16,7 @@ import {
   MoreThanOrEqual,
   Repository,
 } from 'typeorm';
-import { Order, OrderStatus } from './entities/order.entity';
+import { Order, OrderStatus, DeliveryType } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { CreateOrderDto, CreateOrderItemDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
@@ -1497,6 +1497,13 @@ export class OrdersService {
     }
     const notas = notesParts.join(' / ');
 
+    // 'DESPACHO' o 'RECOGIDA', para que la app externa (rutas_web) sepa cuáles
+    // pedidos cargar en el despacho nocturno sin depender del texto libre.
+    const tipoEntrega =
+      order.deliveryType === DeliveryType.RECOGE_EN_PLANTA
+        ? 'RECOGIDA'
+        : 'DESPACHO';
+
     return order.items.map((item) => ({
       documento_venta: order.orderNumber,
       fecha: toErpDate(orderDate),
@@ -1511,6 +1518,8 @@ export class OrdersService {
       precio: String(Number(item.unitPrice)),
       cond_pago: order.customer.paymentTerm ?? '',
       notas,
+      npedido_sigcom: order.orderNumber,
+      tipo_entrega: tipoEntrega,
     }));
   }
 

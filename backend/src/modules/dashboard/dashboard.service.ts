@@ -879,7 +879,7 @@ export class DashboardService {
     );
 
     // Desglose de presupuesto POR cliente/tienda (solo vendedores "por cliente",
-    // p. ej. Juan Sierra). Cruza la meta por cliente con la venta real (pedidos).
+    // p. ej. Juan Sierra). Cruza la meta por cliente con la venta real.
     let clientBudgets: SellerCommercialDashboard['clientBudgets'] = null;
     if (!allSellers && (await this.budgetsService.isClientBudgetSeller(sellerId))) {
       const metas = await this.budgetsService.listClientBudgets(
@@ -889,8 +889,28 @@ export class DashboardService {
         year,
       );
       const revByCode = new Map<string, number>();
-      for (const c of [...topCustomers, ...customersNotBuying]) {
-        revByCode.set(c.code, (revByCode.get(c.code) ?? 0) + c.revenue);
+      if (useErp) {
+        // Venta real facturada por cliente (Siesa, `/ventas/vendedor-clientes-mes`):
+        // incluye cualquier canal (cuentas nacionales/EDI que nunca pasan por
+        // pedidos de la app, como Éxito o PriceSmart).
+        const sellerNit = (seller?.documentId ?? '').trim();
+        const clientSales = await this.priceListsService
+          .getVendorClientSales(baseCompanyId(companyId), from, to)
+          .catch(() => []);
+        for (const row of clientSales) {
+          const code = (row.CodigoVendedor ?? '').trim();
+          if (sellerNit && code !== sellerNit) continue;
+          const nit = (row.NitCliente ?? '').trim();
+          if (!nit) continue;
+          revByCode.set(
+            nit,
+            (revByCode.get(nit) ?? 0) + (Number(row.ValorSubtotal) || 0),
+          );
+        }
+      } else {
+        for (const c of [...topCustomers, ...customersNotBuying]) {
+          revByCode.set(c.code, (revByCode.get(c.code) ?? 0) + c.revenue);
+        }
       }
       clientBudgets = metas.map((m) => {
         const rev = revByCode.get(m.clientCode) ?? 0;
