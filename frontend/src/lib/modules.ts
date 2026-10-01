@@ -38,6 +38,8 @@ export const ADMIN_MODULES: ModuleDef[] = [
   { key: '/admin/canales-control', label: 'Canales · Control' },
   { key: '/admin/canales-cartera', label: 'Canales · Cartera' },
   { key: '/admin/canales-despacho', label: 'Canales · Despacho' },
+  { key: '/admin/informe-bajas', label: 'Informe de bajas' },
+  { key: '/admin/informe-devoluciones', label: 'Informe de devoluciones' },
   { key: '/admin/listas-precios', label: 'Listas de precios' },
   { key: '/admin/productos-estrella', label: 'Productos estrella' },
   { key: '/admin/clientes', label: 'Clientes' },

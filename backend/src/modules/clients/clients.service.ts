@@ -2,7 +2,9 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, ILike, Repository } from 'typeorm';
 import { ClientRecord } from './entities/client-record.entity';
+import { ClientSellerInfo } from './entities/client-seller-info.entity';
 import { ClientsClient, ClientRaw, PortfolioRaw } from './clients.client';
+import { SaveClientSellerInfoDto } from './dto/save-client-seller-info.dto';
 import { PriceListsService } from '../price-lists/price-lists.service';
 import { UsersService } from '../users/users.service';
 import { baseCompanyId } from '../../common/companies';
@@ -62,11 +64,56 @@ export class ClientsService {
   constructor(
     @InjectRepository(ClientRecord)
     private readonly repository: Repository<ClientRecord>,
+    @InjectRepository(ClientSellerInfo)
+    private readonly sellerInfoRepository: Repository<ClientSellerInfo>,
     private readonly client: ClientsClient,
     private readonly dataSource: DataSource,
     private readonly priceListsService: PriceListsService,
     private readonly usersService: UsersService,
   ) {}
+
+  /**
+   * Información de ubicación digitada por este vendedor para este cliente, o
+   * `null` si nunca la digitó (así el frontend sabe si debe preguntarla).
+   */
+  async getSellerInfo(
+    companyId: string,
+    customerId: string,
+    sellerId: string,
+  ): Promise<ClientSellerInfo | null> {
+    companyId = baseCompanyId(companyId);
+    return this.sellerInfoRepository.findOne({
+      where: { companyId, customerId, sellerId },
+    });
+  }
+
+  /** Crea o actualiza la información de ubicación digitada por el vendedor. */
+  async saveSellerInfo(
+    companyId: string,
+    customerId: string,
+    sellerId: string,
+    dto: SaveClientSellerInfoDto,
+  ): Promise<ClientSellerInfo> {
+    companyId = baseCompanyId(companyId);
+    // Verifica que el cliente exista en esta compañía antes de guardar.
+    await this.findOne(companyId, customerId);
+
+    const existing = await this.sellerInfoRepository.findOne({
+      where: { companyId, customerId, sellerId },
+    });
+    const entity = existing ?? this.sellerInfoRepository.create({
+      companyId,
+      customerId,
+      sellerId,
+    });
+    entity.direccion = dto.direccion.trim();
+    entity.referencia = dto.referencia?.trim() || undefined;
+    entity.barrio = dto.barrio.trim();
+    entity.ciudad = dto.ciudad.trim();
+    entity.departamento = dto.departamento?.trim() || undefined;
+    entity.telefono = dto.telefono?.trim() || undefined;
+    return this.sellerInfoRepository.save(entity);
+  }
 
   /**
    * Devuelve los clientes de una compañía, con búsqueda opcional.

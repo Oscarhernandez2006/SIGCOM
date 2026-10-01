@@ -7,12 +7,15 @@ import {
 import { api } from '@/lib/api';
 import { useCompany } from '@/company/useCompany';
 import type {
+  Baja,
   CanalOrder,
   Client,
   ClientPortfolio,
+  ClientSellerInfo,
   Customer,
   DeliverySchedule,
   DeliveryType,
+  Devolucion,
   FeaturedProduct,
   Order,
   Product,
@@ -156,6 +159,104 @@ export function useRemoveFeaturedProduct() {
   });
 }
 
+/** Informe de bajas (mermas) de la compañía, filtrable por año/mes. */
+export function useBajas(year?: number, month?: number) {
+  const { company } = useCompany();
+  return useQuery({
+    queryKey: ['bajas', company?.id, year, month],
+    queryFn: async () => {
+      const res = await api.get<Baja[]>('/admin/bajas', {
+        params: { year, month },
+      });
+      return res.data;
+    },
+  });
+}
+
+/** Crea un registro del informe de bajas. */
+export function useCreateBaja() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: Omit<Baja, 'id'>) => {
+      const res = await api.post<Baja>('/admin/bajas', input);
+      return res.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['bajas'] }),
+  });
+}
+
+/** Edita un registro del informe de bajas. */
+export function useUpdateBaja() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...input }: Partial<Baja> & { id: string }) => {
+      const res = await api.patch<Baja>(`/admin/bajas/${id}`, input);
+      return res.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['bajas'] }),
+  });
+}
+
+/** Elimina un registro del informe de bajas. */
+export function useDeleteBaja() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/admin/bajas/${id}`);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['bajas'] }),
+  });
+}
+
+/** Informe de devoluciones de la compañía, filtrable por año/mes. */
+export function useDevoluciones(year?: number, month?: number) {
+  const { company } = useCompany();
+  return useQuery({
+    queryKey: ['devoluciones', company?.id, year, month],
+    queryFn: async () => {
+      const res = await api.get<Devolucion[]>('/admin/devoluciones', {
+        params: { year, month },
+      });
+      return res.data;
+    },
+  });
+}
+
+/** Crea un registro del informe de devoluciones. */
+export function useCreateDevolucion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: Omit<Devolucion, 'id'>) => {
+      const res = await api.post<Devolucion>('/admin/devoluciones', input);
+      return res.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['devoluciones'] }),
+  });
+}
+
+/** Edita un registro del informe de devoluciones. */
+export function useUpdateDevolucion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...input }: Partial<Devolucion> & { id: string }) => {
+      const res = await api.patch<Devolucion>(`/admin/devoluciones/${id}`, input);
+      return res.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['devoluciones'] }),
+  });
+}
+
+/** Elimina un registro del informe de devoluciones. */
+export function useDeleteDevolucion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/admin/devoluciones/${id}`);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['devoluciones'] }),
+  });
+}
+
 /** Vendedores de la compañía con código de vendedor en Siesa. */
 export function useSellers() {
   const { company } = useCompany();
@@ -244,6 +345,53 @@ export function useClients(search: string, sellerCode?: string) {
         },
       });
       return res.data;
+    },
+  });
+}
+
+/**
+ * Ubicación del cliente digitada por el vendedor actual (para comparar contra
+ * la del ERP). `null` si nunca la digitó. Se consulta cada vez que se
+ * selecciona un cliente en la toma de pedidos.
+ */
+export function useClientSellerInfo(customerId?: string) {
+  const { company } = useCompany();
+  return useQuery({
+    queryKey: ['client-seller-info', company?.id, customerId],
+    enabled: !!customerId,
+    queryFn: async () => {
+      const res = await api.get<ClientSellerInfo | null>(
+        `/clients/${customerId}/seller-info`,
+      );
+      return res.data;
+    },
+  });
+}
+
+/** Guarda la ubicación del cliente digitada por el vendedor actual. */
+export function useSaveClientSellerInfo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      customerId,
+      ...dto
+    }: {
+      customerId: string;
+      direccion: string;
+      referencia?: string;
+      barrio: string;
+      ciudad: string;
+      departamento?: string;
+      telefono?: string;
+    }) => {
+      const res = await api.put<ClientSellerInfo>(
+        `/clients/${customerId}/seller-info`,
+        dto,
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['client-seller-info'] });
     },
   });
 }
