@@ -19,6 +19,20 @@ server {
         proxy_read_timeout 120s;
     }
 
+    # Assets con hash en el nombre (Vite): cache larga y nunca caen al
+    # fallback del SPA (si no existen, 404 real en vez de servir index.html
+    # con Content-Type text/html, que rompe la carga de módulos JS).
+    location ~* \.(?:js|css|woff2?|ttf|eot|svg|png|jpg|jpeg|gif|ico|webp|map)$ {
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
+    # index.html: sin cache, para que tras cada deploy el navegador siempre
+    # pida la versión nueva (que referencia los bundles con el hash actual).
+    location = /index.html {
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+    }
+
     # SPA: cualquier ruta desconocida sirve index.html.
     location / {
         try_files $uri $uri/ /index.html;
