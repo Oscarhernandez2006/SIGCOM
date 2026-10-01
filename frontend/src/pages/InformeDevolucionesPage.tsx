@@ -12,6 +12,7 @@ import {
   Wallet,
   Boxes,
   Users,
+  Download,
 } from 'lucide-react';
 import { isAxiosError } from 'axios';
 import {
@@ -22,6 +23,7 @@ import {
   useSellers,
   useProducts,
   useClients,
+  downloadDevolucionesExcel,
 } from '@/hooks/useApi';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { Devolucion } from '@/types';
@@ -542,6 +544,17 @@ export function InformeDevolucionesPage() {
 
   const saving = createMutation.isPending || updateMutation.isPending;
 
+  const [exporting, setExporting] = useState(false);
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await downloadDevolucionesExcel(year, month || undefined);
+    } catch (e) {
+      setError(getErrorMessage(e, 'No se pudo exportar el Excel.'));
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -581,6 +594,10 @@ export function InformeDevolucionesPage() {
           <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin')} />
             Actualizar
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}>
+            <Download className="h-4 w-4" />
+            {exporting ? 'Exportando…' : 'Exportar Excel'}
           </Button>
           <Button size="sm" onClick={openCreate}>
             <Plus className="h-4 w-4" />

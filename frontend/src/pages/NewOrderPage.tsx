@@ -76,6 +76,12 @@ const STEPS = [
   { n: 3, label: 'Confirmar', icon: ClipboardCheck },
 ] as const;
 
+// Desactivado temporalmente: exigir la ubicación del cliente (digitada por
+// el vendedor) antes de crear el pedido estaba bloqueando pedidos. El modal
+// y sus hooks quedan intactos para reactivar esto en el futuro (solo cambiar
+// a `true`).
+const REQUIRE_CLIENT_SELLER_INFO = false;
+
 /** Configuración de la ventana horaria para crear pedidos. */
 interface OrderScheduleCfg {
   enabled: boolean;
@@ -400,26 +406,28 @@ export function NewOrderPage() {
     if (!customer || cart.length === 0) return;
     // No se puede montar el pedido sin cruzar antes la ubicación del cliente
     // que digita el vendedor (se pide una sola vez por cliente).
-    if (sellerInfoLoading) {
-      setSubmitError(
-        'Cargando la información del cliente, intenta de nuevo en un momento.',
-      );
-      return;
-    }
-    if (sellerInfoError) {
-      setSubmitError(
-        'No se pudo verificar la ubicación del cliente. Intenta de nuevo.',
-      );
-      return;
-    }
-    // Fail-closed: si no hay registro confirmado (null o aún sin datos), se
-    // exige diligenciarlo antes de permitir el pedido.
-    if (!sellerInfo) {
-      setSubmitError(
-        'Antes de crear el pedido debes registrar la ubicación del cliente.',
-      );
-      setShowSellerInfoModal(true);
-      return;
+    if (REQUIRE_CLIENT_SELLER_INFO) {
+      if (sellerInfoLoading) {
+        setSubmitError(
+          'Cargando la información del cliente, intenta de nuevo en un momento.',
+        );
+        return;
+      }
+      if (sellerInfoError) {
+        setSubmitError(
+          'No se pudo verificar la ubicación del cliente. Intenta de nuevo.',
+        );
+        return;
+      }
+      // Fail-closed: si no hay registro confirmado (null o aún sin datos), se
+      // exige diligenciarlo antes de permitir el pedido.
+      if (!sellerInfo) {
+        setSubmitError(
+          'Antes de crear el pedido debes registrar la ubicación del cliente.',
+        );
+        setShowSellerInfoModal(true);
+        return;
+      }
     }
     if (!deliveryDate) {
       setSubmitError('Selecciona la fecha de entrega del pedido.');
@@ -477,7 +485,7 @@ export function NewOrderPage() {
   // Tras guardar la ubicación del cliente en el modal, se reintenta crear el
   // pedido automáticamente en cuanto la consulta confirme el nuevo registro.
   useEffect(() => {
-    if (retrySubmitAfterSave && sellerInfo) {
+    if (REQUIRE_CLIENT_SELLER_INFO && retrySubmitAfterSave && sellerInfo) {
       setRetrySubmitAfterSave(false);
       handleSubmit();
     }

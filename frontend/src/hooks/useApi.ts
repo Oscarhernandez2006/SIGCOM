@@ -208,6 +208,22 @@ export function useDeleteBaja() {
   });
 }
 
+/** Descarga el informe de bajas completo (datos + resumen) en Excel (.xlsx). */
+export async function downloadBajasExcel(year?: number, month?: number) {
+  const res = await api.get('/admin/bajas/excel', {
+    params: { year, month },
+    responseType: 'blob',
+  });
+  const url = window.URL.createObjectURL(res.data as Blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `informe-bajas-${year ?? 'todos'}${month ? `-${month}` : ''}.xlsx`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
 /** Informe de devoluciones de la compañía, filtrable por año/mes. */
 export function useDevoluciones(year?: number, month?: number) {
   const { company } = useCompany();
@@ -255,6 +271,22 @@ export function useDeleteDevolucion() {
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['devoluciones'] }),
   });
+}
+
+/** Descarga el informe de devoluciones completo (datos + resumen) en Excel (.xlsx). */
+export async function downloadDevolucionesExcel(year?: number, month?: number) {
+  const res = await api.get('/admin/devoluciones/excel', {
+    params: { year, month },
+    responseType: 'blob',
+  });
+  const url = window.URL.createObjectURL(res.data as Blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `informe-devoluciones-${year ?? 'todos'}${month ? `-${month}` : ''}.xlsx`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
 }
 
 /** Vendedores de la compañía con código de vendedor en Siesa. */
