@@ -67,67 +67,13 @@ export interface DeliverySchedule {
 /** Tipo de entrega del pedido. */
 export type DeliveryType = 'despacho' | 'recoge_en_planta';
 
-/**
- * Ubicación del cliente digitada por el vendedor (independiente de la del
- * ERP), para comparar ambas fuentes. Se pide una sola vez por vendedor.
- */
-export interface ClientSellerInfo {
-  id: string;
-  customerId: string;
-  sellerId: string;
-  direccion: string;
-  referencia?: string;
-  barrio: string;
-  ciudad: string;
-  departamento?: string;
-  telefono?: string;
-}
-
-/**
- * Registro del "Informe de bajas": réplica de la hoja DATOS del Excel de
- * bajas/mermas, digitado manualmente desde el módulo de despachos.
- */
-export interface Baja {
-  id: string;
-  mes: number;
-  fecha: string;
-  cod: string;
-  producto: string;
-  tipoDocumento: string;
-  numero: string;
-  kilos: number;
-  costoUnitario: number;
-  costo: number;
-  perdida?: number | null;
-  causal?: string | null;
-}
-
-/**
- * Registro del "Informe de devoluciones": réplica de la hoja DEVOLUCIONES
- * del Excel de devoluciones diarias, digitado manualmente desde despachos.
- */
-export interface Devolucion {
-  id: string;
-  fecha: string;
-  vendedor?: string | null;
-  facturaNumero?: string | null;
-  cod: string;
-  producto: string;
-  kilos: number;
-  numeroDocumento: string;
-  nit: string;
-  cliente: string;
-  causa: string;
-  conductor?: string | null;
-  precio: number;
-}
-
 export interface PortfolioDocument {
   branch: string;
   costCenter?: string;
   docType?: string;
   description?: string;
-  documentNumber: number;  invoiceDate?: string;
+  documentNumber: number;
+  invoiceDate?: string;
   dueDate?: string;
   debit: number;
   credit: number;

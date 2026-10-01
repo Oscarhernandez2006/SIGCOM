@@ -23,8 +23,6 @@ import { CanalOrdersModule } from './modules/canal-orders/canal-orders.module';
 import { ProvisioningModule } from './modules/provisioning/provisioning.module';
 import { DispatchModule } from './modules/dispatch/dispatch.module';
 import { FeaturedProductsModule } from './modules/featured-products/featured-products.module';
-import { BajasModule } from './modules/bajas/bajas.module';
-import { DevolucionesModule } from './modules/devoluciones/devoluciones.module';
 import { SeederService } from './database/seeder.service';
 import { AppController } from './app.controller';
 
@@ -56,8 +54,6 @@ import { AppController } from './app.controller';
     ProvisioningModule,
     DispatchModule,
     FeaturedProductsModule,
-    BajasModule,
-    DevolucionesModule,
   ],
   controllers: [AppController],
   providers: [SeederService],

@@ -25,14 +25,6 @@ export interface ErpOrderRegistro {
   cond_pago: string;
   /** Notas del pedido (logística y producto concatenadas). */
   notas: string;
-  /**
-   * Número de pedido de SIGCOM, enviado explícito (no inferido de
-   * `documento_venta`) para que la app externa lo mapee de forma confiable a
-   * la "Orden de compra" del registro 430, sin depender de un fallback.
-   */
-  npedido_sigcom: string;
-  /** Tipo de entrega: 'DESPACHO' o 'RECOGIDA'. */
-  tipo_entrega: string;
 }
 
 /** Estado de un pedido en Siesa (respuesta de pedidos-estados-siesa). */

@@ -1,16 +1,6 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Post,
-  Put,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ClientsService } from './clients.service';
-import { SaveClientSellerInfoDto } from './dto/save-client-seller-info.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -92,34 +82,5 @@ export class ClientsController {
   @Post('sync')
   sync(@CompanyId() companyId: string) {
     return this.clientsService.syncFromSiesa(companyId);
-  }
-
-  /**
-   * Información de ubicación del cliente digitada por el vendedor actual
-   * (para comparar contra la del ERP). `null` si nunca la digitó.
-   */
-  @Get(':id/seller-info')
-  getSellerInfo(
-    @CompanyId() companyId: string,
-    @Param('id') customerId: string,
-    @CurrentUser('id') sellerId: string,
-  ) {
-    return this.clientsService.getSellerInfo(companyId, customerId, sellerId);
-  }
-
-  /** Guarda (crea o actualiza) la ubicación digitada por el vendedor actual. */
-  @Put(':id/seller-info')
-  saveSellerInfo(
-    @CompanyId() companyId: string,
-    @Param('id') customerId: string,
-    @CurrentUser('id') sellerId: string,
-    @Body() dto: SaveClientSellerInfoDto,
-  ) {
-    return this.clientsService.saveSellerInfo(
-      companyId,
-      customerId,
-      sellerId,
-      dto,
-    );
   }
 }

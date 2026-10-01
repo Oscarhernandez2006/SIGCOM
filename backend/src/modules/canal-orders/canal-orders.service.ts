@@ -728,10 +728,6 @@ export class CanalOrdersService implements OnModuleInit {
       precio: String(Number(item.price)),
       cond_pago: order.clientPaymentTerm ?? '',
       notas,
-      npedido_sigcom: String(order.orderNumber),
-      // Los pedidos de canales siempre se despachan (remisión), no hay
-      // recogida en planta para este flujo.
-      tipo_entrega: 'DESPACHO',
     }));
   }
 

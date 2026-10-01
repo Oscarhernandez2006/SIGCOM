@@ -16,35 +16,27 @@ export class AppController {
   @Get('resumen-ejecutivo')
   @UseGuards(SharedSecretGuard)
   async resumenEjecutivo() {
-    const [row] = await this.ds.query(`
-      WITH d AS (SELECT (now() AT TIME ZONE 'America/Bogota')::date AS hoy)
-      SELECT
-        COUNT(o.id) FILTER (WHERE (o.created_at AT TIME ZONE 'America/Bogota')::date = d.hoy
-                         AND o.status NOT IN ('draft','cancelled','bounced','disapproved','expired')) AS pedidos_hoy,
-        COUNT(o.id) FILTER (WHERE (o.created_at AT TIME ZONE 'America/Bogota')::date = d.hoy - 1
-                         AND o.status NOT IN ('draft','cancelled','bounced','disapproved','expired')) AS pedidos_ayer,
-        COALESCE(SUM(o.total) FILTER (WHERE (o.created_at AT TIME ZONE 'America/Bogota')::date = d.hoy
-                         AND o.status NOT IN ('draft','cancelled','bounced','disapproved','expired')), 0) AS ventas_hoy,
-        COUNT(o.id) FILTER (WHERE o.status = 'pending_approval') AS cartera_pendiente,
-        (SELECT COUNT(*) FROM quotes q WHERE q.valid_until >= now()) AS cotizaciones_abiertas
-      FROM d LEFT JOIN orders o ON true
-      GROUP BY d.hoy
-    `);
-    const r = {
-      pedidos_hoy: Number(row?.pedidos_hoy) || 0,
-      pedidos_ayer: Number(row?.pedidos_ayer) || 0,
-      ventas_hoy: Number(row?.ventas_hoy) || 0,
-      cartera_pendiente: Number(row?.cartera_pendiente) || 0,
-      cotizaciones_abiertas: Number(row?.cotizaciones_abiertas) || 0,
-    };
-    return {
-      ...r,
-      metrics: [
-        { key: 'pedidos_hoy', label: 'Pedidos hoy', value: r.pedidos_hoy, hint: `${r.pedidos_ayer} ayer` },
-        { key: 'ventas_hoy', label: 'Ventas hoy', value: r.ventas_hoy, format: 'currency' },
-        { key: 'cartera_pendiente', label: 'Retenidos por cartera', value: r.cartera_pendiente, tone: r.cartera_pendiente > 0 ? 'warn' : 'default' },
-        { key: 'cotizaciones_abiertas', label: 'Cotizaciones vigentes', value: r.cotizaciones_abiertas },
-      ],
-    };
+    try {
+      const hoy = new Date().toISOString().slice(0, 10);
+      const ayer = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+
+      const [row] = await this.ds.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE o.created_at::date = $1::date AND o.status NOT IN ('CANCELLED','BOUNCED')) AS pedidos_hoy,
+          COUNT(*) FILTER (WHERE o.created_at::date = $2::date AND o.status NOT IN ('CANCELLED','BOUNCED')) AS pedidos_ayer,
+          COUNT(*) FILTER (WHERE o.cartera_status = 'PENDING') AS cartera_pendiente,
+          (SELECT COUNT(*) FROM quotes q WHERE q.status = 'OPEN') AS cotizaciones_abiertas
+        FROM orders o
+      `, [hoy, ayer]);
+
+      return {
+        pedidos_hoy: parseInt(row.pedidos_hoy, 10) || 0,
+        pedidos_ayer: parseInt(row.pedidos_ayer, 10) || 0,
+        cartera_pendiente: parseInt(row.cartera_pendiente, 10) || 0,
+        cotizaciones_abiertas: parseInt(row.cotizaciones_abiertas, 10) || 0,
+      };
+    } catch {
+      return { pedidos_hoy: 0, pedidos_ayer: 0, cartera_pendiente: 0, cotizaciones_abiertas: 0 };
+    }
   }
 }

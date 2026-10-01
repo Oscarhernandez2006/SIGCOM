@@ -33,8 +33,6 @@ import { ControladorSubproductosPage } from '@/pages/ControladorSubproductosPage
 import { VentasPorVendedorPage } from '@/pages/VentasPorVendedorPage';
 import { DispatchTatInvoicesPage } from '@/pages/DispatchTatInvoicesPage';
 import { FeaturedProductsPage } from '@/pages/FeaturedProductsPage';
-import { InformeBajasPage } from '@/pages/InformeBajasPage';
-import { InformeDevolucionesPage } from '@/pages/InformeDevolucionesPage';
 import { ApiDocsPage } from '@/pages/ApiDocsPage';
 
 function App() {
@@ -92,8 +90,6 @@ function App() {
         <Route path="cartera" element={<CarteraPage />} />
         <Route path="canales-control" element={<CanalControlPage />} />
         <Route path="canales-despacho" element={<CanalDispatchPage />} />
-        <Route path="informe-bajas" element={<InformeBajasPage />} />
-        <Route path="informe-devoluciones" element={<InformeDevolucionesPage />} />
         <Route
           path="controlador-subproductos"
           element={<ControladorSubproductosPage />}

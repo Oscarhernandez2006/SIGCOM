@@ -35,14 +35,12 @@ import {
   useCreateOrder,
   useFeaturedProducts,
   useCustomerHasOrderToday,
-  useClientSellerInfo,
   downloadOrderPdf,
 } from '@/hooks/useApi';
 import { useOrderSchedule } from '@/hooks/useAdminApi';
 import { CanalOrderForm } from '@/components/CanalOrderForm';
 import { formatCurrency, cn, orderNos } from '@/lib/utils';
 import { DeliverySchedulePicker } from '@/components/DeliverySchedulePicker';
-import { ClientSellerInfoModal } from '@/components/ClientSellerInfoModal';
 import { isScheduleComplete, formatDeliverySchedule } from '@/lib/delivery-schedule';
 import { getMinOrderTotal } from '@/lib/companies';
 import { useCompany } from '@/company/useCompany';
@@ -165,18 +163,6 @@ export function NewOrderPage() {
       : '';
 
   const { data: customers = [] } = useClients(customerSearch);
-  // Se pregunta la ubicación una sola vez por (cliente, vendedor); solo se
-  // muestra el modal al intentar crear el pedido (no al seleccionar el
-  // cliente), y es obligatorio: sin guardarla no se puede crear el pedido.
-  const {
-    data: sellerInfo,
-    isLoading: sellerInfoLoading,
-    isError: sellerInfoError,
-  } = useClientSellerInfo(customer?.id);
-  const [showSellerInfoModal, setShowSellerInfoModal] = useState(false);
-  // Tras guardar la ubicación en el modal, se reintenta crear el pedido solo
-  // cuando la consulta ya refleje el registro recién guardado.
-  const [retrySubmitAfterSave, setRetrySubmitAfterSave] = useState(false);
   const { data: products = [] } = useProductsForList(
     productSearch,
     customer?.priceList,
@@ -398,29 +384,6 @@ export function NewOrderPage() {
 
   const handleSubmit = async (skipFeaturedCheck = false) => {
     if (!customer || cart.length === 0) return;
-    // No se puede montar el pedido sin cruzar antes la ubicación del cliente
-    // que digita el vendedor (se pide una sola vez por cliente).
-    if (sellerInfoLoading) {
-      setSubmitError(
-        'Cargando la información del cliente, intenta de nuevo en un momento.',
-      );
-      return;
-    }
-    if (sellerInfoError) {
-      setSubmitError(
-        'No se pudo verificar la ubicación del cliente. Intenta de nuevo.',
-      );
-      return;
-    }
-    // Fail-closed: si no hay registro confirmado (null o aún sin datos), se
-    // exige diligenciarlo antes de permitir el pedido.
-    if (!sellerInfo) {
-      setSubmitError(
-        'Antes de crear el pedido debes registrar la ubicación del cliente.',
-      );
-      setShowSellerInfoModal(true);
-      return;
-    }
     if (!deliveryDate) {
       setSubmitError('Selecciona la fecha de entrega del pedido.');
       return;
@@ -473,15 +436,6 @@ export function NewOrderPage() {
     // el módulo de Pedidos (no se descarga automáticamente).
     setCreatedOrder(order);
   };
-
-  // Tras guardar la ubicación del cliente en el modal, se reintenta crear el
-  // pedido automáticamente en cuanto la consulta confirme el nuevo registro.
-  useEffect(() => {
-    if (retrySubmitAfterSave && sellerInfo) {
-      setRetrySubmitAfterSave(false);
-      handleSubmit();
-    }
-  }, [retrySubmitAfterSave, sellerInfo]);
 
   // Subproductos: valida el permiso (por si se entra por URL) y continúa al
   // flujo normal de toma de pedido. Otras vistas no-cortes siguen en
@@ -1431,18 +1385,6 @@ export function NewOrderPage() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Modal: ubicación del cliente digitada por el vendedor (una vez por cliente) */}
-      {showSellerInfoModal && customer && (
-        <ClientSellerInfoModal
-          client={customer}
-          onClose={() => setShowSellerInfoModal(false)}
-          onSaved={() => {
-            setShowSellerInfoModal(false);
-            setRetrySubmitAfterSave(true);
-          }}
-        />
       )}
     </div>
   );

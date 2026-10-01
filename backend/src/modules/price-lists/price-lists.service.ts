@@ -64,11 +64,6 @@ export class PriceListsService {
     );
   }
 
-  /** Ventas por vendedor Y cliente (facturación real, cualquier canal) del rango. */
-  getVendorClientSales(compania: string, fechaInicio: string, fechaFin: string) {
-    return this.client.fetchVendorClientSales(compania, fechaInicio, fechaFin);
-  }
-
   /** Lista los nombres de las listas de precios de una compañía. */
   async findLists(companyId: string): Promise<PriceListSummary[]> {
     companyId = baseCompanyId(companyId);
