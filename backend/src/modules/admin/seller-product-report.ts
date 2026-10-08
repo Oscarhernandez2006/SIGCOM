@@ -1,4 +1,7 @@
-import PDFDocument from 'pdfkit';
+import {
+  contentBottom,
+  createPdfDocument,
+} from '../../common/pdf-letterhead';
 
 /** Una fila del reporte: lo que un vendedor vendió de un producto. */
 export interface SellerProductRow {
@@ -101,7 +104,7 @@ export function buildSellerProductReportPdf(
   data: SellerProductReportData,
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 48 });
+    const doc = createPdfDocument(data.companyId, { size: 'A4', margin: 48 });
     const chunks: Buffer[] = [];
 
     doc.on('data', (c: Buffer) => chunks.push(c));
@@ -135,7 +138,7 @@ export function buildSellerProductReportPdf(
       .fontSize(18)
       .font('Helvetica-Bold')
       .fillColor('#000')
-      .text(data.companyName, 48, 48);
+      .text(data.companyName, 48, doc.page.margins.top);
     doc
       .fontSize(10)
       .font('Helvetica')
@@ -208,9 +211,9 @@ export function buildSellerProductReportPdf(
 
     let lastSeller = '';
     for (const row of data.rows) {
-      if (y > 780) {
+      if (y > contentBottom(doc) - 14) {
         doc.addPage();
-        y = 48;
+        y = doc.page.margins.top;
         tableHeader(y);
         y += 20;
         doc.font('Helvetica').fontSize(9);

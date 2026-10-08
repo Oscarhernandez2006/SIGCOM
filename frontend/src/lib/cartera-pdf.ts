@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { applyLetterhead, type LetterheadMargins } from '@/lib/pdf-letterhead';
 import type { Client, ClientPortfolio, PortfolioDocument } from '@/types';
 
 /* -------------------------------------------------------------------------- */
@@ -54,8 +55,37 @@ function drawBandHeader(
   title: string,
   subtitle: string,
   rightLines: string[],
+  letterhead: LetterheadMargins | null,
 ): number {
   const w = pageWidth(doc);
+
+  // Con membrete el logo ya va arriba: solo se escribe el título debajo.
+  if (letterhead) {
+    const top = letterhead.top;
+    doc.setTextColor(...TEXT);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text(title, MARGIN, top);
+    if (subtitle) {
+      const titleW = doc.getTextWidth(title);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(...MUTED);
+      doc.text(subtitle, MARGIN + titleW + 8, top);
+    }
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...MUTED);
+    let y = top - 10;
+    for (const line of rightLines) {
+      doc.text(line, w - MARGIN, y, { align: 'right' });
+      y += 11;
+    }
+    doc.setFillColor(...ACCENT);
+    doc.rect(MARGIN, top + 10, w - MARGIN * 2, 2, 'F');
+    doc.setTextColor(...TEXT);
+    return top + 30;
+  }
 
   doc.setFillColor(...PRIMARY);
   doc.rect(0, 0, w, 78, 'F');
@@ -224,7 +254,12 @@ function computeAging(documents: PortfolioDocument[]): Aging {
 }
 
 /** Tabla horizontal con la distribución de saldos por antigüedad. */
-function drawAgingTable(doc: jsPDF, startY: number, a: Aging): number {
+function drawAgingTable(
+  doc: jsPDF,
+  startY: number,
+  a: Aging,
+  letterhead: LetterheadMargins | null,
+): number {
   const total = a.current + a.d30 + a.d60 + a.d90 + a.d90plus;
   autoTable(doc, {
     startY,
@@ -268,7 +303,7 @@ function drawAgingTable(doc: jsPDF, startY: number, a: Aging): number {
       4: { textColor: DANGER, fontStyle: 'bold' },
       5: { fillColor: CARD_BG, fontStyle: 'bold' },
     },
-    margin: { left: MARGIN, right: MARGIN },
+    margin: tableMargin(letterhead),
   });
   return lastY(doc);
 }
@@ -293,6 +328,16 @@ const docTableTheme = {
   alternateRowStyles: { fillColor: STRIPE },
   margin: { left: MARGIN, right: MARGIN, top: 48, bottom: 44 },
 };
+
+/** Márgenes de las tablas que pasan de página (respetan el membrete). */
+function tableMargin(letterhead: LetterheadMargins | null) {
+  return {
+    left: MARGIN,
+    right: MARGIN,
+    top: letterhead?.top ?? 48,
+    bottom: letterhead?.bottom ?? 44,
+  };
+}
 
 /** Filas de documentos con columna de días vencido y estado. */
 function documentRows(documents: PortfolioDocument[]): string[][] {
@@ -324,6 +369,7 @@ const DOC_HEAD = [
 interface ClientReportInput {
   client: Client;
   portfolio: ClientPortfolio;
+  companyId?: string;
   companyName: string;
   sellerName: string;
 }
@@ -375,18 +421,23 @@ function drawClientCard(
 }
 
 /** Genera y descarga el PDF de la cartera de UN cliente específico. */
-export function exportClientPortfolioPdf({
+export async function exportClientPortfolioPdf({
   client,
   portfolio,
+  companyId,
   companyName,
   sellerName,
-}: ClientReportInput): void {
+}: ClientReportInput): Promise<void> {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+  const letterhead = await applyLetterhead(doc, companyId);
 
-  let y = drawBandHeader(doc, 'Informe de Cartera', 'por cliente', [
-    `Fecha de emisión: ${nowLabel()}`,
-    companyName,
-  ]);
+  let y = drawBandHeader(
+    doc,
+    'Informe de Cartera',
+    'por cliente',
+    [`Fecha de emisión: ${nowLabel()}`, companyName],
+    letterhead,
+  );
 
   y = drawClientCard(doc, y, client, sellerName, companyName) + 18;
 
@@ -409,7 +460,7 @@ export function exportClientPortfolioPdf({
   y += 22;
 
   y = sectionTitle(doc, y, 'Análisis de vencimiento') + 6;
-  y = drawAgingTable(doc, y, aging) + 22;
+  y = drawAgingTable(doc, y, aging, letterhead) + 22;
 
   y = sectionTitle(doc, y, 'Detalle de documentos') + 6;
   if (portfolio.documents.length === 0) {
@@ -423,6 +474,7 @@ export function exportClientPortfolioPdf({
   } else {
     autoTable(doc, {
       ...docTableTheme,
+      margin: tableMargin(letterhead),
       startY: y,
       head: DOC_HEAD,
       body: documentRows(portfolio.documents),
@@ -465,19 +517,22 @@ export function exportClientPortfolioPdf({
 
 interface SellerReportInput {
   sellerName: string;
+  companyId?: string;
   companyName: string;
   clients: Client[];
   portfolios: Record<string, ClientPortfolio>;
 }
 
 /** Genera y descarga el PDF con la cartera de TODOS los clientes del vendedor. */
-export function exportSellerPortfolioPdf({
+export async function exportSellerPortfolioPdf({
   sellerName,
+  companyId,
   companyName,
   clients,
   portfolios,
-}: SellerReportInput): void {
+}: SellerReportInput): Promise<void> {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+  const letterhead = await applyLetterhead(doc, companyId);
 
   const rows = clients
     .map((c) => {
@@ -518,10 +573,13 @@ export function exportSellerPortfolioPdf({
     },
   );
 
-  let y = drawBandHeader(doc, 'Informe de Cartera', 'por vendedor', [
-    `Vendedor: ${sellerName}`,
-    `${companyName} · ${nowLabel()}`,
-  ]);
+  let y = drawBandHeader(
+    doc,
+    'Informe de Cartera',
+    'por vendedor',
+    [`Vendedor: ${sellerName}`, `${companyName} · ${nowLabel()}`],
+    letterhead,
+  );
 
   y = drawKpiRow(doc, y, [
     { label: 'Clientes', value: String(rows.length) },
@@ -536,7 +594,7 @@ export function exportSellerPortfolioPdf({
   y += 22;
 
   y = sectionTitle(doc, y, 'Análisis de vencimiento de la cartera') + 6;
-  y = drawAgingTable(doc, y, globalAging) + 22;
+  y = drawAgingTable(doc, y, globalAging, letterhead) + 22;
 
   y = sectionTitle(doc, y, 'Resumen por cliente') + 6;
   autoTable(doc, {
@@ -598,21 +656,22 @@ export function exportSellerPortfolioPdf({
         data.cell.styles.fontStyle = 'bold';
       }
     },
-    margin: { left: MARGIN, right: MARGIN, top: 48, bottom: 44 },
+    margin: tableMargin(letterhead),
   });
 
   // Detalle por cliente con documentos pendientes.
   const detailed = rows.filter((r) => r.documents.length > 0);
   if (detailed.length > 0) {
+    const pageTop = letterhead ? letterhead.top + 8 : 56;
     doc.addPage();
     let cursorY =
-      sectionTitle(doc, 56, 'Detalle de documentos por cliente') + 10;
-    const hLimit = pageHeight(doc) - 90;
+      sectionTitle(doc, pageTop, 'Detalle de documentos por cliente') + 10;
+    const hLimit = pageHeight(doc) - (letterhead ? letterhead.bottom + 40 : 90);
 
     for (const r of detailed) {
       if (cursorY > hLimit) {
         doc.addPage();
-        cursorY = 56;
+        cursorY = pageTop;
       }
       // Cabecera del cliente
       const w = pageWidth(doc) - MARGIN * 2;
@@ -639,6 +698,7 @@ export function exportSellerPortfolioPdf({
 
       autoTable(doc, {
         ...docTableTheme,
+        margin: tableMargin(letterhead),
         startY: cursorY + 20,
         head: DOC_HEAD,
         body: documentRows(r.documents),

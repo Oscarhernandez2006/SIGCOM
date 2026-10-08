@@ -64,18 +64,32 @@ export class ProductsController {
   findInStock(
     @CompanyId() companyId: string,
     @Query('search') search?: string,
+    @Query('priceList') priceList?: string,
   ) {
+    if (priceList) {
+      return this.productsService.findInStockWithPrices(
+        companyId,
+        priceList,
+        search,
+      );
+    }
     return this.productsService.findInStock(companyId, search);
   }
 
   /**
    * PDF de los productos disponibles hoy (en stock) para compartir con
-   * clientes. Disponible para vendedores y administradores.
+   * clientes. Con `priceList` incluye el precio de esa lista.
    */
   @Get('stock/pdf')
-  async stockPdf(@CompanyId() companyId: string, @Res() res: Response) {
-    const products = await this.productsService.findInStock(companyId);
-    const buffer = await buildStockPdf(companyId, products);
+  async stockPdf(
+    @CompanyId() companyId: string,
+    @Res() res: Response,
+    @Query('priceList') priceList?: string,
+  ) {
+    const products = priceList
+      ? await this.productsService.findInStockWithPrices(companyId, priceList)
+      : await this.productsService.findInStock(companyId);
+    const buffer = await buildStockPdf(companyId, products, Boolean(priceList));
     const today = new Date()
       .toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
       .replace(/\//g, '-');

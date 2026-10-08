@@ -1,5 +1,9 @@
-import PDFDocument from 'pdfkit';
 import { Order } from './entities/order.entity';
+import {
+  contentBottom,
+  createPdfDocument,
+  setPdfCompany,
+} from '../../common/pdf-letterhead';
 
 const COMPANY_NAMES: Record<string, string> = {
   '3': 'AGROPECUARIA SANTACRUZ',
@@ -40,7 +44,10 @@ export function buildOrdersPdf(orders: Order[]): Promise<Buffer> {
 /** Crea el documento PDF y dibuja cada pedido (uno por página). */
 function renderOrdersToPdf(orders: Order[]): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 48 });
+    const doc = createPdfDocument(orders[0]?.companyId, {
+      size: 'A4',
+      margin: 48,
+    });
     const chunks: Buffer[] = [];
 
     doc.on('data', (c: Buffer) => chunks.push(c));
@@ -48,6 +55,7 @@ function renderOrdersToPdf(orders: Order[]): Promise<Buffer> {
     doc.on('error', reject);
 
     orders.forEach((order, idx) => {
+      setPdfCompany(doc, order.companyId);
       if (idx > 0) doc.addPage();
       drawOrder(doc, order);
     });
@@ -183,12 +191,16 @@ function drawOrder(doc: PDFKit.PDFDocument, order: Order): void {
     let y = tableTop + 20;
     doc.font('Helvetica').fillColor('#222');
 
+    const ensureSpace = (needed: number) => {
+      if (y + needed > contentBottom(doc)) {
+        doc.addPage();
+        y = doc.page.margins.top;
+      }
+    };
+
     for (const item of order.items) {
       // Salto de página si se acaba el espacio.
-      if (y > 760) {
-        doc.addPage();
-        y = 48;
-      }
+      ensureSpace(34);
       // lineTotal es la base sin IVA (precio × cantidad − descuento). El IVA se
       // agrega solo para mostrarlo; el total de la línea es base + IVA.
       const lineBase = Number(item.lineTotal);
@@ -208,6 +220,7 @@ function drawOrder(doc: PDFKit.PDFDocument, order: Order): void {
       y += Math.max(18, nameHeight + 4);
     }
 
+    ensureSpace(60);
     doc
       .strokeColor('#ddd')
       .moveTo(48, y)
@@ -231,6 +244,7 @@ function drawOrder(doc: PDFKit.PDFDocument, order: Order): void {
 
     // Nota producto.
     if (order.notes) {
+      ensureSpace(74);
       y += 30;
       doc
         .font('Helvetica-Bold')
@@ -244,6 +258,7 @@ function drawOrder(doc: PDFKit.PDFDocument, order: Order): void {
 
     // Nota logística.
     if (order.logisticsNote) {
+      ensureSpace(74);
       y += order.notes ? 44 : 30;
       doc
         .font('Helvetica-Bold')
@@ -258,6 +273,7 @@ function drawOrder(doc: PDFKit.PDFDocument, order: Order): void {
 
     // Tipo de entrega.
     if (order.deliveryType) {
+      ensureSpace(74);
       y += order.notes || order.logisticsNote ? 44 : 30;
       doc
         .font('Helvetica-Bold')
@@ -279,6 +295,7 @@ function drawOrder(doc: PDFKit.PDFDocument, order: Order): void {
 
     // Horario de recibido de pedidos.
     if (order.deliverySchedule) {
+      ensureSpace(74);
       y += order.notes || order.logisticsNote || order.deliveryType ? 44 : 30;
       doc
         .font('Helvetica-Bold')

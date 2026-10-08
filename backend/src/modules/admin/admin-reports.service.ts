@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Between, In, Repository } from 'typeorm';
 import { Order, OrderStatus } from '../orders/entities/order.entity';
 import { UserRole } from '../users/entities/user.entity';
 import { Product } from '../products/entities/product.entity';
@@ -63,6 +63,7 @@ import {
 import { BudgetsService } from '../budgets/budgets.service';
 import { UsersService } from '../users/users.service';
 import { PriceListsService } from '../price-lists/price-lists.service';
+import { sameSellerName } from '../../common/seller-names';
 import {
   buildVendorProductSalesReportPdf,
   VendorProductSalesReportData,
@@ -80,6 +81,12 @@ const SALE_STATUSES = [
   OrderStatus.SYNCED,
   OrderStatus.FAILED,
 ];
+
+/** Venta y kilos por id de vendedor, del mes del reporte y del anterior. */
+type SellerSalesMaps = {
+  cur: Map<string, { revenue: number; kilos: number }>;
+  prev: Map<string, { revenue: number; kilos: number }>;
+};
 
 /** Pedidos por vendedor (de la BD) para comparar contra la venta del ERP. */
 export interface OrdersBySellerReportData {
@@ -877,6 +884,160 @@ export class AdminReportsService {
     return { buffer, from: data.from, to: data.to };
   }
 
+  /**
+   * Venta facturada en el ERP por vendedor (mes actual y anterior), misma
+   * fuente que el tablero comercial: AGROPECUARIA por NIT desde
+   * `dashboard-comercial`; CARNES FRIAS por nombre desde
+   * `ventas-periodo-inversiones` (valor bruto sin IVA, en unidades).
+   */
+  private async getErpSellerSales(
+    companyId: string,
+    sellers: { id: string; name: string; documentId: string }[],
+    cur: { periodo: string; from: string; to: string },
+    prev: { periodo: string; from: string; to: string },
+  ): Promise<SellerSalesMaps> {
+    const result: SellerSalesMaps = { cur: new Map(), prev: new Map() };
+    const add = (
+      map: Map<string, { revenue: number; kilos: number }>,
+      sellerId: string,
+      revenue: number,
+      kilos: number,
+    ) => {
+      const acc = map.get(sellerId) ?? { revenue: 0, kilos: 0 };
+      acc.revenue += revenue;
+      acc.kilos += kilos;
+      map.set(sellerId, acc);
+    };
+
+    if (companyId === '8') {
+      const rows = await this.priceListsService.getInversionesSales(
+        '8',
+        prev.periodo,
+        cur.periodo,
+      );
+      for (const r of rows) {
+        const periodo = String(r.periodo);
+        const target =
+          periodo === cur.periodo
+            ? result.cur
+            : periodo === prev.periodo
+              ? result.prev
+              : null;
+        if (!target) continue;
+        const seller = sellers.find((s) =>
+          sameSellerName(s.name, r.vendedor ?? ''),
+        );
+        if (!seller) continue;
+        add(
+          target,
+          seller.id,
+          Number(r.vr_bruto) || 0,
+          Number(r.cantidad) || 0,
+        );
+      }
+      return result;
+    }
+
+    const byNit = new Map(
+      sellers
+        .filter((s) => (s.documentId ?? '').trim())
+        .map((s) => [s.documentId.trim(), s.id]),
+    );
+    const [curRows, prevRows] = await Promise.all([
+      this.priceListsService.getVendorMonthlySales(
+        companyId,
+        cur.periodo,
+        cur.from,
+        cur.to,
+      ),
+      this.priceListsService.getVendorMonthlySales(
+        companyId,
+        prev.periodo,
+        prev.from,
+        prev.to,
+      ),
+    ]);
+    for (const [rows, target] of [
+      [curRows, result.cur],
+      [prevRows, result.prev],
+    ] as const) {
+      for (const g of rows) {
+        const sellerId = byNit.get((g.nit_vendedor ?? '').trim());
+        if (!sellerId) continue;
+        add(
+          target,
+          sellerId,
+          Number(g.total_facturas) || 0,
+          Number(g.kilos) || 0,
+        );
+      }
+    }
+    return result;
+  }
+
+  /** Venta por vendedor desde los pedidos de la app + ventas por canal del ERP. */
+  private async getAppSellerSales(
+    companyId: string,
+    sellers: { id: string; siesaSellerCode: string }[],
+    cur: { from: string; to: string },
+    prev: { from: string; to: string },
+  ): Promise<SellerSalesMaps> {
+    // Bogotá es UTC-5 todo el año.
+    const orders = await this.ordersRepository.find({
+      where: {
+        companyId,
+        status: In(SALE_STATUSES),
+        createdAt: Between(
+          new Date(`${prev.from}T00:00:00-05:00`),
+          new Date(`${cur.to}T23:59:59.999-05:00`),
+        ),
+      },
+    });
+    const result: SellerSalesMaps = { cur: new Map(), prev: new Map() };
+    for (const order of orders) {
+      const { date } = bogotaParts(order.createdAt);
+      const target =
+        date >= cur.from && date <= cur.to
+          ? result.cur
+          : date >= prev.from && date <= prev.to
+            ? result.prev
+            : null;
+      if (!target || !order.seller?.id) continue;
+      const kilos = (order.items ?? []).reduce(
+        (acc, it) =>
+          acc +
+          ((it.unitOfMeasure ?? '').trim().toUpperCase() === 'KG'
+            ? Number(it.quantity)
+            : 0),
+        0,
+      );
+      const acc = target.get(order.seller.id) ?? { revenue: 0, kilos: 0 };
+      acc.revenue += Number(order.total);
+      acc.kilos += kilos;
+      target.set(order.seller.id, acc);
+    }
+
+    const [chCurRows, chPrevRows] = await Promise.all([
+      this.channelSalesClient.fetch(companyId, cur.from, cur.to),
+      this.channelSalesClient.fetch(companyId, prev.from, prev.to),
+    ]);
+    for (const [rows, target] of [
+      [chCurRows, result.cur],
+      [chPrevRows, result.prev],
+    ] as const) {
+      const byCode = this.sumChannelsByCode(rows);
+      for (const s of sellers) {
+        const ch = byCode.get((s.siesaSellerCode ?? '').trim());
+        if (!ch) continue;
+        const acc = target.get(s.id) ?? { revenue: 0, kilos: 0 };
+        acc.revenue += ch.revenue;
+        acc.kilos += ch.kilos;
+        target.set(s.id, acc);
+      }
+    }
+    return result;
+  }
+
   /** Suma las ventas por canal por código de vendedor (pesos y kilos). */
   private sumChannelsByCode(
     rows: ChannelSaleRaw[],
@@ -900,8 +1061,9 @@ export class AdminReportsService {
    * vendedor (rol vendedor) muestra el valor promedio por kilo del mes anterior
    * y del actual, el presupuesto de kilos y los kilos vendidos con su
    * cumplimiento, y la venta acumulada frente a la esperada (presupuesto en
-   * pesos prorrateado a la fecha). Las ventas suman pedidos de la app + ventas
-   * por canal del ERP (por código de vendedor).
+   * pesos prorrateado a la fecha). AGROPECUARIA (3) y CARNES FRIAS (8) toman
+   * la venta facturada del ERP (misma fuente que el tablero comercial); las
+   * demás suman pedidos de la app + ventas por canal del ERP.
    */
   async getSellerSalesReport(
     companyId: string,
@@ -956,66 +1118,43 @@ export class AdminReportsService {
       await this.usersService.getCompanySellers(companyId)
     ).filter((s) => s.role === 'seller');
 
-    // Pedidos de la app agrupados por vendedor: venta (pesos) y kilos (KG).
-    const orders = await this.ordersRepository.find({
-      where: { companyId, status: In(SALE_STATUSES) },
-    });
-    const appCur = new Map<string, { revenue: number; kilos: number }>();
-    const appPrev = new Map<string, { revenue: number; kilos: number }>();
-    for (const order of orders) {
-      const { date } = bogotaParts(order.createdAt);
-      let target: Map<string, { revenue: number; kilos: number }> | null = null;
-      if (date >= monthStart && date <= asOfDate) target = appCur;
-      else if (date >= prevStart && date <= prevEnd) target = appPrev;
-      if (!target) continue;
-      // Los pedidos sin vendedor se agrupan aparte para que cuenten en el
-      // total de la compañía (fila "Otros"), aunque no se atribuyan a nadie.
-      const key = order.seller?.id ?? '__none__';
-      const kilos = (order.items ?? []).reduce(
-        (acc, it) =>
-          acc +
-          ((it.unitOfMeasure ?? '').trim().toUpperCase() === 'KG'
-            ? Number(it.quantity)
-            : 0),
-        0,
-      );
-      const cur = target.get(key) ?? { revenue: 0, kilos: 0 };
-      cur.revenue += Number(order.total);
-      cur.kilos += kilos;
-      target.set(key, cur);
-    }
-
-    // Ventas por canal del ERP (por código de vendedor).
-    const [chCurRows, chPrevRows] = await Promise.all([
-      this.channelSalesClient.fetch(companyId, monthStart, asOfDate),
-      this.channelSalesClient.fetch(companyId, prevStart, prevEnd),
-    ]);
-    const chCur = this.sumChannelsByCode(chCurRows);
-    const chPrev = this.sumChannelsByCode(chPrevRows);
+    const sales =
+      (companyId === '3' || companyId === '8'
+        ? await this.getErpSellerSales(
+            companyId,
+            sellers,
+            { periodo: `${year}${mm}`, from: monthStart, to: asOfDate },
+            { periodo: `${pYear}${pmm}`, from: prevStart, to: prevEnd },
+          ).catch(() => null)
+        : null) ??
+      (await this.getAppSellerSales(
+        companyId,
+        sellers,
+        { from: monthStart, to: asOfDate },
+        { from: prevStart, to: prevEnd },
+      ));
+    const budgets = await Promise.all(
+      sellers.map((s) =>
+        this.budgetsService.getSellerBudget(companyId, s.id, month, year),
+      ),
+    );
 
     let totalPrevRevenue = 0;
     let totalPrevKilos = 0;
     const rows: SellerSalesRow[] = [];
-    for (const s of sellers) {
+    for (const [i, s] of sellers.entries()) {
       const code = (s.siesaSellerCode ?? '').trim();
-      const aCur = appCur.get(s.id) ?? { revenue: 0, kilos: 0 };
-      const aPrev = appPrev.get(s.id) ?? { revenue: 0, kilos: 0 };
-      const cCur = chCur.get(code) ?? { revenue: 0, kilos: 0 };
-      const cPrev = chPrev.get(code) ?? { revenue: 0, kilos: 0 };
+      const cur = sales.cur.get(s.id) ?? { revenue: 0, kilos: 0 };
+      const prev = sales.prev.get(s.id) ?? { revenue: 0, kilos: 0 };
 
-      const revenue = aCur.revenue + cCur.revenue;
-      const kilosSold = aCur.kilos + cCur.kilos;
-      const prevRevenue = aPrev.revenue + cPrev.revenue;
-      const prevKilos = aPrev.kilos + cPrev.kilos;
+      const revenue = cur.revenue;
+      const kilosSold = cur.kilos;
+      const prevRevenue = prev.revenue;
+      const prevKilos = prev.kilos;
       totalPrevRevenue += prevRevenue;
       totalPrevKilos += prevKilos;
 
-      const budget = await this.budgetsService.getSellerBudget(
-        companyId,
-        s.id,
-        month,
-        year,
-      );
+      const budget = budgets[i];
       const budgetKilos = budget?.targetKilos ?? 0;
       const budgetRevenue = budget?.expectedRevenue ?? 0;
       const expectedRevenue = budgetRevenue * proration;
@@ -1312,7 +1451,7 @@ export class AdminReportsService {
     companyId = '3',
   ): Promise<{ buffer: Buffer; periodo: string }> {
     const data = await this.getVendorProductSalesReport(periodo, fecha, companyId);
-    const buffer = await buildVendorProductSalesReportPdf(data);
+    const buffer = await buildVendorProductSalesReportPdf(data, companyId);
     return { buffer, periodo: data.periodo };
   }
 

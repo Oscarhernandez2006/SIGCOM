@@ -93,7 +93,8 @@ export function CanalOrdersPage() {
   }, [rows, filtered]);
 
   const handleExport = () => {
-    exportCanalOrdersPdf({
+    void exportCanalOrdersPdf({
+      companyId: company?.id,
       companyName: company?.name ?? '',
       orders: filtered,
     });

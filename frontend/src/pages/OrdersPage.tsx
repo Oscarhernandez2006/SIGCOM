@@ -11,6 +11,7 @@ import {
   Lock,
   ArrowRight,
   Search,
+  Copy,
 } from 'lucide-react';
 import {
   useOrders,
@@ -29,6 +30,7 @@ import { Input } from '@/components/ui/input';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { ApprovalCountdown } from '@/components/ApprovalCountdown';
 import { EditOrderModal } from '@/components/EditOrderModal';
+import { DuplicateOrderModal } from '@/components/DuplicateOrderModal';
 import type { Order, SiesaState, Client } from '@/types';
 
 /** Formatea una fecha como "YYYY-MM-DD" para el input type="date" y la API. */
@@ -125,6 +127,7 @@ export function OrdersPage() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [detailTarget, setDetailTarget] = useState<Order | null>(null);
   const [editTarget, setEditTarget] = useState<Order | null>(null);
+  const [duplicateTarget, setDuplicateTarget] = useState<Order | null>(null);
   const [cancelTarget, setCancelTarget] = useState<Order | null>(null);
   const [cancelOption, setCancelOption] = useState('');
   const [cancelReason, setCancelReason] = useState('');
@@ -290,6 +293,8 @@ export function OrdersPage() {
               order.status !== 'cancelled' && order.status !== 'synced';
             const canEdit =
               order.status === 'confirmed' || order.status === 'failed';
+            const canDuplicate =
+              order.status === 'failed' || order.status === 'bounced';
             return (
               <Card key={order.id}>
                 <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
@@ -355,6 +360,17 @@ export function OrdersPage() {
                       >
                         <Pencil className="h-4 w-4" />
                         Editar
+                      </Button>
+                    )}
+
+                    {canDuplicate && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDuplicateTarget(order)}
+                      >
+                        <Copy className="h-4 w-4" />
+                        Duplicar
                       </Button>
                     )}
 
@@ -745,6 +761,15 @@ export function OrdersPage() {
             setShowTypeModal(false);
             navigate(`/pedidos/nuevo?tipo=${tipo}`);
           }}
+        />
+      )}
+
+      {/* Modal para duplicar un pedido (muestra el pedido, permite ajustarlo
+          y confirmar la creación, todo en el mismo modal) */}
+      {duplicateTarget && (
+        <DuplicateOrderModal
+          order={duplicateTarget}
+          onClose={() => setDuplicateTarget(null)}
         />
       )}
     </div>

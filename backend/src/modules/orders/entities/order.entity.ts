@@ -38,6 +38,7 @@ export enum DeliveryType {
 
 @Entity('orders')
 @Unique('uq_order_company_number', ['companyId', 'orderNumber'])
+@Unique('uq_order_company_idempotency_key', ['companyId', 'idempotencyKey'])
 export class Order extends BaseEntity {
   /** Compañía a la que pertenece el pedido (aislamiento por tenant). */
   @Index()
@@ -123,6 +124,30 @@ export class Order extends BaseEntity {
   /** Motivo de la anulación (obligatorio al anular el pedido). */
   @Column({ name: 'cancel_reason', nullable: true })
   cancelReason?: string;
+
+  /**
+   * Clave generada por el frontend para esta intención de pedido (se repite
+   * si el vendedor reintenta tras una conexión lenta). Evita crear pedidos
+   * duplicados: si ya existe un pedido con la misma clave, se devuelve ese.
+   */
+  @Column({ name: 'idempotency_key', nullable: true })
+  idempotencyKey?: string;
+
+  /**
+   * Pedido del mismo cliente (mismo día) al que este se asoció manualmente:
+   * ocurre cuando un producto faltó por inventario rotativo en el primer
+   * pedido y se completa en un segundo pedido más tarde. Se guarda un
+   * snapshot del consecutivo (no cambia tras crearse) para mostrarlo sin
+   * tener que resolver la relación.
+   */
+  @Column({ name: 'linked_order_id', nullable: true })
+  linkedOrderId?: string;
+
+  @Column({ name: 'linked_order_number', nullable: true })
+  linkedOrderNumber?: string;
+
+  @Column({ name: 'linked_second_number', nullable: true })
+  linkedSecondNumber?: string;
 
   /**
    * Saldo de cartera del cliente al momento de crear el pedido. Si es mayor a

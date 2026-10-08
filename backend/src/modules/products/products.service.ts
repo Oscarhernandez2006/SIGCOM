@@ -92,6 +92,27 @@ export class ProductsService {
   }
 
   /**
+   * Productos en stock con el precio de una lista. Solo se devuelven los que
+   * están en la lista elegida (los demás no tienen precio para ese cliente).
+   */
+  async findInStockWithPrices(
+    companyId: string,
+    listCode: string,
+    search?: string,
+  ): Promise<(Product & { price: number })[]> {
+    const [products, listItems] = await Promise.all([
+      this.findInStock(companyId, search),
+      this.priceListsService.findListItemMap(companyId, listCode),
+    ]);
+    const priced: (Product & { price: number })[] = [];
+    for (const p of products) {
+      const item = listItems.get(p.sku.trim());
+      if (item) priced.push(Object.assign(p, { price: Number(item.price) }));
+    }
+    return priced;
+  }
+
+  /**
    * Catálogo de venta para un cliente: parte de su lista de precios (cada
    * referencia trae nombre, precio y unidad de medida) y se cruza con el
    * inventario para mostrar el stock. Los que tienen stock se muestran

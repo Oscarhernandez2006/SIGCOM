@@ -1,4 +1,7 @@
-import PDFDocument from 'pdfkit';
+import {
+  contentBottom,
+  createPdfDocument,
+} from '../../common/pdf-letterhead';
 
 /** Una fila (un vendedor) del reporte de ventas por vendedor. */
 export interface SellerSalesRow {
@@ -82,7 +85,12 @@ export function buildSellerSalesReportPdf(
   data: SellerSalesReportData,
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 36 });
+    const doc = createPdfDocument(data.companyId, {
+      size: 'A4',
+      layout: 'landscape',
+      margin: 36,
+    });
+    const top = doc.page.margins.top;
     const chunks: Buffer[] = [];
     doc.on('data', (c: Buffer) => chunks.push(c));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
@@ -119,7 +127,7 @@ export function buildSellerSalesReportPdf(
       .fontSize(16)
       .font('Helvetica-Bold')
       .fillColor('#000')
-      .text('Ventas por vendedor', 36, 36);
+      .text('Ventas por vendedor', 36, top);
     doc
       .fontSize(10)
       .font('Helvetica')
@@ -127,10 +135,10 @@ export function buildSellerSalesReportPdf(
       .text(
         `${data.companyName}  ·  ${data.monthLabel}  ·  Corte: ${data.asOfDate}  ·  % ideal: ${data.idealPct.toFixed(2)}%`,
         36,
-        58,
+        top + 22,
       );
 
-    let y = 84;
+    let y = top + 48;
     header(y);
     y += 18;
 
@@ -149,9 +157,9 @@ export function buildSellerSalesReportPdf(
     };
 
     for (const r of data.rows) {
-      if (y > 540) {
+      if (y > contentBottom(doc) - 19) {
         doc.addPage();
-        y = 40;
+        y = doc.page.margins.top + 4;
         header(y);
         y += 18;
       }

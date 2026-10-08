@@ -1,4 +1,7 @@
-import PDFDocument from 'pdfkit';
+import {
+  contentBottom,
+  createPdfDocument,
+} from '../../common/pdf-letterhead';
 
 const COMPANY_NAMES: Record<string, string> = {
   '3': 'AGROPECUARIA SANTACRUZ',
@@ -62,7 +65,7 @@ export function buildInventoryReportPdf(
   data: InventoryReportData,
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 48 });
+    const doc = createPdfDocument(data.companyId, { size: 'A4', margin: 48 });
     const chunks: Buffer[] = [];
 
     doc.on('data', (c: Buffer) => chunks.push(c));
@@ -157,9 +160,9 @@ export function buildInventoryReportPdf(
     doc.font('Helvetica').fontSize(9);
 
     for (const row of data.rows) {
-      if (y > 760) {
+      if (y > contentBottom(doc) - 34) {
         doc.addPage();
-        y = 48;
+        y = doc.page.margins.top;
         header(y);
         y += 20;
         doc.font('Helvetica').fontSize(9);

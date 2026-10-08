@@ -66,6 +66,8 @@ export function useSellerDashboard(
       from,
       to,
     ],
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const res = await api.get<SellerCommercialDashboard>(
         national ? '/dashboard/national-business' : '/dashboard/commercial',
@@ -321,27 +323,72 @@ export function useCustomerHasOrderToday(customerId?: string) {
 }
 
 /**
- * Productos con existencias (stock > 0) de la compañía, sin importar lista de
- * precios: la disponibilidad real para la venta del día.
+ * Pedidos de hoy del cliente (mismo vendedor), para el modal de "asociar
+ * pedido" al crear un segundo pedido el mismo día (p. ej. completar un
+ * producto que faltó por inventario rotativo). Solo se consulta cuando
+ * `enabled` es true (el vendedor aceptó ver la lista).
  */
-export function useProductsInStock(search: string) {
+export function useTodayOrdersForCustomer(customerId?: string, enabled = false) {
   const { company } = useCompany();
   return useQuery({
-    queryKey: ['products', 'in-stock', company?.id, search],
+    queryKey: ['orders', 'today-by-customer', company?.id, customerId],
+    enabled: Boolean(customerId) && enabled,
     queryFn: async () => {
-      const res = await api.get<Product[]>('/products/stock', {
-        params: search ? { search } : undefined,
+      const res = await api.get<Order[]>('/orders/today-by-customer', {
+        params: { customerId },
       });
       return res.data;
     },
   });
 }
 
-/** Descarga el PDF de productos disponibles hoy (en stock) para clientes. */
-export async function downloadStockPdf(): Promise<void> {
-  const res = await api.get('/products/stock/pdf', { responseType: 'blob' });
+/**
+ * Productos con existencias (stock > 0) de la compañía, sin importar lista de
+ * precios: la disponibilidad real para la venta del día.
+ */
+export function useProductsInStock(search: string, priceList?: string) {
+  const { company } = useCompany();
+  return useQuery({
+    queryKey: ['products', 'in-stock', company?.id, search, priceList ?? ''],
+    queryFn: async () => {
+      const res = await api.get<Product[]>('/products/stock', {
+        params: {
+          ...(search ? { search } : {}),
+          ...(priceList ? { priceList } : {}),
+        },
+      });
+      return res.data;
+    },
+  });
+}
+
+/** Listas de precios de la compañía activa. */
+export function useCompanyPriceLists() {
+  const { company } = useCompany();
+  return useQuery({
+    queryKey: ['price-lists', company?.id],
+    queryFn: async () => {
+      const res = await api.get<
+        { listCode: string; listName: string; itemCount: number }[]
+      >('/price-lists');
+      return res.data;
+    },
+  });
+}
+
+/** PDF de productos disponibles (opcionalmente con precios de una lista). */
+export async function fetchStockPdf(priceList?: string): Promise<Blob> {
+  const res = await api.get('/products/stock/pdf', {
+    params: priceList ? { priceList } : undefined,
+    responseType: 'blob',
+  });
+  return res.data as Blob;
+}
+
+/** Descarga un PDF de disponibilidad ya generado. */
+export function saveStockPdf(blob: Blob): void {
   const today = new Date().toISOString().slice(0, 10);
-  const url = window.URL.createObjectURL(res.data as Blob);
+  const url = window.URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
   link.download = `disponibles-${today}.pdf`;
@@ -540,6 +587,17 @@ interface CreateOrderInput {
   orderType?: 'corte' | 'subproducto';
   /** Vendedor al que se asocia el pedido (solo subproductos). */
   sellerId?: string;
+  /**
+   * Clave generada por el frontend para esta intención de pedido; si la
+   * conexión falla y el vendedor reintenta con la misma clave, el backend
+   * devuelve el pedido ya creado en vez de duplicarlo.
+   */
+  idempotencyKey?: string;
+  /**
+   * Id de otro pedido del mismo cliente creado hoy al que este se asocia
+   * (p. ej. completa un producto que faltó por inventario rotativo).
+   */
+  linkedOrderId?: string;
 }
 
 export function useCreateOrder() {

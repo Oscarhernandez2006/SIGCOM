@@ -92,6 +92,23 @@ export class OrdersController {
     return { hasOrder };
   }
 
+  /**
+   * Pedidos de hoy del cliente (mismo vendedor), para el modal de "asociar
+   * pedido" cuando se crea un segundo pedido el mismo día.
+   */
+  @Get('today-by-customer')
+  todayByCustomer(
+    @CompanyId() companyId: string,
+    @CurrentUser('id') sellerId: string,
+    @Query('customerId') customerId: string,
+  ) {
+    return this.ordersService.findTodayOrdersForCustomer(
+      companyId,
+      customerId,
+      sellerId,
+    );
+  }
+
   /** Vendedores de la compañía (para el selector de subproductos). */
   @Get('sellers')
   sellers(@CompanyId() companyId: string) {

@@ -52,7 +52,7 @@ export class ChannelSalesService {
     from: string,
     to: string,
   ): Promise<{ rows: number }> {
-    const raws = await this.client.fetch(companyId, from, to, true);
+    const raws = await this.client.fetch(companyId, from, to);
     const mapped = raws
       .filter((r) => r.fecha)
       .map((r) => ({

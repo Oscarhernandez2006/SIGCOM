@@ -15,6 +15,7 @@ import {
   DASHBOARD_EXCLUDED_SELLER_DOCS,
   DASHBOARD_EXCLUDED_SELLER_NAMES,
 } from '../../common/companies';
+import { sameSellerName } from '../../common/seller-names';
 import { ChannelSalesClient, ChannelSaleRaw } from '../channel-sales/channel-sales.client';
 import { PriceListsService } from '../price-lists/price-lists.service';
 import { VendorProductSaleRaw } from '../price-lists/price-lists.client';
@@ -530,50 +531,8 @@ export class DashboardService {
     return `${date.slice(0, 7)}-${String(last).padStart(2, '0')}`;
   }
 
-  /** Palabras de un nombre normalizado (mayúsculas, sin tildes ni espacios dobles). */
-  private nameWords(name: string): string[] {
-    return name
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toUpperCase()
-      .split(/\s+/)
-      .filter(Boolean);
-  }
-
-  /** Palabras iguales, una prefijo de la otra o con un solo error de digitación. */
-  private similarWord(a: string, b: string): boolean {
-    if (a === b) return true;
-    if (a.startsWith(b) || b.startsWith(a)) return Math.min(a.length, b.length) >= 3;
-    if (Math.abs(a.length - b.length) > 1 || Math.min(a.length, b.length) < 4) return false;
-    let i = 0;
-    let j = 0;
-    let edits = 0;
-    while (i < a.length && j < b.length) {
-      if (a[i] === b[j]) {
-        i++;
-        j++;
-        continue;
-      }
-      if (++edits > 1) return false;
-      if (a.length > b.length) i++;
-      else if (b.length > a.length) j++;
-      else {
-        i++;
-        j++;
-      }
-    }
-    return edits + (a.length - i) + (b.length - j) <= 1;
-  }
-
-  /** El ERP de Inversiones solo trae el nombre ("APELLIDOS NOMBRES"): se cruza por palabras. */
-  private sameSellerName(appName: string, erpName: string): boolean {
-    const app = this.nameWords(appName);
-    const erp = this.nameWords(erpName);
-    return app.length > 0 && app.every((w) => erp.some((e) => this.similarWord(w, e)));
-  }
-
   /**
-   * Venta (bruto − descuentos, sin IVA) y unidades de CARNES FRIAS desde
+   * Venta (valor bruto, sin IVA) y unidades de CARNES FRIAS desde
    * `ventas-periodo-inversiones`. Es mensual: solo aplica si el rango empieza el
    * día 1 y llega a fin de mes o a hoy, y si todos los períodos tienen datos;
    * si no, devuelve null para usar la facturación diaria.
@@ -603,11 +562,11 @@ export class DashboardService {
     for (const r of rows) {
       const name = (r.vendedor ?? '').trim();
       if (sellerName !== null) {
-        if (!this.sameSellerName(sellerName, name)) continue;
-      } else if (excluded.some((x) => this.sameSellerName(x, name))) {
+        if (!sameSellerName(sellerName, name)) continue;
+      } else if (excluded.some((x) => sameSellerName(x, name))) {
         continue;
       }
-      revenue += (Number(r.vr_bruto) || 0) - (Number(r.vr_descuentos) || 0);
+      revenue += Number(r.vr_bruto) || 0;
       units += Number(r.cantidad) || 0;
     }
     return { revenue, units };

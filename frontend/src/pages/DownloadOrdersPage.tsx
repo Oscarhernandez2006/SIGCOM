@@ -9,6 +9,7 @@ import {
   PackageCheck,
   Calendar,
   Search,
+  Link2,
 } from 'lucide-react';
 import { isAxiosError } from 'axios';
 import {
@@ -425,6 +426,13 @@ export function DownloadOrdersPage({
                         </td>
                         <td className="px-3 py-2 font-medium">
                           #{orderNos(o.orderNumber, o.secondNumber)}
+                          {o.linkedOrderNumber && (
+                            <div className="mt-0.5 flex items-center gap-1 text-xs font-normal text-primary">
+                              <Link2 className="h-3 w-3 shrink-0" />
+                              Asociado a #
+                              {orderNos(o.linkedOrderNumber, o.linkedSecondNumber)}
+                            </div>
+                          )}
                         </td>
                         <td className="px-3 py-2">
                           <div className="font-medium">{o.customerName}</div>

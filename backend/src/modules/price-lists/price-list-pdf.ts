@@ -1,5 +1,8 @@
-import PDFDocument from 'pdfkit';
 import { PriceListItem } from './entities/price-list-item.entity';
+import {
+  contentBottom,
+  createPdfDocument,
+} from '../../common/pdf-letterhead';
 
 const COMPANY_NAMES: Record<string, string> = {
   '3': 'AGROPECUARIA SANTACRUZ',
@@ -40,7 +43,7 @@ export function buildPriceListPdf(
   items: PriceListItem[],
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 48 });
+    const doc = createPdfDocument(companyId, { size: 'A4', margin: 48 });
     const chunks: Buffer[] = [];
 
     doc.on('data', (c: Buffer) => chunks.push(c));
@@ -88,9 +91,9 @@ export function buildPriceListPdf(
     doc.font('Helvetica').fontSize(9).fillColor('#222');
 
     for (const it of items) {
-      if (y > 770) {
+      if (y > contentBottom(doc) - 24) {
         doc.addPage();
-        y = 48;
+        y = doc.page.margins.top;
         header(y);
         y += 20;
         doc.font('Helvetica').fontSize(9).fillColor('#222');

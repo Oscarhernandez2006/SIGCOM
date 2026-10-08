@@ -77,8 +77,9 @@ export function CustomersPage() {
   }, [uniqueCustomers, balances]);
 
   const handleExportSeller = () => {
-    exportSellerPortfolioPdf({
+    void exportSellerPortfolioPdf({
       sellerName: user?.name ?? 'Vendedor',
+      companyId: company?.id,
       companyName: company?.name ?? '',
       clients: uniqueCustomers,
       portfolios,
@@ -181,6 +182,7 @@ export function CustomersPage() {
         <PortfolioModal
           client={portfolioClient}
           sellerName={user?.name ?? 'Vendedor'}
+          companyId={company?.id}
           companyName={company?.name ?? ''}
           onClose={() => setPortfolioClient(null)}
         />
@@ -224,11 +226,13 @@ function CardPortfolioBalance({ balance }: { balance?: number }) {
 function PortfolioModal({
   client,
   sellerName,
+  companyId,
   companyName,
   onClose,
 }: {
   client: Client;
   sellerName: string;
+  companyId?: string;
   companyName: string;
   onClose: () => void;
 }) {
@@ -261,9 +265,10 @@ function PortfolioModal({
               variant="outline"
               onClick={() =>
                 data &&
-                exportClientPortfolioPdf({
+                void exportClientPortfolioPdf({
                   client,
                   portfolio: data,
+                  companyId,
                   companyName,
                   sellerName,
                 })

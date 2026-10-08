@@ -27,6 +27,7 @@ import {
   Clock,
   CalendarDays,
   Star,
+  Link2,
 } from 'lucide-react';
 import { isAxiosError } from 'axios';
 import {
@@ -35,6 +36,7 @@ import {
   useCreateOrder,
   useFeaturedProducts,
   useCustomerHasOrderToday,
+  useTodayOrdersForCustomer,
   useClientSellerInfo,
   downloadOrderPdf,
 } from '@/hooks/useApi';
@@ -76,11 +78,10 @@ const STEPS = [
   { n: 3, label: 'Confirmar', icon: ClipboardCheck },
 ] as const;
 
-// Desactivado temporalmente: exigir la ubicación del cliente (digitada por
-// el vendedor) antes de crear el pedido estaba bloqueando pedidos. El modal
-// y sus hooks quedan intactos para reactivar esto en el futuro (solo cambiar
-// a `true`).
-const REQUIRE_CLIENT_SELLER_INFO = false;
+// Se exige la ubicación del cliente (digitada por el vendedor) justo antes
+// de crear el pedido, después del aviso de productos estrella. Solo aplica
+// a Agropecuaria (3) y Carnes Frias (8); Monteria (MTAT) no lo requiere.
+const CLIENT_SELLER_INFO_COMPANIES = ['3', '8'];
 
 /** Configuración de la ventana horaria para crear pedidos. */
 interface OrderScheduleCfg {
@@ -171,6 +172,12 @@ export function NewOrderPage() {
       : '';
 
   const { data: customers = [] } = useClients(customerSearch);
+  // Tope mínimo de pedido según la compañía activa; también decide si se
+  // exige la ubicación del cliente (solo Agropecuaria y Carnes Frias).
+  const { company } = useCompany();
+  const requireClientSellerInfo = Boolean(
+    company?.id && CLIENT_SELLER_INFO_COMPANIES.includes(company.id),
+  );
   // Se pregunta la ubicación una sola vez por (cliente, vendedor); solo se
   // muestra el modal al intentar crear el pedido (no al seleccionar el
   // cliente), y es obligatorio: sin guardarla no se puede crear el pedido.
@@ -178,11 +185,58 @@ export function NewOrderPage() {
     data: sellerInfo,
     isLoading: sellerInfoLoading,
     isError: sellerInfoError,
-  } = useClientSellerInfo(customer?.id);
+  } = useClientSellerInfo(requireClientSellerInfo ? customer?.id : undefined);
   const [showSellerInfoModal, setShowSellerInfoModal] = useState(false);
   // Tras guardar la ubicación en el modal, se reintenta crear el pedido solo
   // cuando la consulta ya refleje el registro recién guardado.
   const [retrySubmitAfterSave, setRetrySubmitAfterSave] = useState(false);
+  // Clave de idempotencia del pedido en curso para este cliente: se guarda en
+  // sessionStorage para que sobreviva si la conexión es lenta y el vendedor
+  // reintenta (vuelve atrás y crea el pedido de nuevo); así el backend
+  // reconoce el reintento y no duplica el pedido.
+  const [idempotencyKey, setIdempotencyKey] = useState('');
+  useEffect(() => {
+    if (!customer?.id) {
+      setIdempotencyKey('');
+      return;
+    }
+    const storageKey = `order-idem:${customer.id}`;
+    const existing = sessionStorage.getItem(storageKey);
+    if (existing) {
+      setIdempotencyKey(existing);
+      return;
+    }
+    const key = crypto.randomUUID();
+    sessionStorage.setItem(storageKey, key);
+    setIdempotencyKey(key);
+  }, [customer?.id]);
+  // Asociar pedido: cuando el cliente ya tiene un pedido hoy (p. ej. faltó un
+  // producto por inventario rotativo), se ofrece asociar el nuevo pedido al
+  // anterior para que quede marcado en alistamiento/despacho. Solo aplica a
+  // cortes (los subproductos no usan este flujo).
+  const [associationDecided, setAssociationDecided] = useState(false);
+  const [linkedOrderId, setLinkedOrderId] = useState<string | undefined>(
+    undefined,
+  );
+  const [linkedOrderSummary, setLinkedOrderSummary] = useState<Order | null>(
+    null,
+  );
+  const [associationStep, setAssociationStep] = useState<
+    'ask' | 'list' | 'detail' | null
+  >(null);
+  const [associationDetailOrder, setAssociationDetailOrder] =
+    useState<Order | null>(null);
+  useEffect(() => {
+    setAssociationDecided(false);
+    setLinkedOrderId(undefined);
+    setLinkedOrderSummary(null);
+    setAssociationStep(null);
+    setAssociationDetailOrder(null);
+  }, [customer?.id]);
+  const { data: todayOrders = [] } = useTodayOrdersForCustomer(
+    customer?.id,
+    associationStep === 'list',
+  );
   const { data: products = [] } = useProductsForList(
     productSearch,
     customer?.priceList,
@@ -247,7 +301,6 @@ export function NewOrderPage() {
 
   // Tope mínimo de pedido según la compañía activa. Los subproductos no tienen
   // monto mínimo.
-  const { company } = useCompany();
   const minOrderTotal = isSubproducto ? 0 : getMinOrderTotal(company?.id);
   // El mínimo es por día por cliente: si el cliente ya pidió hoy, no se exige.
   const { data: customerOrderedToday = false } = useCustomerHasOrderToday(
@@ -404,9 +457,33 @@ export function NewOrderPage() {
 
   const handleSubmit = async (skipFeaturedCheck = false) => {
     if (!customer || cart.length === 0) return;
+    if (!deliveryDate) {
+      setSubmitError('Selecciona la fecha de entrega del pedido.');
+      return;
+    }
+    // Segundo pedido del mismo cliente el mismo día (solo cortes): se
+    // pregunta si se debe asociar al pedido ya creado (p. ej. para completar
+    // un producto que faltó por inventario rotativo).
+    if (!isSubproducto && customerOrderedToday && !associationDecided) {
+      setAssociationStep('ask');
+      return;
+    }
+    // Aviso de productos estrella no incluidos (solo cortes). Si faltan, se
+    // muestra el modal informativo antes de crear el pedido.
+    if (!skipFeaturedCheck && !isSubproducto) {
+      const missing = featured.filter(
+        (f) => !cart.some((l) => l.product.sku === f.sku),
+      );
+      if (missing.length > 0) {
+        setFeaturedWarning(missing);
+        return;
+      }
+    }
+    setFeaturedWarning(null);
     // No se puede montar el pedido sin cruzar antes la ubicación del cliente
-    // que digita el vendedor (se pide una sola vez por cliente).
-    if (REQUIRE_CLIENT_SELLER_INFO) {
+    // que digita el vendedor (se pide una sola vez por cliente). Se revisa
+    // acá, ya superado el aviso de productos estrella.
+    if (requireClientSellerInfo) {
       if (sellerInfoLoading) {
         setSubmitError(
           'Cargando la información del cliente, intenta de nuevo en un momento.',
@@ -429,22 +506,6 @@ export function NewOrderPage() {
         return;
       }
     }
-    if (!deliveryDate) {
-      setSubmitError('Selecciona la fecha de entrega del pedido.');
-      return;
-    }
-    // Aviso de productos estrella no incluidos (solo cortes). Si faltan, se
-    // muestra el modal informativo antes de crear el pedido.
-    if (!skipFeaturedCheck && !isSubproducto) {
-      const missing = featured.filter(
-        (f) => !cart.some((l) => l.product.sku === f.sku),
-      );
-      if (missing.length > 0) {
-        setFeaturedWarning(missing);
-        return;
-      }
-    }
-    setFeaturedWarning(null);
     setSubmitError('');
     let order: Order;
     try {
@@ -464,6 +525,8 @@ export function NewOrderPage() {
           discountPct: l.discountPct,
         })),
         ...(isSubproducto ? { orderType: 'subproducto' } : {}),
+        idempotencyKey,
+        linkedOrderId,
       });
     } catch (err) {
       if (isAxiosError(err)) {
@@ -479,15 +542,21 @@ export function NewOrderPage() {
     }
     // El documento PDF queda disponible para descargarlo manualmente desde
     // el módulo de Pedidos (no se descarga automáticamente).
+    if (customer) sessionStorage.removeItem(`order-idem:${customer.id}`);
+    setAssociationDecided(false);
+    setLinkedOrderId(undefined);
+    setLinkedOrderSummary(null);
     setCreatedOrder(order);
   };
 
   // Tras guardar la ubicación del cliente en el modal, se reintenta crear el
   // pedido automáticamente en cuanto la consulta confirme el nuevo registro.
+  // Se omite el aviso de productos estrella porque ya se superó antes de
+  // llegar al modal de ubicación.
   useEffect(() => {
-    if (REQUIRE_CLIENT_SELLER_INFO && retrySubmitAfterSave && sellerInfo) {
+    if (requireClientSellerInfo && retrySubmitAfterSave && sellerInfo) {
       setRetrySubmitAfterSave(false);
-      handleSubmit();
+      handleSubmit(true);
     }
   }, [retrySubmitAfterSave, sellerInfo]);
 
@@ -1300,6 +1369,28 @@ export function NewOrderPage() {
                   </>
                 )}
               </Button>
+              {linkedOrderSummary && (
+                <p className="flex items-center justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-primary">
+                  <span className="flex items-center gap-1.5">
+                    <Link2 className="h-3.5 w-3.5 shrink-0" />
+                    Se asociará al pedido #
+                    {orderNos(
+                      linkedOrderSummary.orderNumber,
+                      linkedOrderSummary.secondNumber,
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    className="shrink-0 font-medium underline"
+                    onClick={() => {
+                      setLinkedOrderId(undefined);
+                      setLinkedOrderSummary(null);
+                    }}
+                  >
+                    Quitar
+                  </button>
+                </p>
+              )}
               {submitError ? (
                 <p className="flex items-start gap-1.5 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-center text-xs text-destructive">
                   <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -1451,6 +1542,153 @@ export function NewOrderPage() {
             setRetrySubmitAfterSave(true);
           }}
         />
+      )}
+
+      {/* Asociar pedido: paso 1, preguntar si se desea asociar */}
+      {associationStep === 'ask' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-background p-6 shadow-xl">
+            <div className="flex flex-col items-center text-center">
+              <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                <Link2 className="h-7 w-7 text-primary" />
+              </div>
+              <h3 className="text-lg font-semibold">¿Asociar este pedido?</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Este cliente ya tiene un pedido creado hoy. Si este nuevo
+                pedido completa un producto que faltó por inventario, puedes
+                asociarlo al pedido anterior para identificarlo en
+                alistamiento y despacho.
+              </p>
+            </div>
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setAssociationDecided(true);
+                  setAssociationStep(null);
+                  handleSubmit();
+                }}
+              >
+                No, es un pedido nuevo
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={() => setAssociationStep('list')}
+              >
+                <Link2 className="h-4 w-4" />
+                Sí, asociarlo
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Asociar pedido: paso 2, elegir entre los pedidos de hoy del cliente */}
+      {associationStep === 'list' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-background p-6 shadow-xl">
+            <h3 className="text-lg font-semibold">
+              Pedidos de hoy de {customer?.name}
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Elige el pedido al que se asociará este nuevo pedido.
+            </p>
+            <ul className="mt-4 max-h-72 space-y-2 overflow-auto">
+              {todayOrders.length === 0 ? (
+                <p className="px-1 py-4 text-center text-sm text-muted-foreground">
+                  No se encontraron pedidos de hoy para este cliente.
+                </p>
+              ) : (
+                todayOrders.map((o) => (
+                  <li key={o.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAssociationDetailOrder(o);
+                        setAssociationStep('detail');
+                      }}
+                      className="flex w-full items-center justify-between gap-2 rounded-lg border border-border px-3 py-2.5 text-left text-sm transition-colors hover:border-primary/50 hover:bg-accent"
+                    >
+                      <span className="font-semibold">
+                        #{orderNos(o.orderNumber, o.secondNumber)}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {formatCurrency(Number(o.total))}
+                      </span>
+                      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    </button>
+                  </li>
+                ))
+              )}
+            </ul>
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setAssociationStep('ask')}
+              >
+                Volver
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Asociar pedido: paso 3, ver el detalle y confirmar la asociación */}
+      {associationStep === 'detail' && associationDetailOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-border bg-background p-6 shadow-xl">
+            <h3 className="text-lg font-semibold">
+              Pedido #
+              {orderNos(
+                associationDetailOrder.orderNumber,
+                associationDetailOrder.secondNumber,
+              )}
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {associationDetailOrder.items.length} producto
+              {associationDetailOrder.items.length === 1 ? '' : 's'} · Total{' '}
+              {formatCurrency(Number(associationDetailOrder.total))}
+            </p>
+            <ul className="mt-4 max-h-64 space-y-1 overflow-auto text-sm">
+              {associationDetailOrder.items.map((it) => (
+                <li
+                  key={it.sku}
+                  className="flex items-center justify-between gap-2 border-b border-border/60 py-1.5"
+                >
+                  <span className="truncate">{it.productName}</span>
+                  <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                    {it.quantity} und.
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setAssociationStep('list')}
+              >
+                Volver
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={() => {
+                  setLinkedOrderId(associationDetailOrder.id);
+                  setLinkedOrderSummary(associationDetailOrder);
+                  setAssociationDecided(true);
+                  setAssociationStep(null);
+                  setAssociationDetailOrder(null);
+                  handleSubmit();
+                }}
+              >
+                <Link2 className="h-4 w-4" />
+                Asociar
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

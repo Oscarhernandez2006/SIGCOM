@@ -14,6 +14,7 @@ import {
   FileText,
   CheckCircle2,
   XCircle,
+  Link2,
 } from 'lucide-react';
 import {
   useAdminOrders,
@@ -355,6 +356,13 @@ export function AdminOrdersPage() {
                     >
                       <td className="px-3 py-2 font-medium">
                         #{orderNos(o.orderNumber, o.secondNumber)}
+                        {o.linkedOrderNumber && (
+                          <div className="mt-0.5 flex items-center gap-1 text-xs font-normal text-primary">
+                            <Link2 className="h-3 w-3 shrink-0" />
+                            Asociado a #
+                            {orderNos(o.linkedOrderNumber, o.linkedSecondNumber)}
+                          </div>
+                        )}
                       </td>
                       <td className="px-3 py-2">
                         <OrderStatusBadge status={o.status as OrderStatus} />
@@ -500,6 +508,17 @@ function OrderDetailModal({
             <Row label="Código vendedor" value={order.sellerCode} />
             <Row label="Creado" value={dateTime(order.createdAt)} />
             <Row label="Fecha de entrega" value={order.deliveryDate} />
+            {order.linkedOrderNumber && (
+              <Row
+                label="Asociado al pedido"
+                value={
+                  <span className="inline-flex items-center gap-1 text-primary">
+                    <Link2 className="h-3.5 w-3.5" />#
+                    {orderNos(order.linkedOrderNumber, order.linkedSecondNumber)}
+                  </span>
+                }
+              />
+            )}
           </Section>
 
           {/* Cliente */}

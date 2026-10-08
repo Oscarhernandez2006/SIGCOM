@@ -90,4 +90,22 @@ export class CreateOrderDto {
   @IsUUID()
   @IsOptional()
   sellerId?: string;
+
+  /**
+   * Clave generada por el frontend para esta intención de pedido (misma
+   * clave en reintentos tras una conexión lenta/inestable). Si ya existe un
+   * pedido con esta clave, se devuelve ese en vez de crear uno nuevo.
+   */
+  @IsString()
+  @IsOptional()
+  idempotencyKey?: string;
+
+  /**
+   * Id de otro pedido del mismo cliente creado hoy al que este se asocia
+   * (p. ej. completa un producto que faltó por inventario rotativo en el
+   * primer pedido).
+   */
+  @IsUUID()
+  @IsOptional()
+  linkedOrderId?: string;
 }

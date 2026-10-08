@@ -1,4 +1,7 @@
-import PDFDocument from 'pdfkit';
+import {
+  contentBottom,
+  createPdfDocument,
+} from '../../common/pdf-letterhead';
 
 /** Una fila de producto dentro de un vendedor. */
 export interface VendorSalesProductRow {
@@ -65,9 +68,11 @@ function money(value: number): string {
  */
 export function buildVendorProductSalesReportPdf(
   data: VendorProductSalesReportData,
+  companyId?: string,
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 36 });
+    const doc = createPdfDocument(companyId, { size: 'A4', margin: 36 });
+    const top = doc.page.margins.top;
     const chunks: Buffer[] = [];
     doc.on('data', (c: Buffer) => chunks.push(c));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
@@ -87,19 +92,19 @@ export function buildVendorProductSalesReportPdf(
       .fontSize(16)
       .font('Helvetica-Bold')
       .fillColor('#000')
-      .text('Ventas acumuladas por vendedor por producto', left, 36);
+      .text('Ventas acumuladas por vendedor por producto', left, top);
     doc
       .fontSize(10)
       .font('Helvetica')
       .fillColor('#444')
-      .text(`Período: ${data.periodLabel}`, left, 58);
+      .text(`Período: ${data.periodLabel}`, left, top + 22);
 
-    let y = 84;
+    let y = top + 48;
 
     const ensureSpace = (needed: number) => {
-      if (y + needed > 800) {
+      if (y + needed > contentBottom(doc) - 6) {
         doc.addPage();
-        y = 40;
+        y = doc.page.margins.top + 4;
       }
     };
 

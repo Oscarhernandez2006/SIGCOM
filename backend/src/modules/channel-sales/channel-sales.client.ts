@@ -31,9 +31,9 @@ interface ChannelSalesResponse {
  *
  * GET {baseUrl}/ventas/canales-vendedor?fecha_inicio&fecha_fin&id_cia&token
  *
- * La respuesta viene paginada (limit/offset/has_more/next_offset). Se guarda un
- * caché corto por (compañía + rango) para no golpear la API en cada carga del
- * tablero; con `force` se ignora el caché (usado por la sincronización diaria).
+ * La respuesta viene paginada (limit/offset/has_more/next_offset). Siempre se
+ * consulta el ERP; la última respuesta por (compañía + rango) solo se usa como
+ * respaldo si la consulta falla.
  */
 @Injectable()
 export class ChannelSalesClient {
@@ -42,7 +42,6 @@ export class ChannelSalesClient {
     string,
     { at: number; rows: ChannelSaleRaw[] }
   >();
-  private readonly ttlMs = 2 * 60 * 1000; // 2 minutos
 
   constructor(
     private readonly http: HttpService,
@@ -54,17 +53,10 @@ export class ChannelSalesClient {
     companyId: string,
     from: string,
     to: string,
-    force = false,
   ): Promise<ChannelSaleRaw[]> {
     // Compañías virtuales (p. ej. MONTERIA TAT) consultan el canal de su base.
     companyId = baseCompanyId(companyId);
     const key = `${companyId}|${from}|${to}`;
-    if (!force) {
-      const cached = this.cache.get(key);
-      if (cached && Date.now() - cached.at < this.ttlMs) {
-        return cached.rows;
-      }
-    }
 
     const baseUrl = this.config.get<string>('priceLists.baseUrl');
     const token = this.config.get<string>('priceLists.token');

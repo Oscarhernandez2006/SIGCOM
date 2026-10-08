@@ -1014,6 +1014,8 @@ export function useSellerSalesReport(
   return useQuery({
     queryKey: ['admin', 'reports', 'seller-sales', companyId, month, year],
     enabled,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const res = await api.get<SellerSalesReportData>(
         '/admin/reports/seller-sales/data',
@@ -1423,6 +1425,9 @@ export interface AdminOrderDetail {
   downloadedAt?: string | null;
   downloadedBy?: string | null;
   items: AdminOrderItem[];
+  /** Consecutivo del pedido al que este se asoció (null si no aplica). */
+  linkedOrderNumber?: string | null;
+  linkedSecondNumber?: string | null;
 }
 
 export interface AdminOrdersFilters {
@@ -1476,6 +1481,9 @@ export interface DownloadableOrder {
   picked: boolean;
   pickedAt?: string | null;
   pickedBy?: string | null;
+  /** Consecutivo del pedido al que este se asoció (null si no aplica). */
+  linkedOrderNumber?: string | null;
+  linkedSecondNumber?: string | null;
 }
 
 /** Pedidos subidos a Siesa (no rebotados ni anulados) de una compañía. */

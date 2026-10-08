@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { applyLetterhead } from '@/lib/pdf-letterhead';
 import type { CanalOrder } from '@/types';
 
 type RGB = [number, number, number];
@@ -22,32 +23,48 @@ function nowLabel(): string {
 }
 
 interface CanalPdfInput {
+  companyId?: string;
   companyName: string;
   orders: CanalOrder[];
 }
 
 /** Genera y descarga el consolidado de pedidos de canales en PDF (tipo Excel). */
-export function exportCanalOrdersPdf({
+export async function exportCanalOrdersPdf({
+  companyId,
   companyName,
   orders,
-}: CanalPdfInput): void {
+}: CanalPdfInput): Promise<void> {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
   const w = doc.internal.pageSize.getWidth();
+  const letterhead = await applyLetterhead(doc, companyId);
 
-  // Encabezado
-  doc.setFillColor(...GREEN);
-  doc.rect(0, 0, w, 54, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(15);
-  doc.text('SIGCOM', MARGIN, 24);
-  doc.setFontSize(11);
-  doc.text('Consolidado de pedidos de canales', MARGIN, 42);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.text(`${companyName} · ${nowLabel()}`, w - MARGIN, 30, {
-    align: 'right',
-  });
+  // Encabezado (con membrete el logo ya va arriba: solo el título debajo).
+  if (letterhead) {
+    doc.setTextColor(...TEXT);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text('Consolidado de pedidos de canales', MARGIN, letterhead.top);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...MUTED);
+    doc.text(`${companyName} · ${nowLabel()}`, w - MARGIN, letterhead.top, {
+      align: 'right',
+    });
+  } else {
+    doc.setFillColor(...GREEN);
+    doc.rect(0, 0, w, 54, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(15);
+    doc.text('SIGCOM', MARGIN, 24);
+    doc.setFontSize(11);
+    doc.text('Consolidado de pedidos de canales', MARGIN, 42);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text(`${companyName} · ${nowLabel()}`, w - MARGIN, 30, {
+      align: 'right',
+    });
+  }
   doc.setTextColor(...TEXT);
 
   // Filas: una por cada línea (ítem) de cada pedido.
@@ -73,7 +90,7 @@ export function exportCanalOrdersPdf({
   }
 
   autoTable(doc, {
-    startY: 66,
+    startY: letterhead ? letterhead.top + 14 : 66,
     theme: 'grid',
     head: [
       [
@@ -126,7 +143,12 @@ export function exportCanalOrdersPdf({
       8: { halign: 'right' },
       9: { halign: 'right' },
     },
-    margin: { left: MARGIN, right: MARGIN, top: 40, bottom: 34 },
+    margin: {
+      left: MARGIN,
+      right: MARGIN,
+      top: letterhead?.top ?? 40,
+      bottom: letterhead?.bottom ?? 34,
+    },
     didDrawPage: () => {
       const pageH = doc.internal.pageSize.getHeight();
       doc.setDrawColor(...GRID);

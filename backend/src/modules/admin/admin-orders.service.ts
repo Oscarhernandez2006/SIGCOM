@@ -51,6 +51,9 @@ export interface DownloadableOrder {
   picked: boolean;
   pickedAt?: Date | null;
   pickedBy?: string | null;
+  /** Consecutivo del pedido al que este se asoció (null si no aplica). */
+  linkedOrderNumber?: string | null;
+  linkedSecondNumber?: string | null;
 }
 
 /** Línea (ítem) de un pedido para el detalle administrativo. */
@@ -111,6 +114,9 @@ export interface AdminOrderDetail {
   downloadedAt?: Date | null;
   downloadedBy?: string | null;
   items: AdminOrderItem[];
+  /** Consecutivo del pedido al que este se asoció (null si no aplica). */
+  linkedOrderNumber?: string | null;
+  linkedSecondNumber?: string | null;
 }
 
 /** Filtros para el listado administrativo de pedidos. */
@@ -293,6 +299,8 @@ export class AdminOrdersService {
       downloadCount: o.downloadCount ?? 0,
       downloadedAt: o.downloadedAt ?? null,
       downloadedBy: o.downloadedBy ?? null,
+      linkedOrderNumber: o.linkedOrderNumber ?? null,
+      linkedSecondNumber: o.linkedSecondNumber ?? null,
       items: (o.items ?? []).map((it) => ({
         sku: it.sku,
         productName: it.productName,
@@ -356,6 +364,8 @@ export class AdminOrdersService {
           picked: o.picked ?? false,
           pickedAt: o.pickedAt ?? null,
           pickedBy: o.pickedBy ?? null,
+          linkedOrderNumber: o.linkedOrderNumber ?? null,
+          linkedSecondNumber: o.linkedSecondNumber ?? null,
         });
       }
       return result;
@@ -375,6 +385,8 @@ export class AdminOrdersService {
       picked: o.picked ?? false,
       pickedAt: o.pickedAt ?? null,
       pickedBy: o.pickedBy ?? null,
+      linkedOrderNumber: o.linkedOrderNumber ?? null,
+      linkedSecondNumber: o.linkedSecondNumber ?? null,
     }));
   }
 

@@ -1,5 +1,8 @@
-import PDFDocument from 'pdfkit';
 import { Quote } from './entities/quote.entity';
+import {
+  contentBottom,
+  createPdfDocument,
+} from '../../common/pdf-letterhead';
 
 const COMPANY_NAMES: Record<string, string> = {
   '3': 'AGROPECUARIA SANTACRUZ',
@@ -20,7 +23,7 @@ function money(value: number | string): string {
 
 export function buildQuotePdf(quote: Quote): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 48 });
+    const doc = createPdfDocument(quote.companyId, { size: 'A4', margin: 48 });
     const chunks: Buffer[] = [];
 
     doc.on('data', (c: Buffer) => chunks.push(c));
@@ -130,11 +133,15 @@ export function buildQuotePdf(quote: Quote): Promise<Buffer> {
     let y = tableTop + 20;
     doc.font('Helvetica').fillColor('#222');
 
-    for (const item of quote.items) {
-      if (y > 760) {
+    const ensureSpace = (needed: number) => {
+      if (y + needed > contentBottom(doc)) {
         doc.addPage();
-        y = 48;
+        y = doc.page.margins.top;
       }
+    };
+
+    for (const item of quote.items) {
+      ensureSpace(34);
       doc.fontSize(9);
       doc.text(item.sku, cols.sku, y, { width: 56 });
       doc.text(item.productName, cols.name, y, { width: 185 });
@@ -145,6 +152,7 @@ export function buildQuotePdf(quote: Quote): Promise<Buffer> {
       y += 18;
     }
 
+    ensureSpace(60);
     doc.strokeColor('#ddd').moveTo(48, y).lineTo(547, y).stroke();
     y += 12;
 
@@ -162,6 +170,7 @@ export function buildQuotePdf(quote: Quote): Promise<Buffer> {
 
     // Notas.
     if (quote.notes) {
+      ensureSpace(74);
       y += 30;
       doc.font('Helvetica-Bold').fontSize(10).fillColor('#000').text('Notas', 48, y);
       doc
@@ -172,6 +181,7 @@ export function buildQuotePdf(quote: Quote): Promise<Buffer> {
     }
 
     // Aviso de cotización.
+    ensureSpace(60);
     y += quote.notes ? 6 : 30;
     doc
       .font('Helvetica-Oblique')

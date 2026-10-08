@@ -31,6 +31,7 @@ import { getMinOrderTotal, getWarehouse, COMPANIES, baseCompanyId, getOperationC
 import { buildOrderPdf } from './order-pdf';
 import {
   bogotaToday,
+  bogotaParts,
   isOrderCreationOpenFor,
   formatScheduleTime,
   APPROVAL_WINDOW_HOURS,
@@ -76,6 +77,17 @@ export class OrdersService {
     dto: CreateOrderDto,
     seller: User,
   ): Promise<Order> {
+    // Reintento por conexión lenta/inestable: si el vendedor ya envió esta
+    // misma intención de pedido (misma clave), se devuelve el pedido ya
+    // creado en vez de duplicarlo.
+    const idempotencyKey = dto.idempotencyKey?.trim();
+    if (idempotencyKey) {
+      const existing = await this.ordersRepository.findOne({
+        where: { companyId, idempotencyKey },
+      });
+      if (existing) return existing;
+    }
+
     // Los vendedores solo pueden CREAR pedidos dentro de la ventana operativa
     // configurable (hora de Colombia). Una vez creado dentro del horario, la
     // aprobación de cartera y la subida a Siesa pueden ocurrir después sin
@@ -106,10 +118,34 @@ export class OrdersService {
       dto.customerId,
     );
 
+    // Pedido asociado (completa un producto que faltó en uno anterior del
+    // mismo cliente, el mismo día): se valida y se toma el snapshot del
+    // consecutivo antes de abrir la transacción.
+    let linkedOrderNumber: string | undefined;
+    let linkedSecondNumber: string | undefined;
+    if (dto.linkedOrderId) {
+      const linked = await this.ordersRepository.findOne({
+        where: { id: dto.linkedOrderId, companyId },
+      });
+      if (
+        !linked ||
+        linked.customer.id !== customer.id ||
+        bogotaToday() !== bogotaParts(linked.createdAt).date
+      ) {
+        throw new BadRequestException(
+          'El pedido a asociar no es válido (debe ser del mismo cliente y de hoy).',
+        );
+      }
+      linkedOrderNumber = linked.orderNumber;
+      linkedSecondNumber = linked.secondNumber;
+    }
+
     // Todo se hace dentro de una transacción para que el descuento de stock y
     // la creación del pedido sean atómicos. La subida al ERP se hace después de
     // confirmar la transacción (no se hace una llamada HTTP con locks abiertos).
-    const created = await this.dataSource.transaction(async (manager) => {
+    let created: Order;
+    try {
+      created = await this.dataSource.transaction(async (manager) => {
       const ordersRepo = manager.getRepository(Order);
 
       // 1) Se valida y descuenta el stock (si no alcanza, aquí se lanza error).
@@ -243,6 +279,10 @@ export class OrdersService {
         deliveryType: dto.deliveryType,
         deliverySchedule: dto.deliverySchedule,
         deliveryDate: dto.deliveryDate,
+        idempotencyKey,
+        linkedOrderId: dto.linkedOrderId,
+        linkedOrderNumber,
+        linkedSecondNumber,
       });
 
       // Guarda el horario de recibido en el cliente para que quede
@@ -258,6 +298,18 @@ export class OrdersService {
 
       return ordersRepo.save(order);
     });
+    } catch (err) {
+      // Dos solicitudes con la misma clave de idempotencia llegaron casi al
+      // mismo tiempo (doble envío por reintento): la que perdió la carrera
+      // viola el índice único; se devuelve el pedido que sí se creó.
+      if (idempotencyKey && this.isUniqueViolation(err)) {
+        const existing = await this.ordersRepository.findOne({
+          where: { companyId, idempotencyKey },
+        });
+        if (existing) return existing;
+      }
+      throw err;
+    }
 
     // Si el cliente no debe cartera, el pedido sube de inmediato al ERP y queda
     // "enviado a Siesa". Si debe, queda retenido hasta la aprobación en cartera.
@@ -265,6 +317,16 @@ export class OrdersService {
       return this.pushOrder(created);
     }
     return created;
+  }
+
+  /** Código de Postgres para violación de restricción única (23505). */
+  private isUniqueViolation(err: unknown): boolean {
+    return (
+      !!err &&
+      typeof err === 'object' &&
+      'code' in err &&
+      (err as { code?: string }).code === '23505'
+    );
   }
 
   /** Formatea un valor en pesos colombianos para los mensajes al usuario. */
@@ -359,6 +421,42 @@ export class OrdersService {
       companyId,
       customerId,
     );
+  }
+
+  /**
+   * Pedidos de HOY (hora Colombia) de un cliente, del mismo vendedor, para
+   * ofrecerlos como posible "pedido a asociar" cuando se crea un segundo
+   * pedido el mismo día (p. ej. un producto que faltó por inventario
+   * rotativo y se completa en un pedido aparte más tarde). No incluye los
+   * anulados/desaprobados/vencidos.
+   */
+  findTodayOrdersForCustomer(
+    companyId: string,
+    customerId: string,
+    sellerId: string,
+  ): Promise<Order[]> {
+    return this.ordersRepository
+      .createQueryBuilder('o')
+      .leftJoinAndSelect('o.customer', 'customer')
+      .leftJoinAndSelect('o.seller', 'seller')
+      .leftJoinAndSelect('o.items', 'items')
+      .where('o.company_id = :companyId', { companyId })
+      .andWhere('o.customer_id = :customerId', { customerId })
+      .andWhere('o.seller_id = :sellerId', { sellerId })
+      .andWhere(
+        "(o.created_at AT TIME ZONE 'America/Bogota')::date = :today::date",
+        { today: bogotaToday() },
+      )
+      .andWhere('o.status NOT IN (:...excluded)', {
+        excluded: [
+          OrderStatus.DRAFT,
+          OrderStatus.CANCELLED,
+          OrderStatus.DISAPPROVED,
+          OrderStatus.EXPIRED,
+        ],
+      })
+      .orderBy('o.order_number', 'ASC')
+      .getMany();
   }
 
   /**

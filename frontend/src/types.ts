@@ -211,6 +211,8 @@ export interface OrderItem {
 export interface Order {
   id: string;
   orderNumber: string;
+  /** Tipo de pedido: 'corte' (por defecto) o 'subproducto'. */
+  type?: 'corte' | 'subproducto';
   /** Segundo consecutivo (subproductos divididos en dos documentos Siesa). */
   secondNumber?: string | null;
   customer: Client;
@@ -239,6 +241,11 @@ export interface Order {
   siesaStateNotificationPending?: boolean;
   syncError?: string;
   createdAt: string;
+  /** Pedido del mismo cliente (mismo día) al que este se asoció (completa un producto faltante). */
+  linkedOrderId?: string | null;
+  /** Consecutivo del pedido asociado (snapshot). */
+  linkedOrderNumber?: string | null;
+  linkedSecondNumber?: string | null;
 }
 
 /** Trazabilidad de un pedido en Siesa (estado, facturado y despachado). */

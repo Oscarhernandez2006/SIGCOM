@@ -9,6 +9,7 @@ import {
   AlertCircle,
   Loader2,
   ArrowLeft,
+  RefreshCw,
 } from 'lucide-react';
 import { isAxiosError } from 'axios';
 import {
@@ -171,6 +172,14 @@ export function VentasPorVendedorPage() {
                 Cargando...
               </span>
             )}
+            <Button
+              variant="outline"
+              onClick={() => void query.refetch()}
+              disabled={query.isFetching}
+            >
+              <RefreshCw className={cn('h-4 w-4', query.isFetching && 'animate-spin')} />
+              Actualizar
+            </Button>
             <Button
               variant="outline"
               onClick={() => handleExport('pdf')}

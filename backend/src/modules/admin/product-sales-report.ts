@@ -1,4 +1,8 @@
-import PDFDocument from 'pdfkit';
+import {
+  contentBottom,
+  createPdfDocument,
+  setPdfCompany,
+} from '../../common/pdf-letterhead';
 
 /** Una fila del reporte de productos vendidos (un producto). */
 export interface ProductSalesRow {
@@ -78,7 +82,10 @@ export function buildProductSalesReportPdf(
   data: ProductSalesReportData,
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 48 });
+    const doc = createPdfDocument(data.companies[0]?.companyId, {
+      size: 'A4',
+      margin: 48,
+    });
     const chunks: Buffer[] = [];
 
     doc.on('data', (c: Buffer) => chunks.push(c));
@@ -108,6 +115,7 @@ export function buildProductSalesReportPdf(
     };
 
     data.companies.forEach((company, index) => {
+      setPdfCompany(doc, company.companyId);
       if (index > 0) doc.addPage();
 
       // Encabezado de la compañía.
@@ -115,7 +123,7 @@ export function buildProductSalesReportPdf(
         .fontSize(18)
         .font('Helvetica-Bold')
         .fillColor('#000')
-        .text(company.companyName, 48, 48);
+        .text(company.companyName, 48, doc.page.margins.top);
       doc
         .fontSize(10)
         .font('Helvetica')
@@ -176,9 +184,9 @@ export function buildProductSalesReportPdf(
       doc.font('Helvetica').fontSize(9);
 
       for (const row of company.rows) {
-        if (y > 780) {
+        if (y > contentBottom(doc) - 14) {
           doc.addPage();
-          y = 48;
+          y = doc.page.margins.top;
           tableHeader(y);
           y += 20;
           doc.font('Helvetica').fontSize(9);
