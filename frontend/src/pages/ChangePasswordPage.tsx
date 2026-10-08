@@ -74,6 +74,15 @@ export function ChangePasswordPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Sin este campo el navegador no asocia la nueva contraseña al usuario y sigue autocompletando la vieja. */}
+            <input
+              type="text"
+              name="username"
+              autoComplete="username"
+              value={user?.documentId ?? ''}
+              readOnly
+              hidden
+            />
             {/* Contraseña actual */}
             <div className="space-y-1.5">
               <label

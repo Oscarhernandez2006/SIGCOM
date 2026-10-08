@@ -63,4 +63,11 @@ export class User extends BaseEntity {
   /** Si es true, el usuario debe cambiar su contraseña antes de usar el sistema. */
   @Column({ name: 'must_change_password', default: true })
   mustChangePassword: boolean;
+
+  @Column({ name: 'password_changed_at', type: 'timestamptz', nullable: true })
+  passwordChangedAt?: Date;
+
+  /** Origen del último cambio de contraseña: usuario | admin | suite. */
+  @Column({ name: 'password_changed_by', type: 'varchar', nullable: true })
+  passwordChangedBy?: string;
 }

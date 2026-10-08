@@ -14,7 +14,6 @@ import { ProvisioningService } from './provisioning.service';
 import { SharedSecretGuard } from './guards/shared-secret.guard';
 import {
   EstadoDto,
-  PasswordDto,
   PermisosDto,
   ProvisionUsuarioDto,
   CompanyPermisosDto,
@@ -58,8 +57,8 @@ export class ProvisioningController {
   }
 
   @Patch('usuarios/:cedula/password')
-  setPassword(@Param('cedula') cedula: string, @Body() dto: PasswordDto) {
-    return this.provisioning.setPassword(cedula, dto.password);
+  setPassword(@Param('cedula') cedula: string) {
+    return this.provisioning.setPassword(cedula);
   }
 
   @Patch('usuarios/:cedula/permisos')

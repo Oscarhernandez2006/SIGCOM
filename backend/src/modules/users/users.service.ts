@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -10,6 +15,8 @@ import { baseCompanyId } from '../../common/companies';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
@@ -91,6 +98,9 @@ export class UsersService {
     if (dto.clientBudget !== undefined) user.clientBudget = dto.clientBudget;
     if (dto.password) {
       user.passwordHash = await bcrypt.hash(dto.password, 10);
+      user.passwordChangedAt = new Date();
+      user.passwordChangedBy = 'admin';
+      this.logger.warn(`Contraseña de ${user.documentId} cambiada por admin`);
     }
 
     return this.usersRepository.save(user);
@@ -101,6 +111,9 @@ export class UsersService {
     const user = await this.findById(id);
     user.passwordHash = await bcrypt.hash(newPassword, 10);
     user.mustChangePassword = false;
+    user.passwordChangedAt = new Date();
+    user.passwordChangedBy = 'usuario';
+    this.logger.warn(`Contraseña de ${user.documentId} cambiada por el usuario`);
     return this.usersRepository.save(user);
   }
 

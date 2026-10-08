@@ -1,6 +1,8 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   OnModuleInit,
 } from '@nestjs/common';
@@ -74,6 +76,8 @@ const MODULOS_VALIDOS = new Set(
  */
 @Injectable()
 export class ProvisioningService implements OnModuleInit {
+  private readonly logger = new Logger(ProvisioningService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
@@ -251,8 +255,11 @@ export class ProvisioningService implements OnModuleInit {
       user.permissions = this.sanitizarPermisos(dto.permisos);
     }
     if (dto.activo !== undefined) user.active = dto.activo;
+    // La suite no puede cambiar la contraseña de un usuario existente (solo se fija al crearlo).
     if (dto.password) {
-      user.passwordHash = await bcrypt.hash(dto.password, 10);
+      this.logger.warn(
+        `Suite intentó cambiar la contraseña de ${user.documentId} (upsert); ignorado`,
+      );
     }
     return this.usersRepository.save(user);
   }
@@ -268,11 +275,11 @@ export class ProvisioningService implements OnModuleInit {
     return this.usersRepository.save(user);
   }
 
-  async setPassword(cedula: string, password: string): Promise<User> {
-    const user = await this.obtenerPorCedula(cedula);
-    user.passwordHash = await bcrypt.hash(password, 10);
-    user.mustChangePassword = false;
-    return this.usersRepository.save(user);
+  setPassword(cedula: string): never {
+    this.logger.warn(`Suite intentó cambiar la contraseña de ${cedula}; bloqueado`);
+    throw new ForbiddenException(
+      'La contraseña de SIGCOM no se puede cambiar desde la suite. Se gestiona solo en SIGCOM.',
+    );
   }
 
   async setPermisos(
