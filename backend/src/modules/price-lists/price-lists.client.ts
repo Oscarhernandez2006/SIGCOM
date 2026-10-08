@@ -115,6 +115,23 @@ interface VendorMonthlySalesResponse {
   data: VendorMonthlySaleRaw[];
 }
 
+/** Fila cruda de `/ventas/ventas-periodo-inversiones` (vendedor + criterio del cliente). */
+export interface InversionesSaleRaw {
+  periodo?: number;
+  descripcion_criterio?: string;
+  vendedor?: string;
+  cantidad?: number;
+  vr_bruto?: number;
+  vr_descuentos?: number;
+  vr_impuestos?: number;
+}
+
+interface InversionesSalesResponse {
+  has_more?: boolean;
+  next_offset?: number | null;
+  data: InversionesSaleRaw[];
+}
+
 /**
  * Fila cruda del endpoint de ventas por vendedor Y cliente (mensual). A
  * diferencia de `dashboard-comercial` (solo vendedor) y `facturas-*-tat` (solo
@@ -447,6 +464,60 @@ export class PriceListsClient {
       );
       throw new InternalServerErrorException(
         'Error consultando las ventas por producto en Siesa.',
+      );
+    }
+  }
+
+  /**
+   * Ventas por vendedor de INVERSIONES en un rango de períodos (YYYYMM).
+   * GET {baseUrl}/ventas/ventas-periodo-inversiones?cia&periodo_inicio&periodo_fin&token
+   */
+  async fetchInversionesSales(
+    cia: string,
+    periodoInicio: string,
+    periodoFin: string,
+  ): Promise<InversionesSaleRaw[]> {
+    const baseUrl = this.config.get<string>('priceLists.baseUrl');
+    const token = this.config.get<string>('priceLists.token');
+    const timeout = this.config.get<number>('priceLists.timeoutMs');
+    const PAGE = 1000;
+    const MAX_PAGES = 20;
+    try {
+      const out: InversionesSaleRaw[] = [];
+      let offset = 0;
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const response = await firstValueFrom(
+          this.http.get<InversionesSalesResponse>(
+            `${baseUrl}/ventas/ventas-periodo-inversiones`,
+            {
+              params: {
+                cia,
+                periodo_inicio: periodoInicio,
+                periodo_fin: periodoFin,
+                limit: PAGE,
+                offset,
+                token,
+              },
+              timeout,
+            },
+          ),
+        );
+        const batch = response.data?.data ?? [];
+        out.push(...batch);
+        if (batch.length === 0 || !response.data?.has_more) break;
+        offset = response.data?.next_offset ?? offset + batch.length;
+      }
+      return out;
+    } catch (error) {
+      const message =
+        error && typeof error === 'object' && 'message' in error
+          ? (error as { message: string }).message
+          : 'Error desconocido';
+      this.logger.error(
+        `Error consultando ventas de inversiones (cía ${cia}, ${periodoInicio}-${periodoFin}): ${message}`,
+      );
+      throw new InternalServerErrorException(
+        'Error consultando las ventas de Inversiones en Siesa.',
       );
     }
   }

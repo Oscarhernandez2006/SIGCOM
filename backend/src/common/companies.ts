@@ -36,6 +36,11 @@ export const DASHBOARD_EXCLUDED_SELLER_DOCS: string[] = [
   '900391505', // INVERSIONES SERRANO MILLAN (CARNES FRIAS)
 ];
 
+/** Nombres (ERP) excluidos del tablero, para fuentes del ERP que no traen NIT. */
+export const DASHBOARD_EXCLUDED_SELLER_NAMES: string[] = [
+  'INVERSIONES SERRANO MILLAN',
+];
+
 /** Indica si la cédula del vendedor está excluida del tablero comercial. */
 export function isDashboardExcludedSellerDoc(
   documentId: string | null | undefined,

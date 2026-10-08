@@ -49,6 +49,11 @@ export class PriceListsService {
     );
   }
 
+  /** Ventas por vendedor de Inversiones en un rango de períodos (YYYYMM). */
+  getInversionesSales(cia: string, periodoInicio: string, periodoFin: string) {
+    return this.client.fetchInversionesSales(cia, periodoInicio, periodoFin);
+  }
+
   /** Ventas GENERALES por vendedor (venta, kilos, costo, margen) del rango. */
   getVendorMonthlySales(
     compania: string,
