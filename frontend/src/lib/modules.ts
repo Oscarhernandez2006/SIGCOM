@@ -16,6 +16,10 @@ export const SELLER_MODULES: ModuleDef[] = [
   { key: '/cotizaciones', label: 'Cotizaciones' },
   { key: '/clientes', label: 'Cartera de Clientes' },
   { key: '/disponibilidad', label: 'Disponibilidad' },
+  {
+    key: '/pedidos/omitir-verificacion-direccion',
+    label: 'Pedidos · Omitir verificación de dirección',
+  },
 ];
 
 /** Área "Administrativa" (rol administrador). */

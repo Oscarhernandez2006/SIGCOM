@@ -83,7 +83,13 @@ const STEPS = [
 // a Agropecuaria (3) y Carnes Frias (8); Monteria (MTAT) no lo requiere.
 const CLIENT_SELLER_INFO_COMPANIES = ['3', '8'];
 // Vendedores (cédula) a los que no se les pide la ubicación del cliente.
+// Preferir el permiso `/pedidos/omitir-verificacion-direccion` (asignable
+// desde Usuarios); esta lista queda solo por compatibilidad con casos ya
+// configurados antes de que existiera el permiso.
 const CLIENT_SELLER_INFO_EXEMPT_DOCS = ['21849701'];
+/** Permiso que exime a un vendedor del modal de verificación de dirección. */
+const CLIENT_SELLER_INFO_EXEMPT_PERMISSION =
+  '/pedidos/omitir-verificacion-direccion';
 
 /** Configuración de la ventana horaria para crear pedidos. */
 interface OrderScheduleCfg {
@@ -177,11 +183,17 @@ export function NewOrderPage() {
   // Tope mínimo de pedido según la compañía activa; también decide si se
   // exige la ubicación del cliente (solo Agropecuaria y Carnes Frias).
   const { company } = useCompany();
-  const requireClientSellerInfo = Boolean(
-    company?.id &&
-      CLIENT_SELLER_INFO_COMPANIES.includes(company.id) &&
-      !CLIENT_SELLER_INFO_EXEMPT_DOCS.includes(user?.documentId?.trim() ?? ''),
-  );
+  const isExemptFromSellerInfo =
+    CLIENT_SELLER_INFO_EXEMPT_DOCS.includes(user?.documentId?.trim() ?? '') ||
+    (user?.permissions ?? []).includes(CLIENT_SELLER_INFO_EXEMPT_PERMISSION) ||
+    (company?.permissions ?? []).includes(CLIENT_SELLER_INFO_EXEMPT_PERMISSION);
+  // [DESACTIVADO] El modal de verificación de dirección se deshabilitó para
+  // todos los vendedores (ya no se exige a nadie antes de crear el pedido).
+  // Se deja `isExemptFromSellerInfo` calculado por si se reactiva más adelante.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const requireClientSellerInfo = false;
+  void isExemptFromSellerInfo;
+  void CLIENT_SELLER_INFO_COMPANIES;
   // Se pregunta la ubicación una sola vez por (cliente, vendedor); solo se
   // muestra el modal al intentar crear el pedido (no al seleccionar el
   // cliente), y es obligatorio: sin guardarla no se puede crear el pedido.
