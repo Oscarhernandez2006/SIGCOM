@@ -34,6 +34,18 @@ describe('DispatchPlanningController', () => {
     expect(find).not.toHaveBeenCalled();
   });
 
+  it('exports a lightweight historical exclusion list including both references and other delivery dates', async () => {
+    find.mockResolvedValueOnce([]).mockResolvedValueOnce([{ id: 'blocked', companyId: '8', orderNumber: '12', secondNumber: '13', status: OrderStatus.CANCELLED, deliveryType: DeliveryType.DESPACHO, deliveryDate: '2026-10-19' }]);
+    const result = await controller.list('2026-10-20');
+    expect(result.version).toBe(2);
+    expect(result.exclusiones[0]).toMatchObject({ origen: 'INVERSIONES', orderNumber: '12', secondNumber: '13', status: 'cancelled' });
+    const filter = find.mock.calls[1][0];
+    expect(filter.loadEagerRelations).toBe(false);
+    expect(filter.where[0].status.value).toBe('synced');
+    expect(filter.where[1].deliveryType.value).toBe('despacho');
+    expect(filter.where[2].deliveryDate.value).toBe('2026-10-20');
+  });
+
   it.each([
     ['MORTADELA X 500G.', 'PK', 4, 2],
     ['BUTI X 850gr', 'PK', 10, 8.5],

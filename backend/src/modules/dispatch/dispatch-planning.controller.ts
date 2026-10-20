@@ -1,6 +1,6 @@
 import { BadRequestException, Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, Between, Repository } from 'typeorm';
+import { In, IsNull, Between, Not, Repository } from 'typeorm';
 import { DeliveryType, Order, OrderStatus } from '../orders/entities/order.entity';
 import { DispatchApiKeyGuard } from './dispatch-api-key.guard';
 
@@ -43,9 +43,24 @@ export class DispatchPlanningController {
       ],
       order: { createdAt: 'ASC' },
     });
+    const exclusiones = await this.orders.find({
+      where: [
+        { companyId: In(['3', '8']), status: Not(OrderStatus.SYNCED) },
+        { companyId: In(['3', '8']), deliveryType: Not(DeliveryType.DESPACHO) },
+        { companyId: In(['3', '8']), deliveryDate: Not(fecha) },
+      ],
+      select: { id: true, companyId: true, orderNumber: true, secondNumber: true, status: true, deliveryType: true, deliveryDate: true },
+      loadEagerRelations: false,
+    });
     return {
+      version: 2,
       fecha,
       jornada: { desde: inicio.toISOString(), hasta: fin.toISOString(), zona: 'America/Bogota' },
+      exclusiones: exclusiones.map((pedido) => ({
+        id: pedido.id, origen: pedido.companyId === '3' ? 'AGROPECUARIA' : 'INVERSIONES',
+        orderNumber: pedido.orderNumber, secondNumber: pedido.secondNumber ?? null,
+        status: pedido.status, deliveryType: pedido.deliveryType, fechaEntrega: pedido.deliveryDate ?? null,
+      })),
       pedidos: pedidos.map((pedido) => {
         const pesos = pedido.items.map((item) => ({ item, peso: pesoItemPlanificacion(item) }));
         const sinPeso = pesos.filter(({ peso }) => peso === null).map(({ item }) => item);
