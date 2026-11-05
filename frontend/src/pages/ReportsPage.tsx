@@ -52,6 +52,7 @@ import { cn, formatCurrency } from '@/lib/utils';
 import { PageBackground, Hero, BrandButton, Modal } from '@/components/brand/PageShell';
 import { FadeIn } from '@/components/dashboard/primitives';
 import { BRAND } from '@/lib/brand';
+import { ResponsiveTable } from '@/components/brand/ResponsiveTable';
 
 /** Fecha de hoy en formato YYYY-MM-DD (hora local del navegador). */
 function todayStr(): string {
@@ -525,7 +526,7 @@ function InventoryReportBody() {
             <SummaryTile label="Stock total" value={num(data.summary.totalStock)} />
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-[#E2E8F0] bg-white">
+          <ResponsiveTable className="rounded-2xl border border-[#E2E8F0] bg-white">
             <table className="w-full text-sm">
               <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
                 <tr>
@@ -573,7 +574,7 @@ function InventoryReportBody() {
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
         </div>
       )}
     </>
@@ -783,7 +784,7 @@ function ProductSalesReportBody() {
               />
             </div>
 
-            <div className="overflow-x-auto rounded-2xl border border-[#E2E8F0] bg-white">
+            <ResponsiveTable className="rounded-2xl border border-[#E2E8F0] bg-white">
               <table className="w-full text-sm">
                 <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
                   <tr>
@@ -826,7 +827,7 @@ function ProductSalesReportBody() {
                   )}
                 </tbody>
               </table>
-            </div>
+            </ResponsiveTable>
           </div>
         ))}
     </>
@@ -1109,7 +1110,7 @@ function SalesSummaryReportBody() {
             />
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-[#E2E8F0] bg-white">
+          <ResponsiveTable className="rounded-2xl border border-[#E2E8F0] bg-white">
             <table className="w-full text-sm">
               <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
                 <tr>
@@ -1164,7 +1165,7 @@ function SalesSummaryReportBody() {
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
         </div>
       )}
     </>
@@ -1381,7 +1382,7 @@ function SellerRankingReportBody() {
             />
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-[#E2E8F0] bg-white">
+          <ResponsiveTable className="rounded-2xl border border-[#E2E8F0] bg-white">
             <table className="w-full text-sm">
               <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
                 <tr>
@@ -1448,7 +1449,7 @@ function SellerRankingReportBody() {
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
         </div>
       )}
     </>
@@ -1725,7 +1726,7 @@ function SellerProductReportBody() {
             />
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-[#E2E8F0] bg-white">
+          <ResponsiveTable className="rounded-2xl border border-[#E2E8F0] bg-white">
             <table className="w-full text-sm">
               <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
                 <tr>
@@ -1771,7 +1772,7 @@ function SellerProductReportBody() {
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
         </div>
       )}
     </>
@@ -2022,7 +2023,7 @@ function ProductSellerReportBody() {
             />
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-[#E2E8F0] bg-white">
+          <ResponsiveTable className="rounded-2xl border border-[#E2E8F0] bg-white">
             <table className="w-full text-sm">
               <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
                 <tr>
@@ -2104,7 +2105,7 @@ function ProductSellerReportBody() {
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
         </div>
       )}
     </>
@@ -2329,7 +2330,7 @@ function SellerSalesReportBody() {
             />
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-[#E2E8F0] bg-white">
+          <ResponsiveTable className="rounded-2xl border border-[#E2E8F0] bg-white">
             <table className="w-full text-sm">
               <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
                 <tr>
@@ -2428,7 +2429,7 @@ function SellerSalesReportBody() {
                 </tfoot>
               )}
             </table>
-          </div>
+          </ResponsiveTable>
         </div>
       )}
     </>
@@ -2646,7 +2647,7 @@ function VendorProductSalesReportBody() {
                     </button>
 
                     {isOpen && (
-                      <div className="overflow-x-auto">
+                      <ResponsiveTable>
                         <table className="w-full text-sm">
                           <thead className="bg-[#EEF2F7]/20 text-left text-xs uppercase tracking-wide text-[#6B7280]">
                             <tr>
@@ -2680,7 +2681,7 @@ function VendorProductSalesReportBody() {
                             ))}
                           </tbody>
                         </table>
-                      </div>
+                      </ResponsiveTable>
                     )}
                   </div>
                 );

@@ -22,6 +22,7 @@ import { formatCurrency, cn } from '@/lib/utils';
 import { BRAND } from '@/lib/brand';
 import { PageBackground, Hero, BrandButton, StatusPill } from '@/components/brand/PageShell';
 import { Panel, PanelBody, PanelHeader, PanelTitle } from '@/components/brand/Panel';
+import { ResponsiveTable } from '@/components/brand/ResponsiveTable';
 
 const FIELD_STYLE = { backgroundColor: BRAND.field, color: BRAND.text } as const;
 
@@ -302,7 +303,8 @@ export function PriceListsPage() {
                 Sin resultados.
               </p>
             ) : (
-              <div className="overflow-x-auto">
+              <div>
+                <ResponsiveTable>
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b text-left text-[#6B7280]">
@@ -335,8 +337,9 @@ export function PriceListsPage() {
                     ))}
                   </tbody>
                 </table>
+                </ResponsiveTable>
 
-                <div className="flex items-center justify-between gap-2 pt-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-3">
                   <span className="text-xs text-[#6B7280]">
                     {items.length} producto{items.length === 1 ? '' : 's'}
                     {items.length === 500 && ' (máx.)'}

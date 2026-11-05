@@ -21,6 +21,7 @@ import type { Client } from '@/types';
 import { BRAND } from '@/lib/brand';
 import { PageBackground, Hero, BrandButton, StatusPill, Modal } from '@/components/brand/PageShell';
 import { Panel, PanelBody, PanelHeader, PanelTitle } from '@/components/brand/Panel';
+import { ResponsiveTable } from '@/components/brand/ResponsiveTable';
 
 const FIELD_STYLE = { backgroundColor: BRAND.field, color: BRAND.text } as const;
 
@@ -168,7 +169,8 @@ export function ClientsPage() {
                 : 'No hay clientes. Sincroniza desde Siesa.'}
             </p>
           ) : (
-            <div className="overflow-x-auto">
+            <div>
+              <ResponsiveTable>
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-[#6B7280]">
@@ -273,8 +275,9 @@ export function ClientsPage() {
                   ))}
                 </tbody>
               </table>
+              </ResponsiveTable>
 
-              <div className="flex items-center justify-between gap-2 pt-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-3">
                 <span className="text-xs text-[#6B7280]">
                   {clients.length} cliente{clients.length === 1 ? '' : 's'}
                   {clients.length === 500 && ' (máx., refina la búsqueda)'}
@@ -388,7 +391,7 @@ function PortfolioModal({
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white">
-            <div className="overflow-x-auto">
+            <ResponsiveTable>
               <table className="w-full text-sm">
                 <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
                   <tr>
@@ -438,7 +441,7 @@ function PortfolioModal({
                   })}
                 </tbody>
               </table>
-            </div>
+            </ResponsiveTable>
           </div>
         </div>
       )}

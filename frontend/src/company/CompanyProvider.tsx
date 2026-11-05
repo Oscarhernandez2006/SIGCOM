@@ -13,18 +13,21 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [company, setCompany] = useState<Company | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Usuario para el que ya se resolvieron las compañías. Derivar `loading` de
+  // aquí evita el render intermedio (usuario listo, compañías aún sin cargar)
+  // que mandaba a "seleccionar compañía" al recargar la página.
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const loading = !!user && loadedFor !== user.id;
 
   // Cargamos las compañías disponibles del usuario al iniciar sesion.
   useEffect(() => {
     if (!user) {
       setCompanies([]);
       setCompany(null);
-      setLoading(false);
+      setLoadedFor(null);
       return;
     }
     let active = true;
-    setLoading(true);
     api
       .get<Company[]>('/auth/companies')
       .then((res) => {
@@ -42,7 +45,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         setCompany(null);
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active) setLoadedFor(user.id);
       });
     return () => {
       active = false;

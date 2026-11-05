@@ -17,6 +17,77 @@
 }
 
 /* Campos de texto de la marca (fondo gris claro, anillo verde al enfocar) */
+/* Evita que el contenido (tablas, textos largos) ensanche las columnas de grid en móvil. */
+.grid > * {
+  min-width: 0;
+}
+.rt {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.rt > table {
+  min-width: 100%;
+}
+/* Móvil: cada fila de la tabla se vuelve una tarjeta "etiqueta · valor". */
+@media (max-width: 639.98px) {
+  .rt table,
+  .rt tbody,
+  .rt tfoot,
+  .rt tr,
+  .rt td {
+    display: block;
+    width: 100%;
+  }
+  .rt thead {
+    display: none;
+  }
+  .rt tbody > tr,
+  .rt tfoot > tr {
+    padding: 10px 14px;
+    border-top: 1px solid #e2e8f0;
+  }
+  .rt tbody > tr:first-child {
+    border-top: 0;
+  }
+  .rt td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 4px 0 !important;
+    text-align: right !important;
+    border: 0 !important;
+    white-space: normal !important;
+    min-height: 0;
+  }
+  .rt td[data-label]:not([data-label=''])::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    max-width: 45%;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-align: left;
+    color: #15803d;
+  }
+  .rt td[data-label='']:not(:has(input, button, a, svg)) {
+    display: none;
+  }
+  .rt td[data-span] {
+    justify-content: center;
+    text-align: center !important;
+    padding: 12px 0 !important;
+  }
+  .rt td > * {
+    max-width: 100%;
+  }
+  .rt td input,
+  .rt td select {
+    max-width: 55%;
+  }
+}
+
 .brand-input:focus {
   box-shadow: 0 0 0 2px rgba(30, 155, 80, 0.4);
 }

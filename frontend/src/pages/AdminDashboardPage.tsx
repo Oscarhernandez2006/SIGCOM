@@ -300,26 +300,26 @@ function CompanyColumn({ company }: { company: ManagerialCompanyStats }) {
       {/* Encabezado de compañía + ventas */}
       <Panel className={cn('border', accent.ring)}>
         <PanelBody className="p-4 sm:p-[18px]">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
               <div
                 className={cn(
-                  'flex h-11 w-11 items-center justify-center rounded-xl',
+                  'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
                   accent.soft,
                 )}
               >
                 <Building2 className={cn('h-5 w-5', accent.text)} />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs text-[#6B7280]">
                   Compañía {company.companyId}
                 </p>
-                <p className="font-semibold">{company.name}</p>
+                <p className="truncate font-semibold">{company.name}</p>
               </div>
             </div>
             <div className="text-right">
               <p className="text-xs text-[#6B7280]">Ventas</p>
-              <p className={cn('text-xl font-bold', accent.text)}>
+              <p className={cn('text-xl font-bold tabular-nums', accent.text)}>
                 {formatCurrency(ventas)}
               </p>
             </div>
@@ -488,26 +488,26 @@ function HeaderKpisCard({ company }: { company: ManagerialCompanyStats }) {
   return (
     <Panel className={cn('border', accent.ring)}>
       <PanelBody className="p-4 sm:p-[18px]">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <div
               className={cn(
-                'flex h-11 w-11 items-center justify-center rounded-xl',
+                'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
                 accent.soft,
               )}
             >
               <Building2 className={cn('h-5 w-5', accent.text)} />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xs text-[#6B7280]">
                 Compañía {company.companyId}
               </p>
-              <p className="font-semibold">{company.name}</p>
+              <p className="truncate font-semibold">{company.name}</p>
             </div>
           </div>
           <div className="text-right">
             <p className="text-xs text-[#6B7280]">Ventas</p>
-            <p className={cn('text-xl font-bold', accent.text)}>
+            <p className={cn('text-xl font-bold tabular-nums', accent.text)}>
               {formatCurrency(ventas)}
             </p>
           </div>

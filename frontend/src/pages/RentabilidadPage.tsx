@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { BRAND } from '@/lib/brand';
 import { PageBackground, Hero, BrandButton } from '@/components/brand/PageShell';
 import { Panel, PanelBody, PanelHeader, PanelTitle } from '@/components/brand/Panel';
+import { ResponsiveTable } from '@/components/brand/ResponsiveTable';
 
 const FIELD_STYLE = { backgroundColor: BRAND.field, color: BRAND.text } as const;
 
@@ -173,14 +174,14 @@ export function RentabilidadPage() {
             Costos ({visibleRows.length}
             {search ? ` de ${rows.length}` : ''})
           </PanelTitle>
-          <div className="flex items-center gap-2">
-            <div className="relative">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-0 flex-1 basis-40">
               <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Buscar referencia o nombre…"
-                className="h-9 w-56 rounded-md border border-[#E2E8F0] bg-white pl-8 pr-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+                className="brand-input h-9 w-full rounded-xl pl-8 pr-2 text-sm font-semibold outline-none" style={FIELD_STYLE}
               />
             </div>
             <BrandButton variant="outlined" className="h-9 px-3" onClick={addRow}>
@@ -202,7 +203,7 @@ export function RentabilidadPage() {
           </div>
         </PanelHeader>
         <PanelBody className="p-0">
-          <div className="overflow-x-auto">
+          <ResponsiveTable>
             <table className="w-full text-sm">
               <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
                 <tr>
@@ -280,7 +281,7 @@ export function RentabilidadPage() {
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
         </PanelBody>
       </Panel>
     </PageBackground>

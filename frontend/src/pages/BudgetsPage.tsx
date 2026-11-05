@@ -24,6 +24,7 @@ import { cn } from '@/lib/utils';
 import { BRAND } from '@/lib/brand';
 import { PageBackground, Hero, BrandButton } from '@/components/brand/PageShell';
 import { Panel, PanelBody, PanelHeader, PanelTitle } from '@/components/brand/Panel';
+import { ResponsiveTable } from '@/components/brand/ResponsiveTable';
 
 const FIELD_STYLE = { backgroundColor: BRAND.field, color: BRAND.text } as const;
 
@@ -454,17 +455,18 @@ export function BudgetsPage() {
             Vendedores ({visibleRows.length}
             {search ? ` de ${data?.length ?? 0}` : ''})
           </PanelTitle>
-          <div className="flex items-center gap-2">
-            <div className="relative">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-0 flex-1 basis-40">
               <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Buscar vendedor…"
-                className="h-9 w-52 rounded-md border border-[#E2E8F0] bg-white pl-8 pr-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+                className="brand-input h-9 w-full rounded-xl pl-8 pr-2 text-sm font-semibold outline-none"
+                style={FIELD_STYLE}
               />
             </div>
-            <BrandButton className="h-9 px-3" onClick={handleSave} disabled={!companyId || saveMutation.isPending || !data?.length}>
+            <BrandButton className="h-9 shrink-0 px-3" onClick={handleSave} disabled={!companyId || saveMutation.isPending || !data?.length}>
               {saved ? (
                 <Check className="h-4 w-4" />
               ) : (
@@ -479,7 +481,7 @@ export function BudgetsPage() {
           </div>
         </PanelHeader>
         <PanelBody className="p-0">
-          <div className="overflow-x-auto">
+          <ResponsiveTable>
             <table className="w-full text-sm">
               <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
                 <tr>
@@ -596,7 +598,7 @@ export function BudgetsPage() {
                 </tfoot>
               )}
             </table>
-          </div>
+          </ResponsiveTable>
         </PanelBody>
       </Panel>
 
@@ -702,10 +704,10 @@ function ClientBudgetModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-[#E2E8F0] p-4">
-          <div>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
+      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-[24px] bg-white shadow-xl sm:max-h-[90vh] sm:rounded-[24px]">
+        <div className="flex items-center justify-between gap-3 border-b border-[#E2E8F0] p-4">
+          <div className="min-w-0">
             <h3 className="flex items-center gap-2 text-lg font-bold">
               <Store className="h-5 w-5 text-[#1E9B50]" />
               Presupuesto por cliente/tienda
@@ -722,17 +724,17 @@ function ClientBudgetModal({
           </button>
         </div>
 
-        <div className="flex items-center gap-2 border-b border-[#E2E8F0] p-3">
-          <div className="relative flex-1">
+        <div className="flex flex-wrap items-center gap-2 border-b border-[#E2E8F0] p-3">
+          <div className="relative min-w-0 flex-1 basis-40">
             <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar cliente o tienda…"
-              className="h-9 w-full rounded-md border border-[#E2E8F0] bg-white pl-8 pr-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+              className="brand-input h-9 w-full rounded-xl pl-8 pr-2 text-sm font-semibold outline-none" style={FIELD_STYLE}
             />
           </div>
-          <BrandButton className="h-9 px-3" onClick={handleSave} disabled={saveMutation.isPending || !data?.length}>
+          <BrandButton className="h-9 shrink-0 px-3" onClick={handleSave} disabled={saveMutation.isPending || !data?.length}>
             {saved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
             {saveMutation.isPending
               ? 'Guardando…'
@@ -742,7 +744,7 @@ function ClientBudgetModal({
           </BrandButton>
         </div>
 
-        <div className="overflow-auto">
+        <ResponsiveTable>
           <table className="w-full text-sm">
             <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
               <tr>
@@ -838,7 +840,7 @@ function ClientBudgetModal({
               </tfoot>
             )}
           </table>
-        </div>
+        </ResponsiveTable>
       </div>
     </div>
   );

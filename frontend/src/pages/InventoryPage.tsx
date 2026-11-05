@@ -28,6 +28,7 @@ import type { Product } from '@/types';
 import { BRAND } from '@/lib/brand';
 import { PageBackground, Hero, BrandButton, StatusPill } from '@/components/brand/PageShell';
 import { Panel, PanelBody, PanelHeader, PanelTitle } from '@/components/brand/Panel';
+import { ResponsiveTable } from '@/components/brand/ResponsiveTable';
 
 const FIELD_STYLE = { backgroundColor: BRAND.field, color: BRAND.text } as const;
 
@@ -356,14 +357,14 @@ export function InventoryPage() {
 
       {/* Listado de productos */}
       <Panel>
-        <PanelHeader className="flex-row items-center justify-between gap-4">
+        <PanelHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
           <PanelTitle className="">
             Productos de {company?.name}
             <span className="ml-2 text-sm font-normal text-[#6B7280]">
               {products.length}
             </span>
           </PanelTitle>
-          <div className="relative w-full max-w-xs">
+          <div className="relative w-full sm:max-w-xs">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
             <input className="brand-input h-10 rounded-xl pl-9 pr-3 text-sm font-semibold outline-none" style={FIELD_STYLE}
               placeholder="Buscar producto..."
@@ -389,7 +390,7 @@ export function InventoryPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <ResponsiveTable>
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[#E2E8F0] text-left text-xs uppercase tracking-wide text-[#6B7280]">
@@ -414,7 +415,7 @@ export function InventoryPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ResponsiveTable>
           )}
         </PanelBody>
         {/* Controles de paginación (50 productos por página) */}

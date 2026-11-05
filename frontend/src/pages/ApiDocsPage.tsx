@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageBackground, Hero } from '@/components/brand/PageShell';
+import { ResponsiveTable } from '@/components/brand/ResponsiveTable';
 
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -486,7 +487,7 @@ export function ApiDocsPage() {
             {selected.endpoint.params.length > 0 && (
               <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6">
                 <SectionTitle>Parámetros</SectionTitle>
-                <div className="overflow-hidden rounded-xl border border-[#E2E8F0]">
+                <ResponsiveTable className="rounded-xl border border-[#E2E8F0]">
                   <table className="w-full text-sm">
                     <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
                       <tr>
@@ -535,7 +536,7 @@ export function ApiDocsPage() {
                       ))}
                     </tbody>
                   </table>
-                </div>
+                </ResponsiveTable>
               </div>
             )}
 
@@ -548,7 +549,7 @@ export function ApiDocsPage() {
             {/* Respuesta */}
             <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6">
               <SectionTitle>Respuesta</SectionTitle>
-              <div className="mb-4 overflow-hidden rounded-xl border border-[#E2E8F0]">
+              <ResponsiveTable className="mb-4 rounded-xl border border-[#E2E8F0]">
                 <table className="w-full text-sm">
                   <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
                     <tr>
@@ -579,7 +580,7 @@ export function ApiDocsPage() {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </ResponsiveTable>
               <CodeBlock
                 code={selected.endpoint.exampleResponse}
                 label="JSON"

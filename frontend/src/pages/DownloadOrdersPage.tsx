@@ -22,6 +22,7 @@ import { cn, orderNos } from '@/lib/utils';
 import { BRAND } from '@/lib/brand';
 import { PageBackground, Hero, BrandButton, StatusPill } from '@/components/brand/PageShell';
 import { Panel, PanelBody } from '@/components/brand/Panel';
+import { ResponsiveTable } from '@/components/brand/ResponsiveTable';
 
 const FIELD_STYLE = { backgroundColor: BRAND.field, color: BRAND.text } as const;
 const INPUT_CLASS = 'brand-input h-10 rounded-xl pl-9 pr-3 text-sm font-semibold outline-none';
@@ -338,7 +339,7 @@ export function DownloadOrdersPage({
             </p>
           )}
 
-          <div className="overflow-x-auto rounded-2xl border border-[#E2E8F0]">
+          <ResponsiveTable className="rounded-2xl border border-[#E2E8F0]">
             <table className="w-full text-sm">
               <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
                 <tr>
@@ -485,7 +486,7 @@ export function DownloadOrdersPage({
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
         </PanelBody>
       </Panel>
     </PageBackground>

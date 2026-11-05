@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ResponsiveTable } from '@/components/brand/ResponsiveTable';
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: '', label: 'Todos los estados' },
@@ -314,7 +315,7 @@ export function AdminOrdersPage() {
           </div>
 
           {/* Tabla */}
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <ResponsiveTable className="rounded-lg border border-border">
             <table className="w-full text-sm">
               <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
                 <tr>
@@ -403,7 +404,7 @@ export function AdminOrdersPage() {
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
         </CardContent>
       </Card>
 
@@ -588,7 +589,7 @@ function OrderDetailModal({
             <ClipboardList className="h-4 w-4 text-primary" />
             Productos ({order.items.length})
           </h4>
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <ResponsiveTable className="rounded-lg border border-border">
             <table className="w-full text-sm">
               <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
                 <tr>
@@ -617,7 +618,7 @@ function OrderDetailModal({
                 ))}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
         </div>
 
         {/* Totales + acciones */}

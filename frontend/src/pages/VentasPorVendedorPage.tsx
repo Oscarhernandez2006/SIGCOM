@@ -22,6 +22,7 @@ import { cn, formatCurrency } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ResponsiveTable } from '@/components/brand/ResponsiveTable';
 
 function todayStr(): string {
   const d = new Date();
@@ -237,7 +238,7 @@ export function VentasPorVendedorPage() {
             <SummaryTile label="% Ideal a la fecha" value={`${data.idealPct.toFixed(2)}%`} />
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <ResponsiveTable className="rounded-lg border border-border">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
@@ -291,7 +292,7 @@ export function VentasPorVendedorPage() {
                 </tfoot>
               )}
             </table>
-          </div>
+          </ResponsiveTable>
         </div>
       )}
     </div>
