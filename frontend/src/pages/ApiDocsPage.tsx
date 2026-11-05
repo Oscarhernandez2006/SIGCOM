@@ -13,6 +13,8 @@ import {
   Truck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PageBackground, Hero } from '@/components/brand/PageShell';
+
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -218,7 +220,7 @@ function CodeBlock({
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+    <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#6B7280]">
       {children}
     </h4>
   );
@@ -272,30 +274,30 @@ export function ApiDocsPage() {
   const fullUrl = selected ? `${baseUrl}${selected.endpoint.path}` : '';
 
   return (
-    <div className="space-y-6">
+    <PageBackground className="space-y-3.5">
       {/* Hero */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-6">
+      <Hero>
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/15 text-primary">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/[0.16] text-white">
             <BookOpen className="h-6 w-6" />
           </div>
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">
+          <div className="min-w-0">
+            <h2 className="text-xl font-extrabold leading-tight tracking-[-0.4px] sm:text-[22px]">
               Documentación de la API
             </h2>
-            <p className="text-sm text-muted-foreground">
+            <p className="mt-1 text-sm font-semibold text-white/90">
               Referencia de endpoints por módulos · integra SIGCOM con tus
               sistemas.
             </p>
           </div>
         </div>
-      </div>
+      </Hero>
 
       <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
         {/* Índice */}
         <aside className="lg:sticky lg:top-4 lg:self-start">
-          <nav className="rounded-2xl border border-border bg-card p-2">
-            <p className="px-2 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <nav className="rounded-2xl border border-[#E2E8F0] bg-white p-2">
+            <p className="px-2 py-2 text-[11px] font-semibold uppercase tracking-wider text-[#6B7280]">
               Referencia
             </p>
             <button
@@ -304,8 +306,8 @@ export function ApiDocsPage() {
               className={cn(
                 'mb-1 flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm font-medium transition-colors',
                 !selected
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-foreground hover:bg-accent',
+                  ? 'bg-[#1E9B50]/10 text-[#1E9B50]'
+                  : 'text-[#111827] hover:bg-[#F4FAF6]',
               )}
             >
               <BookOpen className="h-4 w-4 shrink-0" />
@@ -319,18 +321,18 @@ export function ApiDocsPage() {
                   <button
                     type="button"
                     onClick={() => toggleModule(m.key)}
-                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm font-medium transition-colors hover:bg-accent"
+                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm font-medium transition-colors hover:bg-[#F4FAF6]"
                   >
-                    <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <Icon className="h-4 w-4 shrink-0 text-[#6B7280]" />
                     <span className="flex-1 truncate">{m.name}</span>
                     {open ? (
-                      <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <ChevronDown className="h-4 w-4 shrink-0 text-[#6B7280]" />
                     ) : (
-                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <ChevronRight className="h-4 w-4 shrink-0 text-[#6B7280]" />
                     )}
                   </button>
                   {open && (
-                    <div className="mb-1 ml-4 space-y-0.5 border-l border-border pl-2">
+                    <div className="mb-1 ml-4 space-y-0.5 border-l border-[#E2E8F0] pl-2">
                       {m.endpoints.map((e) => (
                         <button
                           key={e.id}
@@ -339,8 +341,8 @@ export function ApiDocsPage() {
                           className={cn(
                             'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors',
                             selectedId === e.id
-                              ? 'bg-accent font-medium'
-                              : 'hover:bg-accent',
+                              ? 'bg-[#F4FAF6] font-medium'
+                              : 'hover:bg-[#F4FAF6]',
                           )}
                         >
                           <MethodBadge method={e.method} />
@@ -358,42 +360,42 @@ export function ApiDocsPage() {
         {/* Portada / Introducción */}
         {!selected && (
           <div className="space-y-6">
-            <div className="overflow-hidden rounded-2xl border border-border bg-card">
-              <div className="border-b border-border bg-gradient-to-br from-primary/10 to-transparent p-6">
+            <div className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white">
+              <div className="border-b border-[#E2E8F0] bg-[#1E9B50]/[0.06] p-6">
                 <h3 className="text-xl font-bold">Bienvenido</h3>
-                <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                <p className="mt-1 max-w-2xl text-sm text-[#6B7280]">
                   Aquí encontrarás lo necesario para integrar SIGCOM con tus
                   sistemas. Los servicios se consumen mediante un protocolo
                   RESTful y devuelven JSON.
                 </p>
               </div>
               <div className="grid gap-4 p-6 sm:grid-cols-3">
-                <div className="rounded-xl border border-border p-4">
+                <div className="rounded-xl border border-[#E2E8F0] p-4">
                   <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                    <Link2 className="h-4 w-4 text-primary" />
+                    <Link2 className="h-4 w-4 text-[#1E9B50]" />
                     URL base
                   </div>
-                  <p className="break-all font-mono text-xs text-muted-foreground">
+                  <p className="break-all font-mono text-xs text-[#6B7280]">
                     {baseUrl}/api
                   </p>
                 </div>
-                <div className="rounded-xl border border-border p-4">
+                <div className="rounded-xl border border-[#E2E8F0] p-4">
                   <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
                     <KeyRound className="h-4 w-4 text-amber-500" />
                     Autenticación
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-[#6B7280]">
                     Token de API en el header{' '}
                     <span className="font-mono">x-api-key</span> o el query{' '}
                     <span className="font-mono">token</span>.
                   </p>
                 </div>
-                <div className="rounded-xl border border-border p-4">
+                <div className="rounded-xl border border-[#E2E8F0] p-4">
                   <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                    <Braces className="h-4 w-4 text-primary" />
+                    <Braces className="h-4 w-4 text-[#1E9B50]" />
                     Formato
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-[#6B7280]">
                     Respuestas en JSON. Códigos HTTP estándar (200, 401, 400).
                   </p>
                 </div>
@@ -413,9 +415,9 @@ export function ApiDocsPage() {
                         setOpenModules((prev) => new Set(prev).add(m.key));
                         setSelectedId(m.endpoints[0]?.id ?? '');
                       }}
-                      className="group flex items-start gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-all hover:border-primary/40 hover:shadow-sm"
+                      className="group flex items-start gap-3 rounded-2xl border border-[#E2E8F0] bg-white p-4 text-left transition-all hover:border-[#1E9B50]/40 hover:shadow-sm"
                     >
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1E9B50]/10 text-[#1E9B50]">
                         <Icon className="h-5 w-5" />
                       </div>
                       <div className="min-w-0 flex-1">
@@ -423,16 +425,16 @@ export function ApiDocsPage() {
                           <span className="text-sm font-semibold">
                             {m.name}
                           </span>
-                          <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          <span className="rounded-full bg-[#EEF2F7] px-1.5 py-0.5 text-[10px] font-medium text-[#6B7280]">
                             {m.endpoints.length} endpoint
                             {m.endpoints.length !== 1 ? 's' : ''}
                           </span>
                         </div>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
+                        <p className="mt-0.5 text-xs text-[#6B7280]">
                           {m.description}
                         </p>
                       </div>
-                      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+                      <ArrowRight className="h-4 w-4 shrink-0 text-[#6B7280] transition-transform group-hover:translate-x-0.5 group-hover:text-[#1E9B50]" />
                     </button>
                   );
                 })}
@@ -445,11 +447,11 @@ export function ApiDocsPage() {
         {selected && (
           <div className="space-y-6">
             {/* Encabezado */}
-            <div className="rounded-2xl border border-border bg-card p-6">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6">
+              <div className="flex items-center gap-1.5 text-xs text-[#6B7280]">
                 <span>{selected.module.name}</span>
                 <ChevronRight className="h-3 w-3" />
-                <span className="text-foreground">
+                <span className="text-[#111827]">
                   {selected.endpoint.title}
                 </span>
               </div>
@@ -457,7 +459,7 @@ export function ApiDocsPage() {
                 <MethodBadge method={selected.endpoint.method} size="md" />
                 {selected.endpoint.title}
               </h3>
-              <p className="mt-2 text-sm text-muted-foreground">
+              <p className="mt-2 text-sm text-[#6B7280]">
                 {selected.endpoint.description}
               </p>
 
@@ -473,7 +475,7 @@ export function ApiDocsPage() {
                 <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
                 <div>
                   <span className="font-semibold">Autenticación: </span>
-                  <span className="text-muted-foreground">
+                  <span className="text-[#6B7280]">
                     {selected.endpoint.auth}
                   </span>
                 </div>
@@ -482,11 +484,11 @@ export function ApiDocsPage() {
 
             {/* Parámetros */}
             {selected.endpoint.params.length > 0 && (
-              <div className="rounded-2xl border border-border bg-card p-6">
+              <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6">
                 <SectionTitle>Parámetros</SectionTitle>
-                <div className="overflow-hidden rounded-xl border border-border">
+                <div className="overflow-hidden rounded-xl border border-[#E2E8F0]">
                   <table className="w-full text-sm">
-                    <thead className="bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                    <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
                       <tr>
                         <th className="px-3 py-2 font-semibold">Nombre</th>
                         <th className="px-3 py-2 font-semibold">En</th>
@@ -500,19 +502,19 @@ export function ApiDocsPage() {
                         <tr
                           key={`${p.location}-${p.name}`}
                           className={cn(
-                            'border-t border-border',
-                            i % 2 === 1 && 'bg-muted/20',
+                            'border-t border-[#E2E8F0]',
+                            i % 2 === 1 && 'bg-[#EEF2F7]/20',
                           )}
                         >
-                          <td className="px-3 py-2 font-mono font-medium text-primary">
+                          <td className="px-3 py-2 font-mono font-medium text-[#1E9B50]">
                             {p.name}
                           </td>
                           <td className="px-3 py-2">
-                            <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+                            <span className="rounded bg-[#EEF2F7] px-1.5 py-0.5 font-mono text-[11px] text-[#6B7280]">
                               {p.location}
                             </span>
                           </td>
-                          <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                          <td className="px-3 py-2 font-mono text-xs text-[#6B7280]">
                             {p.type}
                           </td>
                           <td className="px-3 py-2">
@@ -521,12 +523,12 @@ export function ApiDocsPage() {
                                 requerido
                               </span>
                             ) : (
-                              <span className="text-[11px] text-muted-foreground">
+                              <span className="text-[11px] text-[#6B7280]">
                                 opcional
                               </span>
                             )}
                           </td>
-                          <td className="px-3 py-2 text-muted-foreground">
+                          <td className="px-3 py-2 text-[#6B7280]">
                             {p.description}
                           </td>
                         </tr>
@@ -538,17 +540,17 @@ export function ApiDocsPage() {
             )}
 
             {/* Ejemplo de solicitud */}
-            <div className="rounded-2xl border border-border bg-card p-6">
+            <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6">
               <SectionTitle>Ejemplo de solicitud</SectionTitle>
               <CodeBlock code={curl} label="cURL" />
             </div>
 
             {/* Respuesta */}
-            <div className="rounded-2xl border border-border bg-card p-6">
+            <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6">
               <SectionTitle>Respuesta</SectionTitle>
-              <div className="mb-4 overflow-hidden rounded-xl border border-border">
+              <div className="mb-4 overflow-hidden rounded-xl border border-[#E2E8F0]">
                 <table className="w-full text-sm">
-                  <thead className="bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                  <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
                     <tr>
                       <th className="px-3 py-2 font-semibold">Campo</th>
                       <th className="px-3 py-2 font-semibold">Tipo</th>
@@ -560,17 +562,17 @@ export function ApiDocsPage() {
                       <tr
                         key={f.name}
                         className={cn(
-                          'border-t border-border',
-                          i % 2 === 1 && 'bg-muted/20',
+                          'border-t border-[#E2E8F0]',
+                          i % 2 === 1 && 'bg-[#EEF2F7]/20',
                         )}
                       >
-                        <td className="px-3 py-2 font-mono font-medium text-primary">
+                        <td className="px-3 py-2 font-mono font-medium text-[#1E9B50]">
                           {f.name}
                         </td>
-                        <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                        <td className="px-3 py-2 font-mono text-xs text-[#6B7280]">
                           {f.type}
                         </td>
-                        <td className="px-3 py-2 text-muted-foreground">
+                        <td className="px-3 py-2 text-[#6B7280]">
                           {f.description}
                         </td>
                       </tr>
@@ -588,13 +590,13 @@ export function ApiDocsPage() {
 
             {/* Notas */}
             {selected.endpoint.notes && selected.endpoint.notes.length > 0 && (
-              <div className="rounded-2xl border border-border bg-card p-6">
+              <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6">
                 <SectionTitle>Notas</SectionTitle>
                 <ul className="space-y-2">
                   {selected.endpoint.notes.map((n, i) => (
                     <li
                       key={i}
-                      className="flex items-start gap-2 text-sm text-muted-foreground"
+                      className="flex items-start gap-2 text-sm text-[#6B7280]"
                     >
                       <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
                       {n}
@@ -606,7 +608,7 @@ export function ApiDocsPage() {
           </div>
         )}
       </div>
-    </div>
+    </PageBackground>
   );
 }
 
@@ -619,13 +621,13 @@ function UrlBar({ method, url }: { method: Method; url: string }) {
     setTimeout(() => setCopied(false), 1500);
   };
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 p-1.5">
+    <div className="flex items-center gap-2 rounded-xl border border-[#E2E8F0] bg-[#F4FAF6] p-1.5">
       <MethodBadge method={method} size="md" />
       <code className="flex-1 truncate px-1 font-mono text-sm">{url}</code>
       <button
         type="button"
         onClick={copy}
-        className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent"
+        className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs text-[#6B7280] transition-colors hover:bg-[#F4FAF6]"
       >
         {copied ? (
           <Check className="h-3.5 w-3.5 text-emerald-500" />

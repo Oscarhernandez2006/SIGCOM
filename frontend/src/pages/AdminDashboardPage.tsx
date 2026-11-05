@@ -8,7 +8,7 @@ import {
   RefreshCw,
   Building2,
   Trophy,
-  Calendar,
+  CalendarDays,
   BarChart3,
   Loader2,
 } from 'lucide-react';
@@ -18,14 +18,10 @@ import {
   useOrdersBySellerReport,
 } from '@/hooks/useAdminApi';
 import { formatCurrency, cn } from '@/lib/utils';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Panel, PanelBody, PanelHeader, PanelTitle } from '@/components/brand/Panel';
+import { PageBackground, Hero, BrandButton } from '@/components/brand/PageShell';
+import { RangeChip } from '@/components/brand/RangeChip';
+import { BRAND } from '@/lib/brand';
 import { SalesTrendChart } from '@/components/SalesTrendChart';
 import { useCompany } from '@/company/useCompany';
 import type { ManagerialCompanyStats } from '@/types';
@@ -57,6 +53,9 @@ const COMPANY_ACCENT: Record<
   },
 };
 
+const DATE_INPUT =
+  'brand-input h-10 w-full rounded-xl pl-9 pr-2 text-sm font-semibold outline-none disabled:opacity-60';
+
 const accentFor = (id: string) => COMPANY_ACCENT[id] ?? COMPANY_ACCENT['3'];
 
 /** Fecha local de hoy en formato YYYY-MM-DD. */
@@ -66,38 +65,10 @@ function todayStr(): string {
   return new Date(d.getTime() - off * 60000).toISOString().slice(0, 10);
 }
 
-/** Suma/resta días a una fecha YYYY-MM-DD. */
-function addDays(date: string, days: number): string {
-  const d = new Date(`${date}T12:00:00`);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
 /** Primer día del mes actual (YYYY-MM-DD). */
 function startOfMonth(): string {
   const d = new Date();
   return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
-}
-
-function prettyRange(from: string, to: string): string {
-  if (from === to) {
-    return new Date(`${from}T12:00:00`).toLocaleDateString('es-CO', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-  }
-  const f = new Date(`${from}T12:00:00`).toLocaleDateString('es-CO', {
-    day: 'numeric',
-    month: 'short',
-  });
-  const t = new Date(`${to}T12:00:00`).toLocaleDateString('es-CO', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-  return `${f} — ${t}`;
 }
 
 /**
@@ -139,121 +110,52 @@ export function AdminDashboardPage() {
     [companies],
   );
 
-  type Preset = { label: string; from: string; to: string };
-  const presets: Preset[] = useMemo(() => {
-    const today = todayStr();
-    return [
-      { label: 'Hoy', from: today, to: today },
-      { label: 'Ayer', from: addDays(today, -1), to: addDays(today, -1) },
-      { label: 'Últimos 7 días', from: addDays(today, -6), to: today },
-      { label: 'Últimos 14 días', from: addDays(today, -13), to: today },
-      { label: 'Últimos 30 días', from: addDays(today, -29), to: today },
-      { label: 'Este mes', from: startOfMonth(), to: today },
-    ];
-  }, []);
-
-  const activePreset = presets.find((p) => p.from === from && p.to === to)?.label;
-
   return (
-    <div className="space-y-6">
-      {/* Encabezado */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">
+    <PageBackground className="space-y-3.5">
+      <Hero>
+        <div className="flex items-center gap-2">
+          <h2 className="flex-1 text-xl font-extrabold leading-tight tracking-[-0.4px] sm:text-[22px]">
             Panel de control
           </h2>
-          <p className="text-muted-foreground">
-            {isComparativo
-              ? 'Comparativa por compañía'
-              : (selectedCompany?.name ?? 'Panel')}{' '}
-            · {prettyRange(from, to)}
-          </p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            aria-label="Actualizar"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/[0.16] transition-colors hover:bg-white/25 disabled:hover:bg-white/[0.16]"
+          >
+            <RefreshCw className={cn('h-[18px] w-[18px]', isFetching && 'animate-spin')} />
+          </button>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => refetch()}
-          disabled={isFetching}
-        >
-          <RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin')} />
-          Actualizar
-        </Button>
-      </div>
-
-      {/* Filtros de fecha */}
-      <Card>
-        <CardContent className="space-y-4 p-5">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">
-                Desde
-              </label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="date"
-                  value={from}
-                  max={to || todayStr()}
-                  onChange={(e) => setFrom(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">
-                Hasta
-              </label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="date"
-                  value={to}
-                  min={from || undefined}
-                  max={todayStr()}
-                  onChange={(e) => setTo(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {presets.map((p) => (
-              <button
-                key={p.label}
-                onClick={() => {
-                  setFrom(p.from);
-                  setTo(p.to);
-                }}
-                className={cn(
-                  'rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
-                  activePreset === p.label
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border text-muted-foreground hover:bg-accent',
-                )}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+        <p className="text-sm font-semibold text-white/90">
+          {isComparativo ? 'Comparativa por compañía' : (selectedCompany?.name ?? 'Panel')}
+        </p>
+        <RangeChip
+          className="mt-3"
+          from={from}
+          to={to}
+          onChange={(f, t) => {
+            setFrom(f);
+            setTo(t);
+          }}
+        />
+      </Hero>
 
       {/* Siempre visible; skeleton al cambiar fechas, datos reales cuando carga */}
       {(companies.length > 0 || isFetching) && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Ingresos por compañía</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <Panel>
+          <PanelHeader>
+            <PanelTitle>Ingresos por compañía</PanelTitle>
+          </PanelHeader>
+          <PanelBody className="space-y-4">
             {isFetching ? (
               [0, 1, 2].map((i) => (
                 <div key={i} className="animate-pulse space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <div className="h-4 w-44 rounded bg-muted" />
-                    <div className="h-4 w-28 rounded bg-muted" />
+                    <div className="h-4 w-44 rounded bg-[#EEF2F7]" />
+                    <div className="h-4 w-28 rounded bg-[#EEF2F7]" />
                   </div>
-                  <div className="h-2.5 w-full rounded-full bg-muted" />
+                  <div className="h-2.5 w-full rounded-full bg-[#EEF2F7]" />
                 </div>
               ))
             ) : (
@@ -274,7 +176,7 @@ export function AdminDashboardPage() {
                             className={cn('h-2.5 w-2.5 rounded-full', accent.dot)}
                           />
                           {c.name}
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-xs text-[#6B7280]">
                             #{c.companyId}
                           </span>
                         </span>
@@ -282,12 +184,12 @@ export function AdminDashboardPage() {
                           <span className={cn('font-bold', accent.text)}>
                             {formatCurrency(revenue)}
                           </span>
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-xs text-[#6B7280]">
                             {pctTotal}%
                           </span>
                         </span>
                       </div>
-                      <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
+                      <div className="h-2.5 w-full overflow-hidden rounded-full bg-[#EEF2F7]">
                         <div
                           className={cn('h-full rounded-full', accent.bar)}
                           style={{ width: `${share}%` }}
@@ -296,8 +198,8 @@ export function AdminDashboardPage() {
                     </div>
                   );
                 })}
-                <div className="flex items-center justify-between border-t border-border pt-3 text-sm">
-                  <span className="font-medium text-muted-foreground">
+                <div className="flex items-center justify-between border-t border-[#E2E8F0] pt-3 text-sm">
+                  <span className="font-medium text-[#6B7280]">
                     Total general
                   </span>
                   <span className="text-base font-bold">
@@ -306,8 +208,8 @@ export function AdminDashboardPage() {
                 </div>
               </>
             )}
-          </CardContent>
-        </Card>
+          </PanelBody>
+        </Panel>
       )}
 
       {/* Venta acumulada del mes por vendedor (ERP) */}
@@ -315,43 +217,51 @@ export function AdminDashboardPage() {
 
       {/* Selector de compañía */}
       <div className="flex flex-wrap gap-2">
-        <button
-          onClick={() => setSelectedCompanyId('comparativo')}
-          className={cn(
-            'flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors',
-            isComparativo
-              ? 'border-primary bg-primary/10 text-primary'
-              : 'border-border text-muted-foreground hover:bg-accent',
-          )}
-        >
-          <BarChart3 className="h-4 w-4" />
-          Comparativo
-        </button>
+        {[
+          { id: 'comparativo', label: 'Comparativo', icon: BarChart3 },
+          ...companies.map((c) => ({ id: c.companyId, label: c.name, icon: Building2 })),
+        ].map((opt) => {
+          const on = selectedCompanyId === opt.id;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => setSelectedCompanyId(opt.id)}
+              className="flex h-9 items-center gap-1.5 rounded-full px-4 text-[13px] font-bold transition-colors"
+              style={{
+                backgroundColor: on ? BRAND.primary : '#fff',
+                color: on ? '#fff' : BRAND.textMuted,
+                border: `1px solid ${on ? BRAND.primary : BRAND.border}`,
+              }}
+            >
+              <opt.icon className="h-4 w-4" />
+              {opt.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Vista */}
+            {/* Vista */}
       {isLoading && companies.length === 0 ? (
-        <Card className="animate-pulse">
-          <CardContent className="h-96" />
-        </Card>
+        <Panel className="h-96 animate-pulse" />
       ) : companies.length === 0 ? (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+        <Panel>
+          <PanelBody className="py-10 text-center text-sm text-[#6B7280]">
             Sin datos en el rango seleccionado.
-          </CardContent>
-        </Card>
+          </PanelBody>
+        </Panel>
       ) : isComparativo ? (
         <ComparativoGrid companies={companies} />
       ) : selectedCompany ? (
         <CompanyColumn company={selectedCompany} />
       ) : (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+        <Panel>
+          <PanelBody className="py-10 text-center text-sm text-[#6B7280]">
             Sin datos en el rango seleccionado.
-          </CardContent>
-        </Card>
+          </PanelBody>
+        </Panel>
       )}
-    </div>
+    </PageBackground>
   );
 }
 
@@ -388,8 +298,8 @@ function CompanyColumn({ company }: { company: ManagerialCompanyStats }) {
   return (
     <div className="space-y-4">
       {/* Encabezado de compañía + ventas */}
-      <Card className={cn('border', accent.ring)}>
-        <CardContent className="p-5">
+      <Panel className={cn('border', accent.ring)}>
+        <PanelBody className="p-4 sm:p-[18px]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div
@@ -401,14 +311,14 @@ function CompanyColumn({ company }: { company: ManagerialCompanyStats }) {
                 <Building2 className={cn('h-5 w-5', accent.text)} />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-[#6B7280]">
                   Compañía {company.companyId}
                 </p>
                 <p className="font-semibold">{company.name}</p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-xs text-muted-foreground">Ventas</p>
+              <p className="text-xs text-[#6B7280]">Ventas</p>
               <p className={cn('text-xl font-bold', accent.text)}>
                 {formatCurrency(ventas)}
               </p>
@@ -419,18 +329,18 @@ function CompanyColumn({ company }: { company: ManagerialCompanyStats }) {
             {kpis.map((k) => (
               <div
                 key={k.label}
-                className="rounded-lg border border-border bg-background/60 p-3"
+                className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3"
               >
-                <k.icon className="h-4 w-4 text-muted-foreground" />
+                <k.icon className="h-4 w-4 text-[#6B7280]" />
                 <p className="mt-2 text-sm font-bold tracking-tight">
                   {k.value}
                 </p>
-                <p className="text-[11px] text-muted-foreground">{k.label}</p>
+                <p className="text-[11px] text-[#6B7280]">{k.label}</p>
               </div>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        </PanelBody>
+      </Panel>
 
       {/* Ventas por vendedor y productos, lado a lado */}
       <div className="grid gap-4 xl:grid-cols-2">
@@ -439,33 +349,33 @@ function CompanyColumn({ company }: { company: ManagerialCompanyStats }) {
       </div>
 
       {/* Tendencia de ventas */}
-      <Card>
-        <CardHeader className="flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-sm">
+      <Panel>
+        <PanelHeader className="flex-row items-center justify-between gap-3">
+          <PanelTitle className="flex items-center gap-2">
             <TrendingUp className={cn('h-4 w-4', accent.text)} />
             Tendencia de ventas
-          </CardTitle>
-          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          </PanelTitle>
+          <span className="inline-flex items-center gap-1.5 text-xs text-[#6B7280]">
             <span className={cn('h-2.5 w-2.5 rounded-full', accent.dot)} />
             Ingresos
           </span>
-        </CardHeader>
-        <CardContent>
+        </PanelHeader>
+        <PanelBody>
           <SalesTrendChart data={company.salesTrend} />
-        </CardContent>
-      </Card>
+        </PanelBody>
+      </Panel>
 
       {/* Clientes que más pidieron */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-sm">
+      <Panel>
+        <PanelHeader>
+          <PanelTitle className="flex items-center gap-2">
             <Users className={cn('h-4 w-4', accent.text)} />
             Clientes que más pidieron
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+          </PanelTitle>
+        </PanelHeader>
+        <PanelBody>
           {company.topCustomers.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">
+            <p className="py-6 text-center text-sm text-[#6B7280]">
               Sin ventas en el rango.
             </p>
           ) : (
@@ -476,12 +386,12 @@ function CompanyColumn({ company }: { company: ManagerialCompanyStats }) {
                   className="flex items-center justify-between gap-3"
                 >
                   <div className="flex min-w-0 items-center gap-2.5">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-bold text-muted-foreground">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-[#EEF2F7] text-[11px] font-extrabold text-[#6B7280]">
                       {i + 1}
                     </span>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{cu.name}</p>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-[11px] text-[#6B7280]">
                         {cu.code}
                       </p>
                     </div>
@@ -490,7 +400,7 @@ function CompanyColumn({ company }: { company: ManagerialCompanyStats }) {
                     <p className="text-sm font-semibold">
                       {formatCurrency(cu.revenue)}
                     </p>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-[11px] text-[#6B7280]">
                       {cu.orders} pedido(s)
                     </p>
                   </div>
@@ -498,8 +408,8 @@ function CompanyColumn({ company }: { company: ManagerialCompanyStats }) {
               ))}
             </ol>
           )}
-        </CardContent>
-      </Card>
+        </PanelBody>
+      </Panel>
     </div>
   );
 }
@@ -576,8 +486,8 @@ function HeaderKpisCard({ company }: { company: ManagerialCompanyStats }) {
         { label: 'Clientes', value: t.customers.toLocaleString('es-CO'), icon: Users },
       ];
   return (
-    <Card className={cn('border', accent.ring)}>
-      <CardContent className="p-5">
+    <Panel className={cn('border', accent.ring)}>
+      <PanelBody className="p-4 sm:p-[18px]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div
@@ -589,14 +499,14 @@ function HeaderKpisCard({ company }: { company: ManagerialCompanyStats }) {
               <Building2 className={cn('h-5 w-5', accent.text)} />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-[#6B7280]">
                 Compañía {company.companyId}
               </p>
               <p className="font-semibold">{company.name}</p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-xs text-muted-foreground">Ventas</p>
+            <p className="text-xs text-[#6B7280]">Ventas</p>
             <p className={cn('text-xl font-bold', accent.text)}>
               {formatCurrency(ventas)}
             </p>
@@ -606,16 +516,16 @@ function HeaderKpisCard({ company }: { company: ManagerialCompanyStats }) {
           {kpis.map((k) => (
             <div
               key={k.label}
-              className="rounded-lg border border-border bg-background/60 p-3"
+              className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3"
             >
-              <k.icon className="h-4 w-4 text-muted-foreground" />
+              <k.icon className="h-4 w-4 text-[#6B7280]" />
               <p className="mt-2 text-sm font-bold tracking-tight">{k.value}</p>
-              <p className="text-[11px] text-muted-foreground">{k.label}</p>
+              <p className="text-[11px] text-[#6B7280]">{k.label}</p>
             </div>
           ))}
         </div>
-      </CardContent>
-    </Card>
+      </PanelBody>
+    </Panel>
   );
 }
 
@@ -633,23 +543,23 @@ function SellersCard({
     const maxFact = Math.max(1, ...m.bySeller.map((s) => s.revenue));
     const maxPed = Math.max(1, ...company.topSellers.map((s) => s.revenue));
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-sm">
+      <Panel>
+        <PanelHeader>
+          <PanelTitle className="flex items-center gap-2">
             <Users className={cn('h-4 w-4', accent.text)} />
             Facturado vs. Pedido por vendedor
-          </CardTitle>
-        </CardHeader>
-        <CardContent
+          </PanelTitle>
+        </PanelHeader>
+        <PanelBody
           className={cn(sideBySide ? 'grid gap-6 md:grid-cols-2' : 'space-y-5')}
         >
           {/* Facturado (ERP) */}
           <div>
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
               Facturado (ERP)
             </p>
             {m.bySeller.length === 0 ? (
-              <p className="py-4 text-center text-sm text-muted-foreground">
+              <p className="py-4 text-center text-sm text-[#6B7280]">
                 Sin ventas en el rango.
               </p>
             ) : (
@@ -658,7 +568,7 @@ function SellersCard({
                   <li key={`f-${s.nit}-${i}`} className="space-y-1">
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-2.5">
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-bold text-muted-foreground">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-[#EEF2F7] text-[11px] font-extrabold text-[#6B7280]">
                           {i + 1}
                         </span>
                         <span className="truncate text-sm font-medium">
@@ -673,7 +583,7 @@ function SellersCard({
                           Margen {formatCurrency(s.profit)} ·{' '}
                           {s.marginPct.toFixed(1)}%
                         </p>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-[11px] text-[#6B7280]">
                           {s.kilos.toLocaleString('es-CO', {
                             maximumFractionDigits: 1,
                           })}{' '}
@@ -681,7 +591,7 @@ function SellersCard({
                         </p>
                       </div>
                     </div>
-                    <div className="ml-7 h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div className="ml-7 h-1.5 overflow-hidden rounded-full bg-[#EEF2F7]">
                       <div
                         className={cn('h-full rounded-full', accent.bar)}
                         style={{
@@ -696,12 +606,12 @@ function SellersCard({
           </div>
 
           {/* Pedido (app) */}
-          <div className={cn(!sideBySide && 'border-t border-border pt-4')}>
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className={cn(!sideBySide && 'border-t border-[#E2E8F0] pt-4')}>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
               Pedido (app)
             </p>
             {company.topSellers.length === 0 ? (
-              <p className="py-4 text-center text-sm text-muted-foreground">
+              <p className="py-4 text-center text-sm text-[#6B7280]">
                 Sin pedidos en el rango.
               </p>
             ) : (
@@ -710,7 +620,7 @@ function SellersCard({
                   <li key={`p-${s.documentId}-${i}`} className="space-y-1">
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-2.5">
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-bold text-muted-foreground">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-[#EEF2F7] text-[11px] font-extrabold text-[#6B7280]">
                           {i + 1}
                         </span>
                         <span className="truncate text-sm font-medium">
@@ -721,12 +631,12 @@ function SellersCard({
                         <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">
                           {formatCurrency(s.revenue)}
                         </p>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-[11px] text-[#6B7280]">
                           {s.orders.toLocaleString('es-CO')} pedido(s)
                         </p>
                       </div>
                     </div>
-                    <div className="ml-7 h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div className="ml-7 h-1.5 overflow-hidden rounded-full bg-[#EEF2F7]">
                       <div
                         className="h-full rounded-full bg-blue-500"
                         style={{
@@ -739,8 +649,8 @@ function SellersCard({
               </ol>
             )}
           </div>
-        </CardContent>
-      </Card>
+        </PanelBody>
+      </Panel>
     );
   }
   const maxSellerRevenue = Math.max(
@@ -748,16 +658,16 @@ function SellersCard({
     ...company.topSellers.map((s) => s.revenue),
   );
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-sm">
+    <Panel>
+      <PanelHeader>
+        <PanelTitle className="flex items-center gap-2">
           <Users className={cn('h-4 w-4', accent.text)} />
           Ventas por vendedor
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+        </PanelTitle>
+      </PanelHeader>
+      <PanelBody>
         {company.topSellers.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
+          <p className="py-6 text-center text-sm text-[#6B7280]">
             Sin ventas en el rango.
           </p>
         ) : (
@@ -766,7 +676,7 @@ function SellersCard({
               <li key={`${s.documentId}-${i}`} className="space-y-1">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-2.5">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-bold text-muted-foreground">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-[#EEF2F7] text-[11px] font-extrabold text-[#6B7280]">
                       {i + 1}
                     </span>
                     <span className="truncate text-sm font-medium">
@@ -777,12 +687,12 @@ function SellersCard({
                     <p className={cn('text-sm font-semibold', accent.text)}>
                       {formatCurrency(s.revenue)}
                     </p>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-[11px] text-[#6B7280]">
                       {s.orders.toLocaleString('es-CO')} pedido(s)
                     </p>
                   </div>
                 </div>
-                <div className="ml-7 h-1.5 overflow-hidden rounded-full bg-muted">
+                <div className="ml-7 h-1.5 overflow-hidden rounded-full bg-[#EEF2F7]">
                   <div
                     className={cn('h-full rounded-full', accent.bar)}
                     style={{
@@ -794,8 +704,8 @@ function SellersCard({
             ))}
           </ol>
         )}
-      </CardContent>
-    </Card>
+      </PanelBody>
+    </Panel>
   );
 }
 
@@ -806,16 +716,16 @@ function ProductsCard({ company }: { company: ManagerialCompanyStats }) {
   if (m) {
     const maxRevenue = Math.max(1, ...m.byProduct.map((p) => p.revenue));
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-sm">
+      <Panel>
+        <PanelHeader>
+          <PanelTitle className="flex items-center gap-2">
             <Trophy className="h-4 w-4 text-amber-500" />
             Ventas y margen por producto
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+          </PanelTitle>
+        </PanelHeader>
+        <PanelBody>
           {m.byProduct.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">
+            <p className="py-6 text-center text-sm text-[#6B7280]">
               Sin ventas en el rango.
             </p>
           ) : (
@@ -824,7 +734,7 @@ function ProductsCard({ company }: { company: ManagerialCompanyStats }) {
                 <li key={`${p.ref}-${i}`} className="space-y-1">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-2.5">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-bold text-muted-foreground">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-[#EEF2F7] text-[11px] font-extrabold text-[#6B7280]">
                         {i + 1}
                       </span>
                       <span className="truncate text-sm font-medium">
@@ -840,7 +750,7 @@ function ProductsCard({ company }: { company: ManagerialCompanyStats }) {
                       </p>
                     </div>
                   </div>
-                  <div className="ml-7 h-1.5 overflow-hidden rounded-full bg-muted">
+                  <div className="ml-7 h-1.5 overflow-hidden rounded-full bg-[#EEF2F7]">
                     <div
                       className={cn('h-full rounded-full', accent.bar)}
                       style={{
@@ -852,8 +762,8 @@ function ProductsCard({ company }: { company: ManagerialCompanyStats }) {
               ))}
             </ol>
           )}
-        </CardContent>
-      </Card>
+        </PanelBody>
+      </Panel>
     );
   }
   const maxProductQty = Math.max(
@@ -861,16 +771,16 @@ function ProductsCard({ company }: { company: ManagerialCompanyStats }) {
     ...company.topProducts.map((p) => p.quantity),
   );
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-sm">
+    <Panel>
+      <PanelHeader>
+        <PanelTitle className="flex items-center gap-2">
           <Trophy className="h-4 w-4 text-amber-500" />
           Productos más vendidos
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+        </PanelTitle>
+      </PanelHeader>
+      <PanelBody>
         {company.topProducts.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
+          <p className="py-6 text-center text-sm text-[#6B7280]">
             Sin ventas en el rango.
           </p>
         ) : (
@@ -879,7 +789,7 @@ function ProductsCard({ company }: { company: ManagerialCompanyStats }) {
               <li key={p.sku} className="space-y-1">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-2.5">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-bold text-muted-foreground">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-[#EEF2F7] text-[11px] font-extrabold text-[#6B7280]">
                       {i + 1}
                     </span>
                     <span className="truncate text-sm font-medium">
@@ -890,12 +800,12 @@ function ProductsCard({ company }: { company: ManagerialCompanyStats }) {
                     <p className="text-sm font-semibold tabular-nums">
                       {p.quantity.toLocaleString('es-CO')}
                     </p>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-[11px] text-[#6B7280]">
                       {formatCurrency(p.revenue)}
                     </p>
                   </div>
                 </div>
-                <div className="ml-7 h-1.5 overflow-hidden rounded-full bg-muted">
+                <div className="ml-7 h-1.5 overflow-hidden rounded-full bg-[#EEF2F7]">
                   <div
                     className={cn('h-full rounded-full', accent.bar)}
                     style={{
@@ -907,8 +817,8 @@ function ProductsCard({ company }: { company: ManagerialCompanyStats }) {
             ))}
           </ol>
         )}
-      </CardContent>
-    </Card>
+      </PanelBody>
+    </Panel>
   );
 }
 
@@ -941,16 +851,16 @@ function RankingColumn({
 }) {
   const max = Math.max(1, ...items.map((i) => i.value));
   const valueClass =
-    color === 'blue' ? 'text-blue-600 dark:text-blue-400' : 'text-primary';
-  const barClass = color === 'blue' ? 'bg-blue-500' : 'bg-primary';
+    color === 'blue' ? 'text-blue-600 dark:text-blue-400' : 'text-[#1E9B50]';
+  const barClass = color === 'blue' ? 'bg-blue-500' : 'bg-[#1E9B50]';
   const boxClass =
     color === 'blue'
       ? 'border-blue-500/30 bg-blue-500/5'
-      : 'border-primary/30 bg-primary/5';
+      : 'border-[#1E9B50]/30 bg-[#1E9B50]/5';
   return (
     <div className="space-y-4">
-      <div className={cn('rounded-xl border p-4', boxClass)}>
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      <div className={cn('rounded-2xl border p-4', boxClass)}>
+        <p className="text-xs font-medium uppercase tracking-wide text-[#6B7280]">
           {title}
         </p>
         <p className={cn('mt-1 text-2xl font-bold tabular-nums', valueClass)}>
@@ -960,15 +870,15 @@ function RankingColumn({
             formatCurrency(total)
           )}
         </p>
-        <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
+        <p className="mt-1 text-xs text-[#6B7280]">{subtitle}</p>
       </div>
 
       {isLoading ? (
-        <p className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+        <p className="flex items-center justify-center gap-2 py-6 text-sm text-[#6B7280]">
           <Loader2 className="h-4 w-4 animate-spin" /> Cargando…
         </p>
       ) : items.length === 0 ? (
-        <p className="py-6 text-center text-sm text-muted-foreground">
+        <p className="py-6 text-center text-sm text-[#6B7280]">
           {emptyText}
         </p>
       ) : (
@@ -977,7 +887,7 @@ function RankingColumn({
             <li key={it.key} className="space-y-1">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2.5">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-bold text-muted-foreground">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-[#EEF2F7] text-[11px] font-extrabold text-[#6B7280]">
                     {i + 1}
                   </span>
                   <span className="truncate text-sm font-medium">{it.name}</span>
@@ -991,7 +901,7 @@ function RankingColumn({
                   {formatCurrency(it.value)}
                 </p>
               </div>
-              <div className="ml-7 h-1.5 overflow-hidden rounded-full bg-muted">
+              <div className="ml-7 h-1.5 overflow-hidden rounded-full bg-[#EEF2F7]">
                 <div
                   className={cn('h-full rounded-full', barClass)}
                   style={{ width: `${Math.round((it.value / max) * 100)}%` }}
@@ -1032,50 +942,52 @@ function VentaAcumuladaSection() {
   const periodLabel = data?.periodLabel ?? monthStr;
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
+    <Panel>
+      <PanelHeader className="flex-row flex-wrap items-start justify-between gap-3">
         <div>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <TrendingUp className="h-4 w-4 text-primary" />
+          <PanelTitle className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-[#1E9B50]" />
             {dayStr
               ? 'Venta vs. Pedido del día por vendedor'
               : 'Venta vs. Pedido del mes por vendedor'}
-          </CardTitle>
-          <p className="mt-1 text-sm capitalize text-muted-foreground">
+          </PanelTitle>
+          <p className="mt-1 text-sm capitalize text-[#6B7280]">
             {periodLabel}
           </p>
         </div>
         <div className="flex flex-wrap items-end justify-end gap-2">
-          <div className="relative w-36 shrink-0">
-            <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+          <div className="relative w-40 shrink-0">
+            <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1E9B50]" />
+            <input
               type="month"
               value={monthStr}
               max={currentMonthStr()}
               disabled={!!dayStr}
               onChange={(e) => setMonthStr(e.target.value || currentMonthStr())}
-              className="pl-9"
+              className={DATE_INPUT}
+              style={{ backgroundColor: BRAND.field, color: BRAND.text }}
             />
           </div>
-          <div className="relative w-40 shrink-0">
-            <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+          <div className="relative w-44 shrink-0">
+            <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1E9B50]" />
+            <input
               type="date"
               value={dayStr}
               max={todayStr()}
               onChange={(e) => setDayStr(e.target.value)}
-              className="pl-9"
+              className={DATE_INPUT}
+              style={{ backgroundColor: BRAND.field, color: BRAND.text }}
             />
           </div>
           {dayStr && (
-            <Button variant="outline" size="sm" onClick={() => setDayStr('')}>
+            <BrandButton variant="outlined" className="h-10" onClick={() => setDayStr('')}>
               <RefreshCw className="h-4 w-4" />
               Mes completo
-            </Button>
+            </BrandButton>
           )}
         </div>
-      </CardHeader>
-      <CardContent>
+      </PanelHeader>
+      <PanelBody>
         <div className="grid gap-6 lg:grid-cols-2">
           <RankingColumn
             title={dayStr ? 'Venta del día (facturado)' : 'Venta del mes (facturado)'}
@@ -1104,45 +1016,45 @@ function VentaAcumuladaSection() {
             }))}
           />
         </div>
-      </CardContent>
-    </Card>
+      </PanelBody>
+    </Panel>
   );
 }
 
 function TrendCard({ company }: { company: ManagerialCompanyStats }) {
   const accent = accentFor(company.companyId);
   return (
-    <Card>
-      <CardHeader className="flex-row items-center justify-between">
-        <CardTitle className="flex items-center gap-2 text-sm">
+    <Panel>
+      <PanelHeader className="flex-row items-center justify-between gap-3">
+        <PanelTitle className="flex items-center gap-2">
           <TrendingUp className={cn('h-4 w-4', accent.text)} />
           Tendencia de ventas
-        </CardTitle>
-        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+        </PanelTitle>
+        <span className="inline-flex items-center gap-1.5 text-xs text-[#6B7280]">
           <span className={cn('h-2.5 w-2.5 rounded-full', accent.dot)} />
           Ingresos
         </span>
-      </CardHeader>
-      <CardContent>
+      </PanelHeader>
+      <PanelBody>
         <SalesTrendChart data={company.salesTrend} />
-      </CardContent>
-    </Card>
+      </PanelBody>
+    </Panel>
   );
 }
 
 function CustomersCard({ company }: { company: ManagerialCompanyStats }) {
   const accent = accentFor(company.companyId);
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-sm">
+    <Panel>
+      <PanelHeader>
+        <PanelTitle className="flex items-center gap-2">
           <Users className={cn('h-4 w-4', accent.text)} />
           Clientes que más pidieron
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+        </PanelTitle>
+      </PanelHeader>
+      <PanelBody>
         {company.topCustomers.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
+          <p className="py-6 text-center text-sm text-[#6B7280]">
             Sin ventas en el rango.
           </p>
         ) : (
@@ -1153,12 +1065,12 @@ function CustomersCard({ company }: { company: ManagerialCompanyStats }) {
                 className="flex items-center justify-between gap-3"
               >
                 <div className="flex min-w-0 items-center gap-2.5">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-bold text-muted-foreground">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-[#EEF2F7] text-[11px] font-extrabold text-[#6B7280]">
                     {i + 1}
                   </span>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{cu.name}</p>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-[11px] text-[#6B7280]">
                       {cu.code}
                     </p>
                   </div>
@@ -1167,7 +1079,7 @@ function CustomersCard({ company }: { company: ManagerialCompanyStats }) {
                   <p className="text-sm font-semibold">
                     {formatCurrency(cu.revenue)}
                   </p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-[11px] text-[#6B7280]">
                     {cu.orders} pedido(s)
                   </p>
                 </div>
@@ -1175,7 +1087,7 @@ function CustomersCard({ company }: { company: ManagerialCompanyStats }) {
             ))}
           </ol>
         )}
-      </CardContent>
-    </Card>
+      </PanelBody>
+    </Panel>
   );
 }

@@ -104,6 +104,11 @@ export interface SellerCommercialDashboard {
   /** Proyección de ventas de la compañía para el mes (total), si existe. */
   projection: { revenue: number; kilos: number } | null;
   /**
+   * Días hábiles del mes marcados en la proyección: transcurridos a hoy y
+   * total. Permite mostrar el ritmo esperado (meta a la fecha) como en la app.
+   */
+  workingDays: { elapsed: number; total: number };
+  /**
    * Rentabilidad del período (venta − costo estándar cargado). `null` si no hay
    * costos cargados o la compañía no tiene ventas del ERP.
    */
@@ -923,6 +928,7 @@ export class DashboardService {
       totalKilos,
       singleDay,
     );
+    const workingDays = this.countWorkingDays(projectionConfig.workingDays);
 
     // Clientes asignados que NO compraron en el periodo, para hacerles
     // seguimiento y contactarlos (se excluyen los que sí compraron).
@@ -1033,8 +1039,22 @@ export class DashboardService {
       salesByCategory,
       budget,
       projection,
+      workingDays,
       profitability,
       clientBudgets,
+    };
+  }
+
+  /** Días hábiles marcados: transcurridos (≤ hoy, Bogotá) y total. */
+  private countWorkingDays(workingDays: string[] | null): {
+    elapsed: number;
+    total: number;
+  } {
+    const days = Array.isArray(workingDays) ? workingDays : [];
+    const today = bogotaToday();
+    return {
+      elapsed: days.filter((d) => d <= today).length,
+      total: days.length,
     };
   }
 

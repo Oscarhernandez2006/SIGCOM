@@ -384,6 +384,8 @@ export interface SellerCommercialDashboard {
   }[];
   budget: { expectedRevenue: number; targetKilos: number } | null;
   projection: { revenue: number; kilos: number } | null;
+  /** Días hábiles del mes (transcurridos a hoy y total) para el ritmo esperado. */
+  workingDays?: { elapsed: number; total: number };
   /** Rentabilidad del período (venta − costo estándar). Null si no hay costos. */
   profitability: {
     cost: number;

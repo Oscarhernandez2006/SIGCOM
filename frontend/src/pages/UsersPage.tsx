@@ -27,15 +27,12 @@ import {
 import { COMPANIES } from '@/lib/companies';
 import { MODULE_GROUPS, ALL_MODULES, areaLabel } from '@/lib/modules';
 import { cn } from '@/lib/utils';
-import {
-  Card,
-  CardContent,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import type { AdminUser } from '@/types';
+import { BRAND } from '@/lib/brand';
+import { PageBackground, Hero, BrandButton, Modal, StatusPill } from '@/components/brand/PageShell';
+import { Panel, PanelBody } from '@/components/brand/Panel';
+
+const FIELD_STYLE = { backgroundColor: BRAND.field, color: BRAND.text } as const;
 
 export function UsersPage() {
   const { data: users = [], isLoading } = useAdminUsers();
@@ -66,54 +63,59 @@ export function UsersPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Usuarios</h2>
-          <p className="text-muted-foreground">
-            Vendedores y administradores · acceso por compañía y permisos por
-            módulo.
-          </p>
+    <PageBackground className="space-y-3.5">
+      <Hero>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-xl font-extrabold leading-tight tracking-[-0.4px] sm:text-[22px]">Usuarios</h2>
+            <p className="mt-1 text-sm font-semibold text-white/90">
+              Vendedores y administradores · acceso por compañía y permisos por módulo.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowCreate(true)}
+            className="inline-flex h-10 items-center gap-2 rounded-full bg-white px-4 text-[13px] font-extrabold text-[#15803D] shadow-sm transition hover:bg-white/90"
+          >
+            <UserPlus className="h-4 w-4" />
+            Nuevo usuario
+          </button>
         </div>
-        <Button onClick={() => setShowCreate(true)}>
-          <UserPlus className="h-4 w-4" />
-          Nuevo usuario
-        </Button>
-      </div>
+      </Hero>
 
       {/* Filtro de búsqueda */}
       <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
+        <input className="brand-input h-10 rounded-xl pl-9 pr-3 text-sm font-semibold outline-none" style={FIELD_STYLE}
           placeholder="Buscar por nombre, cédula o correo..."
-          className="pl-9"
+          
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-        />
+            />
       </div>
 
       {/* Listado de usuarios */}
-      <Card>
-        <CardContent className="px-0 py-0">
+      <Panel>
+        <PanelBody className="px-0 py-0">
           {isLoading ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">
+            <p className="py-10 text-center text-sm text-[#6B7280]">
               Cargando usuarios...
             </p>
           ) : filtered.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">
+            <p className="py-10 text-center text-sm text-[#6B7280]">
               {term ? 'No hay usuarios que coincidan.' : 'No hay usuarios.'}
             </p>
           ) : (
-            <ul className="divide-y divide-border">
+            <ul className="divide-y divide-[#E2E8F0]">
               {filtered.map((u) => (
                 <li key={u.id}>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-6 py-4">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-4 sm:px-6">
                     <div
                       className={cn(
                         'flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
                         u.role === 'admin'
-                          ? 'bg-primary/10 text-primary'
-                          : 'bg-secondary text-secondary-foreground',
+                          ? 'bg-[#1E9B50]/10 text-[#1E9B50]'
+                          : 'bg-[#F1F5F9] text-[#4B5563]',
                       )}
                     >
                       {u.role === 'admin' ? (
@@ -125,48 +127,35 @@ export function UsersPage() {
 
                     <div className="min-w-[180px] flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-medium">{u.name}</p>
+                        <p className="font-extrabold text-[#111827]">{u.name}</p>
                         {!u.active && (
-                          <Badge variant="secondary">Inactivo</Badge>
+                          <StatusPill label="Inactivo" color={BRAND.textSoft} />
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-[#6B7280]">
                         Cédula {u.documentId} · {areaLabel(u.role)}
                       </p>
                     </div>
 
                     {/* Acciones */}
                     <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPermsUser(u)}
+                      <BrandButton variant="outlined" className="h-9 px-3" onClick={() => setPermsUser(u)}
                       >
                         <KeyRound className="h-4 w-4" />
                         Permisos
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCompaniesUser(u)}
+                      </BrandButton>
+                      <BrandButton variant="outlined" className="h-9 px-3" onClick={() => setCompaniesUser(u)}
                       >
                         <Building2 className="h-4 w-4" />
                         Compañías
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setEditUser(u)}
+                      </BrandButton>
+                      <BrandButton variant="outlined" className="h-9 px-3" onClick={() => setEditUser(u)}
                       >
                         <Pencil className="h-4 w-4" />
                         Editar
-                      </Button>
+                      </BrandButton>
                       {u.role !== 'admin' && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          title={u.active ? 'Desactivar' : 'Activar'}
-                          onClick={() =>
+                        <BrandButton variant="text" className="h-9 w-9 px-0" title={u.active ? 'Desactivar' : 'Activar'} onClick={() =>
                             setActive.mutate({ id: u.id, active: !u.active })
                           }
                         >
@@ -174,37 +163,35 @@ export function UsersPage() {
                             className={cn(
                               'h-4 w-4',
                               u.active
-                                ? 'text-[var(--success)]'
-                                : 'text-muted-foreground',
+                                ? 'text-[#1E9B50]'
+                                : 'text-[#6B7280]',
                             )}
                           />
-                        </Button>
+                        </BrandButton>
                       )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Eliminar usuario"
-                        onClick={() => handleDelete(u)}
+                      <BrandButton variant="text" className="h-9 w-9 px-0" title="Eliminar usuario" onClick={() => handleDelete(u)}
                       >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                        <Trash2 className="h-4 w-4 text-red-600" />
+                      </BrandButton>
                     </div>
 
                     {/* Compañías (en su propia línea para que no se amontonen) */}
-                    <div className="flex w-full flex-wrap items-center gap-1.5 border-t border-border/60 pt-3">
+                    <div className="flex w-full flex-wrap items-center gap-1.5 border-t border-[#E2E8F0]/80 pt-3">
                       {u.companies.length === 0 ? (
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-[#6B7280]">
                           Sin compañías
                         </span>
                       ) : (
                         u.companies.map((c) => (
-                          <Badge key={c.companyId} variant="default">
-                            {c.name}
-                            {c.siesaSellerCode ? ` · ${c.siesaSellerCode}` : ''}
-                            {c.permissions && c.permissions.length > 0
-                              ? ` · ${c.permissions.length} mód.`
-                              : ''}
-                          </Badge>
+                          <StatusPill
+                            key={c.companyId}
+                            color={BRAND.primary}
+                            label={`${c.name}${c.siesaSellerCode ? ` · ${c.siesaSellerCode}` : ''}${
+                              c.permissions && c.permissions.length > 0
+                                ? ` · ${c.permissions.length} mód.`
+                                : ''
+                            }`}
+                          />
                         ))
                       )}
                     </div>
@@ -213,8 +200,8 @@ export function UsersPage() {
               ))}
             </ul>
           )}
-        </CardContent>
-      </Card>
+        </PanelBody>
+      </Panel>
 
       {showCreate && <CreateUserModal onClose={() => setShowCreate(false)} />}
       {companiesUser && (
@@ -232,7 +219,7 @@ export function UsersPage() {
       {editUser && (
         <EditUserModal user={editUser} onClose={() => setEditUser(null)} />
       )}
-    </div>
+    </PageBackground>
   );
 }
 
@@ -268,8 +255,8 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="documentId">Cédula</Label>
-            <Input
+            <label htmlFor="documentId" className="text-xs font-extrabold uppercase tracking-wide text-[#6B7280]">Cédula</label>
+            <input className="brand-input h-10 rounded-xl px-3 text-sm font-semibold outline-none" style={FIELD_STYLE}
               id="documentId"
               inputMode="numeric"
               required
@@ -281,8 +268,8 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="name">Nombre</Label>
-            <Input
+            <label htmlFor="name" className="text-xs font-extrabold uppercase tracking-wide text-[#6B7280]">Nombre</label>
+            <input className="brand-input h-10 rounded-xl px-3 text-sm font-semibold outline-none" style={FIELD_STYLE}
               id="name"
               required
               minLength={2}
@@ -291,8 +278,8 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="password">Contraseña</Label>
-            <Input
+            <label htmlFor="password" className="text-xs font-extrabold uppercase tracking-wide text-[#6B7280]">Contraseña</label>
+            <input className="brand-input h-10 rounded-xl px-3 text-sm font-semibold outline-none" style={FIELD_STYLE}
               id="password"
               type="password"
               required
@@ -302,10 +289,10 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="role">Área / Rol</Label>
+            <label htmlFor="role" className="text-xs font-extrabold uppercase tracking-wide text-[#6B7280]">Área / Rol</label>
             <select
               id="role"
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="flex h-9 w-full rounded-md border border-[#E2E8F0] bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               value={form.role}
               onChange={(e) =>
                 setRole(
@@ -326,7 +313,7 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
             </select>
           </div>
           {form.role === 'seller' && (
-            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2 sm:col-span-2">
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-[#E2E8F0] bg-[#EEF2F7]/20 px-3 py-2 sm:col-span-2">
               <input
                 type="checkbox"
                 className="mt-0.5 h-4 w-4"
@@ -337,7 +324,7 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
               />
               <span className="text-sm">
                 Presupuesto por cliente / tienda
-                <span className="block text-xs text-muted-foreground">
+                <span className="block text-xs text-[#6B7280]">
                   La meta se asigna por cada cliente asignado y queda aparte del
                   presupuesto general del comercial (ej. Juan Sierra).
                 </span>
@@ -348,9 +335,9 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
 
         {/* Los módulos visibles se asignan por compañía después de crear el
             usuario y asignarle compañías (botón "Permisos"). */}
-        <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2">
-          <LayoutGrid className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-          <p className="text-xs text-muted-foreground">
+        <div className="flex items-start gap-2 rounded-lg border border-[#E2E8F0] bg-[#F4FAF6] px-3 py-2">
+          <LayoutGrid className="mt-0.5 h-4 w-4 shrink-0 text-[#6B7280]" />
+          <p className="text-xs text-[#6B7280]">
             Después de crear el usuario, asígnale sus compañías y luego define
             qué módulos puede ver <strong>en cada compañía</strong> desde el botón
             “Permisos”. Sin módulos marcados, verá los de su rol por defecto.
@@ -358,19 +345,19 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
         </div>
 
         {createUser.isError && (
-          <p className="text-sm text-destructive">
+          <p className="text-sm text-red-600">
             No se pudo crear. ¿La cédula ya existe?
           </p>
         )}
 
-        <div className="flex justify-end gap-2 border-t border-border pt-4">
-          <Button type="button" variant="ghost" onClick={onClose}>
+        <div className="flex justify-end gap-2 border-t border-[#E2E8F0] pt-4">
+          <BrandButton variant="text" className="h-10" type="button" onClick={onClose}>
             Cancelar
-          </Button>
-          <Button type="submit" disabled={createUser.isPending}>
+          </BrandButton>
+          <BrandButton className="h-10" type="submit" disabled={createUser.isPending}>
             <Check className="h-4 w-4" />
             {createUser.isPending ? 'Creando...' : 'Crear usuario'}
-          </Button>
+          </BrandButton>
         </div>
       </form>
     </ModalShell>
@@ -417,8 +404,8 @@ function EditUserModal({
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="edit-documentId">Cédula</Label>
-            <Input
+            <label htmlFor="edit-documentId" className="text-xs font-extrabold uppercase tracking-wide text-[#6B7280]">Cédula</label>
+            <input className="brand-input h-10 rounded-xl px-3 text-sm font-semibold outline-none" style={FIELD_STYLE}
               id="edit-documentId"
               inputMode="numeric"
               required
@@ -430,8 +417,8 @@ function EditUserModal({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="edit-name">Nombre</Label>
-            <Input
+            <label htmlFor="edit-name" className="text-xs font-extrabold uppercase tracking-wide text-[#6B7280]">Nombre</label>
+            <input className="brand-input h-10 rounded-xl px-3 text-sm font-semibold outline-none" style={FIELD_STYLE}
               id="edit-name"
               required
               minLength={2}
@@ -440,8 +427,8 @@ function EditUserModal({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="edit-email">Correo (opcional)</Label>
-            <Input
+            <label htmlFor="edit-email" className="text-xs font-extrabold uppercase tracking-wide text-[#6B7280]">Correo (opcional)</label>
+            <input className="brand-input h-10 rounded-xl px-3 text-sm font-semibold outline-none" style={FIELD_STYLE}
               id="edit-email"
               type="email"
               value={form.email}
@@ -449,10 +436,10 @@ function EditUserModal({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="edit-role">Área / Rol</Label>
+            <label htmlFor="edit-role" className="text-xs font-extrabold uppercase tracking-wide text-[#6B7280]">Área / Rol</label>
             <select
               id="edit-role"
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="flex h-9 w-full rounded-md border border-[#E2E8F0] bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               value={form.role}
               onChange={(e) =>
                 setForm({
@@ -474,7 +461,7 @@ function EditUserModal({
             </select>
           </div>
           {form.role === 'seller' && (
-            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2 sm:col-span-2">
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-[#E2E8F0] bg-[#EEF2F7]/20 px-3 py-2 sm:col-span-2">
               <input
                 type="checkbox"
                 className="mt-0.5 h-4 w-4"
@@ -485,7 +472,7 @@ function EditUserModal({
               />
               <span className="text-sm">
                 Presupuesto por cliente / tienda
-                <span className="block text-xs text-muted-foreground">
+                <span className="block text-xs text-[#6B7280]">
                   La meta se asigna por cada cliente asignado y queda aparte del
                   presupuesto general del comercial (ej. Juan Sierra).
                 </span>
@@ -493,8 +480,8 @@ function EditUserModal({
             </label>
           )}
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="edit-password">Nueva contraseña (opcional)</Label>
-            <Input
+            <label htmlFor="edit-password" className="text-xs font-extrabold uppercase tracking-wide text-[#6B7280]">Nueva contraseña (opcional)</label>
+            <input className="brand-input h-10 rounded-xl px-3 text-sm font-semibold outline-none" style={FIELD_STYLE}
               id="edit-password"
               type="password"
               placeholder="Dejar en blanco para no cambiarla"
@@ -506,19 +493,19 @@ function EditUserModal({
         </div>
 
         {updateUser.isError && (
-          <p className="text-sm text-destructive">
+          <p className="text-sm text-red-600">
             No se pudieron guardar los cambios. ¿La cédula ya existe?
           </p>
         )}
 
-        <div className="flex justify-end gap-2 border-t border-border pt-4">
-          <Button type="button" variant="ghost" onClick={onClose}>
+        <div className="flex justify-end gap-2 border-t border-[#E2E8F0] pt-4">
+          <BrandButton variant="text" className="h-10" type="button" onClick={onClose}>
             Cancelar
-          </Button>
-          <Button type="submit" disabled={updateUser.isPending}>
+          </BrandButton>
+          <BrandButton className="h-10" type="submit" disabled={updateUser.isPending}>
             <Check className="h-4 w-4" />
             {updateUser.isPending ? 'Guardando...' : 'Guardar cambios'}
-          </Button>
+          </BrandButton>
         </div>
       </form>
     </ModalShell>
@@ -572,14 +559,14 @@ function PermissionsModal({
     return (
       <ModalShell title={`Permisos · ${user.name}`} onClose={onClose}>
         <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-[#6B7280]">
             Este usuario no tiene compañías asignadas. Asigna primero una
             compañía para poder definir sus módulos por empresa.
           </p>
-          <div className="flex justify-end border-t border-border pt-4">
-            <Button variant="ghost" onClick={onClose}>
+          <div className="flex justify-end border-t border-[#E2E8F0] pt-4">
+            <BrandButton variant="text" className="h-10" onClick={onClose}>
               Cerrar
-            </Button>
+            </BrandButton>
           </div>
         </div>
       </ModalShell>
@@ -589,14 +576,14 @@ function PermissionsModal({
   return (
     <ModalShell title={`Permisos · ${user.name}`} onClose={onClose}>
       <div className="space-y-4">
-        <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
-          <span className="text-muted-foreground">Rol principal</span>
-          <Badge variant="secondary">{areaLabel(user.role)}</Badge>
+        <div className="flex items-center justify-between rounded-lg border border-[#E2E8F0] bg-[#F4FAF6] px-3 py-2 text-sm">
+          <span className="text-[#6B7280]">Rol principal</span>
+          <StatusPill label={areaLabel(user.role)} color={BRAND.primary} />
         </div>
 
         {/* Selector de compañía: los módulos se asignan por empresa. */}
         <div className="space-y-1.5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">
             Compañía
           </p>
           <div className="flex flex-wrap gap-2">
@@ -606,10 +593,10 @@ function PermissionsModal({
                 type="button"
                 onClick={() => setActiveCompany(c.companyId)}
                 className={cn(
-                  'rounded-md border px-3 py-1.5 text-sm transition-colors',
+                  'h-9 rounded-full border px-4 text-[13px] font-bold transition-colors',
                   c.companyId === activeCompany
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border text-muted-foreground hover:bg-muted/50',
+                    ? 'border-[#1E9B50] bg-[#1E9B50] text-white'
+                    : 'border-[#E2E8F0] text-[#6B7280] hover:bg-[#F4FAF6]',
                 )}
               >
                 {c.name}
@@ -619,13 +606,13 @@ function PermissionsModal({
         </div>
 
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-[#6B7280]">
             Marca los módulos que este usuario podrá ver en esta compañía. Sin
             ninguno marcado, verá los módulos por defecto de su rol.
           </p>
           <button
             type="button"
-            className="shrink-0 text-xs text-primary hover:underline"
+            className="shrink-0 text-xs text-[#1E9B50] hover:underline"
             onClick={() =>
               setSelected(
                 selected.length === ALL_MODULES.length
@@ -643,24 +630,21 @@ function PermissionsModal({
         <ModuleGroupsPicker selected={selected} onToggle={toggle} />
 
         {setCompanyPermissions.isError && (
-          <p className="text-sm text-destructive">
+          <p className="text-sm text-red-600">
             No se pudieron guardar los permisos.
           </p>
         )}
 
-        <div className="flex justify-end gap-2 border-t border-border pt-4">
-          <Button variant="ghost" onClick={onClose}>
+        <div className="flex justify-end gap-2 border-t border-[#E2E8F0] pt-4">
+          <BrandButton variant="text" className="h-10" onClick={onClose}>
             Cancelar
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={setCompanyPermissions.isPending}
-          >
+          </BrandButton>
+          <BrandButton className="h-10" onClick={handleSave} disabled={setCompanyPermissions.isPending}>
             <Check className="h-4 w-4" />
             {setCompanyPermissions.isPending
               ? 'Guardando...'
               : 'Guardar permisos'}
-          </Button>
+          </BrandButton>
         </div>
       </div>
     </ModalShell>
@@ -679,7 +663,7 @@ function ModuleGroupsPicker({
     <div className="space-y-4">
       {MODULE_GROUPS.map((group) => (
         <div key={group.area} className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">
             {group.label}
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
@@ -715,8 +699,8 @@ function ModuleToggle({
       className={cn(
         'flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm transition-colors',
         checked
-          ? 'border-primary bg-primary/10 text-primary'
-          : 'border-border text-muted-foreground hover:bg-accent',
+          ? 'border-[#1E9B50] bg-[#1E9B50] text-white'
+          : 'border-[#E2E8F0] bg-white text-[#4B5563] hover:bg-[#F4FAF6]',
       )}
     >
       <span className="font-medium">{label}</span>
@@ -724,8 +708,8 @@ function ModuleToggle({
         className={cn(
           'flex h-5 w-5 items-center justify-center rounded-md border',
           checked
-            ? 'border-primary bg-primary text-primary-foreground'
-            : 'border-border',
+            ? 'border-[#1E9B50] bg-[#1E9B50] text-[#1E9B50]-foreground'
+            : 'border-[#E2E8F0]',
         )}
       >
         {checked && <Check className="h-3.5 w-3.5" />}
@@ -745,27 +729,20 @@ function ModalShell({
   children: React.ReactNode;
 }) {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="my-8 w-full max-w-2xl rounded-2xl border border-border bg-background shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-border p-5">
-          <h3 className="text-lg font-semibold">{title}</h3>
-          <button
-            onClick={onClose}
-            className="rounded-md p-1 text-muted-foreground hover:bg-accent"
-            aria-label="Cerrar"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        <div className="p-5">{children}</div>
+    <Modal onClose={onClose} className="max-w-2xl">
+      <div className="flex items-center justify-between gap-3 border-b border-[#E2E8F0] px-4 py-4 sm:px-5">
+        <h3 className="min-w-0 truncate text-lg font-extrabold tracking-[-0.3px] text-[#111827]">{title}</h3>
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F1F5F9] text-[#4B5563] transition hover:bg-[#E2E8F0]"
+          aria-label="Cerrar"
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
-    </div>
+      <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-5">{children}</div>
+    </Modal>
   );
 }
 
@@ -788,7 +765,7 @@ function CompaniesModal({
   return (
     <ModalShell title={`Compañías · ${user.name}`} onClose={onClose}>
       <div className="space-y-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <p className="text-xs font-medium uppercase tracking-wide text-[#6B7280]">
           Acceso por compañía y código de vendedor en Siesa
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -797,43 +774,36 @@ function CompaniesModal({
           return (
             <div
               key={c.id}
-              className="flex flex-col gap-3 rounded-lg border border-border bg-background p-4"
+              className="flex flex-col gap-3 rounded-lg border border-[#E2E8F0] bg-white p-4"
             >
               <div className="flex items-center gap-2">
-                <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <Building2 className="h-4 w-4 shrink-0 text-[#6B7280]" />
                 <span className="text-sm font-semibold">{c.name}</span>
-                {has ? (
-                  <Badge variant="secondary" className="ml-auto">
-                    Asignada
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="ml-auto">
-                    Sin asignar
-                  </Badge>
-                )}
+                <span className="ml-auto">
+                  {has ? (
+                    <StatusPill label="Asignada" color={BRAND.primary} />
+                  ) : (
+                    <StatusPill label="Sin asignar" color={BRAND.textSoft} />
+                  )}
+                </span>
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor={`code-${c.id}`} className="text-xs">
+                <label htmlFor={`code-${c.id}`} className="text-xs font-extrabold uppercase tracking-wide text-[#6B7280]">
                   Código de vendedor en Siesa
-                </Label>
-                <Input
+                </label>
+                <input className="brand-input h-10 rounded-xl px-3 text-sm font-semibold outline-none" style={FIELD_STYLE}
                   id={`code-${c.id}`}
                   placeholder="Ej. 0033"
                   value={codes[c.id] ?? ''}
                   onChange={(e) =>
                     setCodes({ ...codes, [c.id]: e.target.value })
                   }
-                />
+            />
               </div>
 
               <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  className="flex-1"
-                  variant={has ? 'secondary' : 'default'}
-                  disabled={assign.isPending}
-                  onClick={() =>
+                <BrandButton className="h-9 px-3 flex-1" disabled={assign.isPending} onClick={() =>
                     assign.mutate({
                       id: user.id,
                       companyId: c.id,
@@ -847,19 +817,14 @@ function CompaniesModal({
                     <Plus className="h-4 w-4" />
                   )}
                   {has ? 'Guardar código' : 'Asignar compañía'}
-                </Button>
+                </BrandButton>
                 {has && (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    title="Quitar acceso"
-                    disabled={remove.isPending}
-                    onClick={() =>
+                  <BrandButton variant="text" className="h-9 w-9 px-0" title="Quitar acceso" disabled={remove.isPending} onClick={() =>
                       remove.mutate({ id: user.id, companyId: c.id })
                     }
                   >
-                    <X className="h-4 w-4 text-destructive" />
-                  </Button>
+                    <X className="h-4 w-4 text-red-600" />
+                  </BrandButton>
                 )}
               </div>
             </div>

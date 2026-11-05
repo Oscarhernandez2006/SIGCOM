@@ -25,15 +25,11 @@ import {
 import { useCompany } from '@/company/useCompany';
 import { cn } from '@/lib/utils';
 import type { Product } from '@/types';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { BRAND } from '@/lib/brand';
+import { PageBackground, Hero, BrandButton, StatusPill } from '@/components/brand/PageShell';
+import { Panel, PanelBody, PanelHeader, PanelTitle } from '@/components/brand/Panel';
+
+const FIELD_STYLE = { backgroundColor: BRAND.field, color: BRAND.text } as const;
 
 /** Extrae el mensaje de error que envía el backend, si lo hay. */
 function getErrorMessage(error: unknown): string {
@@ -197,13 +193,13 @@ export function InventoryPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <PageBackground className="space-y-3.5">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Inventario</h2>
-        <p className="text-muted-foreground">
-          Carga diaria del inventario desde Excel. Solo el stock es editable
-          desde la web.
-        </p>
+        <Hero>
+        <h2 className="text-xl font-extrabold leading-tight tracking-[-0.4px] sm:text-[22px]">Inventario</h2>
+        <p className="mt-1 text-sm font-semibold text-white/90">Carga diaria del inventario desde Excel. Solo el stock es editable
+          desde la web.</p>
+      </Hero>
       </div>
 
       {/* Selector de compañía */}
@@ -213,10 +209,10 @@ export function InventoryPage() {
             key={c.id}
             onClick={() => setCompanyId(c.id)}
             className={cn(
-              'flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors',
+              'flex h-9 items-center gap-1.5 rounded-full border px-4 text-[13px] font-bold transition-colors',
               companyId === c.id
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'border-border text-muted-foreground hover:bg-accent',
+                ? 'border-[#1E9B50] bg-[#1E9B50] text-white'
+                : 'border-[#E2E8F0] bg-white text-[#4B5563] hover:bg-[#F4FAF6]',
             )}
           >
             <Building2 className="h-4 w-4" />
@@ -229,15 +225,15 @@ export function InventoryPage() {
       {/* Selector de tipo de inventario (solo MONTERIA TAT AGROPECUARIA) */}
       {supportsSubproductos && (
         <div className="space-y-2">
-          <div className="inline-flex rounded-lg border border-input p-1">
+          <div className="inline-flex gap-2">
             <button
               type="button"
               onClick={() => setInvType('corte')}
               className={cn(
-                'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                'h-9 rounded-full px-4 text-[13px] font-bold transition-colors',
                 invType === 'corte'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground',
+                  ? 'bg-[#1E9B50] text-white'
+                  : 'border border-[#E2E8F0] bg-white text-[#4B5563] hover:bg-[#F4FAF6]',
               )}
             >
               Cortes
@@ -246,18 +242,18 @@ export function InventoryPage() {
               type="button"
               onClick={() => setInvType('subproducto')}
               className={cn(
-                'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                'h-9 rounded-full px-4 text-[13px] font-bold transition-colors',
                 invType === 'subproducto'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground',
+                  ? 'bg-[#1E9B50] text-white'
+                  : 'border border-[#E2E8F0] bg-white text-[#4B5563] hover:bg-[#F4FAF6]',
               )}
             >
               Subproductos
             </button>
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-[#6B7280]">
             El Excel debe corresponder al tipo seleccionado. Si eliges{' '}
-            <strong className="text-foreground">{effectiveType}</strong>, el
+            <strong className="text-[#111827]">{effectiveType}</strong>, el
             sistema bloqueará referencias del otro inventario.
           </p>
         </div>
@@ -265,15 +261,15 @@ export function InventoryPage() {
 
       {/* Acciones de inventario */}
       <div className="grid gap-4 sm:grid-cols-2">
-        <Card className="h-full">
-          <CardContent className="flex h-full flex-col gap-3 p-5">
+        <Panel className="h-full">
+          <PanelBody className="flex h-full flex-col gap-3 p-5">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#1E9B50]/10 text-[#1E9B50]">
                 <Package className="h-5 w-5" />
               </div>
               <div>
                 <p className="font-semibold">Inventario · {company?.name}</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-[#6B7280]">
                   La carga reemplaza todo el inventario de la compañía.
                 </p>
               </div>
@@ -287,10 +283,7 @@ export function InventoryPage() {
               onChange={handleFile}
             />
             <div className="flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                disabled={importInventory.isPending}
-                onClick={() => fileRef.current?.click()}
+              <BrandButton className="h-9 px-3" disabled={importInventory.isPending} onClick={() => fileRef.current?.click()}
               >
                 <Upload
                   className={cn(
@@ -299,19 +292,16 @@ export function InventoryPage() {
                   )}
                 />
                 Cargar Excel
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => downloadInventoryTemplate()}
+              </BrandButton>
+              <BrandButton variant="outlined" className="h-9 px-3" onClick={() => downloadInventoryTemplate()}
               >
                 <Download className="h-4 w-4" />
                 Descargar plantilla
-              </Button>
+              </BrandButton>
             </div>
 
             {importInventory.isSuccess && (
-              <p className="flex items-center gap-1 text-xs text-[var(--success)]">
+              <p className="flex items-center gap-1 text-xs text-[#1E9B50]">
                 <Check className="h-3 w-3" />
                 {importInventory.data.total} productos cargados (
                 {importInventory.data.created} nuevos,{' '}
@@ -320,83 +310,81 @@ export function InventoryPage() {
               </p>
             )}
             {importInventory.isError && (
-              <p className="flex items-center gap-1 text-xs text-destructive">
+              <p className="flex items-center gap-1 text-xs text-red-600">
                 <AlertCircle className="h-3 w-3" />
                 {getErrorMessage(importInventory.error)}
               </p>
             )}
-          </CardContent>
-        </Card>
+          </PanelBody>
+        </Panel>
 
-        <Card className="h-full">
-          <CardContent className="flex flex-col gap-3 p-5">
+        <Panel className="h-full">
+          <PanelBody className="flex flex-col gap-3 p-5">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#1E9B50]/10 text-[#1E9B50]">
                 <Plus className="h-5 w-5" />
               </div>
               <div>
                 <p className="font-semibold">Agregar producto manual</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-[#6B7280]">
                   Crea o corrige faltantes sin volver a cargar todo el Excel.
                 </p>
               </div>
             </div>
 
-            <Button
-              size="sm"
-              onClick={() => setCreateModalOpen(true)}
+            <BrandButton className="h-9 px-3" onClick={() => setCreateModalOpen(true)}
             >
               <Plus className="h-4 w-4" />
               Agregar producto manual
-            </Button>
+            </BrandButton>
 
             {createManualProduct.isError && (
-              <p className="flex items-center gap-1 text-xs text-destructive">
+              <p className="flex items-center gap-1 text-xs text-red-600">
                 <AlertCircle className="h-3 w-3" />
                 {getErrorMessage(createManualProduct.error)}
               </p>
             )}
             {createManualProduct.isSuccess && (
-              <p className="flex items-center gap-1 text-xs text-[var(--success)]">
+              <p className="flex items-center gap-1 text-xs text-[#1E9B50]">
                 <Check className="h-3 w-3" />
                 Producto agregado correctamente.
               </p>
             )}
-          </CardContent>
-        </Card>
+          </PanelBody>
+        </Panel>
       </div>
 
       {/* Listado de productos */}
-      <Card>
-        <CardHeader className="flex-row items-center justify-between gap-4">
-          <CardTitle className="text-base">
+      <Panel>
+        <PanelHeader className="flex-row items-center justify-between gap-4">
+          <PanelTitle className="">
             Productos de {company?.name}
-            <span className="ml-2 text-sm font-normal text-muted-foreground">
+            <span className="ml-2 text-sm font-normal text-[#6B7280]">
               {products.length}
             </span>
-          </CardTitle>
+          </PanelTitle>
           <div className="relative w-full max-w-xs">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
+            <input className="brand-input h-10 rounded-xl pl-9 pr-3 text-sm font-semibold outline-none" style={FIELD_STYLE}
               placeholder="Buscar producto..."
-              className="pl-9"
+              
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-        </CardHeader>
-        <CardContent className="px-0">
+        </PanelHeader>
+        <PanelBody className="px-0">
           {isLoading ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">
+            <p className="py-10 text-center text-sm text-[#6B7280]">
               Cargando inventario...
             </p>
           ) : products.length === 0 ? (
             <div className="py-12 text-center">
-              <Package className="mx-auto h-10 w-10 text-muted-foreground/40" />
-              <p className="mt-3 text-sm text-muted-foreground">
+              <Package className="mx-auto h-10 w-10 text-[#6B7280]/40" />
+              <p className="mt-3 text-sm text-[#6B7280]">
                 No hay productos en {company?.name}.
               </p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-[#6B7280]">
                 Carga la plantilla de Excel para cargar el inventario.
               </p>
             </div>
@@ -404,7 +392,7 @@ export function InventoryPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                  <tr className="border-b border-[#E2E8F0] text-left text-xs uppercase tracking-wide text-[#6B7280]">
                     <th className="px-6 py-2 font-medium">Referencia</th>
                     <th className="px-6 py-2 font-medium">Producto</th>
                     <th className="px-6 py-2 text-right font-medium">Stock</th>
@@ -428,44 +416,37 @@ export function InventoryPage() {
               </table>
             </div>
           )}
-        </CardContent>
+        </PanelBody>
         {/* Controles de paginación (50 productos por página) */}
         {!isLoading && sortedProducts.length > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-6 py-3 text-sm">
-            <span className="text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#E2E8F0] px-6 py-3 text-sm">
+            <span className="text-[#6B7280]">
               Mostrando {(page - 1) * PAGE_SIZE + 1}–
               {Math.min(page * PAGE_SIZE, sortedProducts.length)} de{' '}
               {sortedProducts.length}
             </span>
             <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              <BrandButton variant="outlined" className="h-9 px-3" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
                 Anterior
-              </Button>
-              <span className="text-muted-foreground">
+              </BrandButton>
+              <span className="text-[#6B7280]">
                 Página {page} de {totalPages}
               </span>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={page >= totalPages}
+              <BrandButton variant="outlined" className="h-9 px-3" disabled={page>= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               >
                 Siguiente
-              </Button>
+              </BrandButton>
             </div>
           </div>
         )}
-      </Card>
+      </Panel>
 
       {/* Modal de confirmación del cargue */}
       {pendingFile && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl border border-border bg-background p-6 shadow-lg">
+          <div className="w-full max-w-md rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-lg">
             <div className="flex items-start gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--warning,#f59e0b)]/10">
                 <AlertTriangle className="h-6 w-6 text-amber-500" />
@@ -473,21 +454,21 @@ export function InventoryPage() {
               <div className="min-w-0">
                 <h3 className="text-lg font-semibold">Confirmar cargue de inventario</h3>
                 {effectiveType === 'subproducto' ? (
-                  <p className="mt-1 text-sm text-muted-foreground">
+                  <p className="mt-1 text-sm text-[#6B7280]">
                     Elige qué estás cargando. El cargue{' '}
-                    <strong className="text-foreground">
+                    <strong className="text-[#111827]">
                       reemplaza solo esa especie
                     </strong>{' '}
                     (Bovino o Porcino) en{' '}
-                    <strong className="text-foreground">{company?.name}</strong>;
+                    <strong className="text-[#111827]">{company?.name}</strong>;
                     la otra especie no se toca.
                   </p>
                 ) : (
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Este es un <strong className="text-foreground">cargue nuevo</strong>{' '}
-                    que <strong className="text-foreground">reemplaza por completo</strong>{' '}
+                  <p className="mt-1 text-sm text-[#6B7280]">
+                    Este es un <strong className="text-[#111827]">cargue nuevo</strong>{' '}
+                    que <strong className="text-[#111827]">reemplaza por completo</strong>{' '}
                     el inventario de{' '}
-                    <strong className="text-foreground">{company?.name}</strong>.{' '}
+                    <strong className="text-[#111827]">{company?.name}</strong>.{' '}
                     <strong className="text-amber-600 dark:text-amber-500">
                       No se suma
                     </strong>{' '}
@@ -514,8 +495,8 @@ export function InventoryPage() {
                       className={cn(
                         'rounded-lg border px-3 py-2 text-sm font-semibold transition-colors',
                         pendingSpecies === opt.key
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-border text-muted-foreground hover:bg-accent',
+                          ? 'border-[#1E9B50] bg-[#1E9B50] text-white'
+                          : 'border-[#E2E8F0] bg-white text-[#4B5563] hover:bg-[#F4FAF6]',
                       )}
                     >
                       {opt.label}
@@ -525,37 +506,29 @@ export function InventoryPage() {
               </div>
             )}
 
-            <div className="mt-4 rounded-lg border border-border bg-muted/30 p-3 text-sm">
+            <div className="mt-4 rounded-lg border border-[#E2E8F0] bg-[#F4FAF6] p-3 text-sm">
               <p className="flex items-center gap-2">
-                <Upload className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <Upload className="h-4 w-4 shrink-0 text-[#6B7280]" />
                 <span className="truncate font-medium">{pendingFile.name}</span>
               </p>
             </div>
 
             <div className="mt-6 flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
+              <BrandButton variant="outlined" className="h-10" onClick={() => {
                   setPendingFile(null);
                   setPendingSpecies(null);
                 }}
                 disabled={importInventory.isPending}
               >
                 Cancelar
-              </Button>
-              <Button
-                onClick={confirmImport}
-                disabled={
-                  importInventory.isPending ||
-                  (effectiveType === 'subproducto' && !pendingSpecies)
-                }
-              >
+              </BrandButton>
+              <BrandButton className="h-10" onClick={confirmImport} disabled={ importInventory.isPending || (effectiveType === 'subproducto' && !pendingSpecies) }>
                 {importInventory.isPending
                   ? 'Cargando...'
                   : effectiveType === 'subproducto'
                     ? 'Sí, cargar esta especie'
                     : 'Sí, reemplazar inventario'}
-              </Button>
+              </BrandButton>
             </div>
           </div>
         </div>
@@ -564,55 +537,50 @@ export function InventoryPage() {
       {/* Modal de creación manual */}
       {createModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl border border-border bg-background p-6 shadow-lg">
+          <div className="w-full max-w-md rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-lg">
             <h3 className="text-lg font-semibold">Agregar producto manual</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Crear en inventario <strong className="text-foreground">{effectiveType}</strong> sin recargar todo el Excel.
+            <p className="mt-1 text-sm text-[#6B7280]">
+              Crear en inventario <strong className="text-[#111827]">{effectiveType}</strong> sin recargar todo el Excel.
             </p>
 
             <div className="mt-4 grid gap-3">
-              <Input
+              <input className="brand-input h-10 rounded-xl px-3 text-sm font-semibold outline-none" style={FIELD_STYLE}
                 placeholder="Referencia (SKU)"
                 value={newSku}
                 onChange={(e) => setNewSku(e.target.value.toUpperCase())}
-              />
-              <Input
+            />
+              <input className="brand-input h-10 rounded-xl px-3 text-sm font-semibold outline-none" style={FIELD_STYLE}
                 placeholder="Nombre del producto"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-              />
-              <Input
+            />
+              <input className="brand-input h-10 rounded-xl px-3 text-sm font-semibold outline-none" style={FIELD_STYLE}
                 type="number"
                 min={0}
                 step="0.01"
                 placeholder="Stock"
                 value={newStock}
                 onChange={(e) => setNewStock(e.target.value)}
-              />
+            />
             </div>
 
             {createManualProduct.isError && (
-              <p className="mt-3 flex items-center gap-1 text-xs text-destructive">
+              <p className="mt-3 flex items-center gap-1 text-xs text-red-600">
                 <AlertCircle className="h-3 w-3" />
                 {getErrorMessage(createManualProduct.error)}
               </p>
             )}
 
             <div className="mt-6 flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setCreateModalOpen(false)}
+              <BrandButton variant="outlined" className="h-10" onClick={() => setCreateModalOpen(false)}
                 disabled={createManualProduct.isPending}
               >
                 Cancelar
-              </Button>
-              <Button
-                onClick={createProductManually}
-                disabled={createManualProduct.isPending}
-              >
+              </BrandButton>
+              <BrandButton className="h-10" onClick={createProductManually} disabled={createManualProduct.isPending}>
                 <Save className="h-4 w-4" />
                 {createManualProduct.isPending ? 'Guardando...' : `Agregar a ${effectiveType}`}
-              </Button>
+              </BrandButton>
             </div>
           </div>
         </div>
@@ -621,58 +589,53 @@ export function InventoryPage() {
       {/* Modal de edición individual */}
       {editingProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl border border-border bg-background p-6 shadow-lg">
+          <div className="w-full max-w-md rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-lg">
             <h3 className="text-lg font-semibold">Editar producto</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-[#6B7280]">
               Referencia: <span className="font-mono">{editingProduct.sku}</span>
             </p>
 
             <div className="mt-4 grid gap-3">
               <div>
-                <p className="mb-1 text-xs text-muted-foreground">Nombre</p>
-                <Input
+                <p className="mb-1 text-xs text-[#6B7280]">Nombre</p>
+                <input className="brand-input h-10 rounded-xl px-3 text-sm font-semibold outline-none" style={FIELD_STYLE}
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                />
+            />
               </div>
               <div>
-                <p className="mb-1 text-xs text-muted-foreground">Stock</p>
-                <Input
+                <p className="mb-1 text-xs text-[#6B7280]">Stock</p>
+                <input className="brand-input h-10 rounded-xl px-3 text-sm font-semibold outline-none" style={FIELD_STYLE}
                   type="number"
                   min={0}
                   step="0.01"
                   value={editStock}
                   onChange={(e) => setEditStock(e.target.value)}
-                />
+            />
               </div>
             </div>
 
             {updateManualProduct.isError && (
-              <p className="mt-3 flex items-center gap-1 text-xs text-destructive">
+              <p className="mt-3 flex items-center gap-1 text-xs text-red-600">
                 <AlertCircle className="h-3 w-3" />
                 {getErrorMessage(updateManualProduct.error)}
               </p>
             )}
 
             <div className="mt-6 flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setEditingProduct(null)}
+              <BrandButton variant="outlined" className="h-10" onClick={() => setEditingProduct(null)}
                 disabled={updateManualProduct.isPending}
               >
                 Cancelar
-              </Button>
-              <Button
-                onClick={saveManualEdit}
-                disabled={updateManualProduct.isPending}
-              >
+              </BrandButton>
+              <BrandButton className="h-10" onClick={saveManualEdit} disabled={updateManualProduct.isPending}>
                 {updateManualProduct.isPending ? 'Guardando...' : 'Guardar cambios'}
-              </Button>
+              </BrandButton>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </PageBackground>
   );
 }
 
@@ -696,18 +659,18 @@ function StockRow({ product, onEdit, onSave, saving }: StockRowProps) {
   }
 
   return (
-    <tr className="border-b border-border/60 last:border-0 hover:bg-muted/40">
-      <td className="px-6 py-3 font-mono text-xs text-muted-foreground">
+    <tr className="border-b border-[#E2E8F0]/80 last:border-0 hover:bg-[#F4FAF6]">
+      <td className="px-6 py-3 font-mono text-xs text-[#6B7280]">
         {product.sku}
       </td>
       <td className="px-6 py-3 font-medium">{product.name}</td>
       <td className="px-6 py-3 text-right">
         {editing ? (
           <div className="flex items-center justify-end gap-1">
-            <Input
+            <input className="brand-input h-8 rounded-xl px-3 text-sm font-semibold outline-none w-24 text-right" style={FIELD_STYLE}
               type="number"
               autoFocus
-              className="h-8 w-24 text-right"
+              
               value={value}
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={(e) => {
@@ -718,52 +681,39 @@ function StockRow({ product, onEdit, onSave, saving }: StockRowProps) {
                 }
               }}
             />
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-              disabled={saving}
-              onClick={save}
-            >
-              <Check className="h-4 w-4 text-[var(--success)]" />
-            </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-              onClick={() => {
+            <BrandButton variant="text" className="h-9 w-9 px-0 h-8 w-8" disabled={saving} onClick={save}>
+              <Check className="h-4 w-4 text-[#1E9B50]" />
+            </BrandButton>
+            <BrandButton variant="text" className="h-9 w-9 px-0 h-8 w-8" onClick={() => {
                 setValue(String(product.stock));
                 setEditing(false);
               }}
             >
-              <X className="h-4 w-4 text-muted-foreground" />
-            </Button>
+              <X className="h-4 w-4 text-[#6B7280]" />
+            </BrandButton>
           </div>
         ) : (
           <button
-            className="group inline-flex items-center gap-1 rounded px-2 py-1 hover:bg-accent"
+            className="group inline-flex items-center gap-1 rounded px-2 py-1 hover:bg-[#F4FAF6]"
             onClick={() => setEditing(true)}
           >
             <span className="font-medium">{Number(product.stock)}</span>
-            <Pencil className="h-3 w-3 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+            <Pencil className="h-3 w-3 text-[#6B7280] opacity-0 transition-opacity group-hover:opacity-100" />
           </button>
         )}
       </td>
       <td className="px-6 py-3 text-right">
-        <Badge variant={product.active ? 'success' : 'secondary'}>
-          {product.active ? 'Activo' : 'Inactivo'}
-        </Badge>
+        <StatusPill
+          label={product.active ? 'Activo' : 'Inactivo'}
+          color={product.active ? BRAND.primary : BRAND.textMuted}
+        />
       </td>
       <td className="px-6 py-3 text-right">
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-8"
-          onClick={() => onEdit(product)}
+        <BrandButton variant="outlined" className="h-9 px-3 h-8" onClick={() => onEdit(product)}
         >
           <Pencil className="h-3.5 w-3.5" />
           Editar
-        </Button>
+        </BrandButton>
       </td>
     </tr>
   );

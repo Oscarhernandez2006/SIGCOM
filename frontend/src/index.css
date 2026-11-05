@@ -7,6 +7,35 @@
   to   { opacity: 1; transform: translateY(0);    letter-spacing: 0.18em; }
 }
 
+/* Entrada del login, igual que FadeSlideIn en la app móvil */
+@keyframes login-fade-in {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.login-fade-in {
+  animation: login-fade-in 500ms cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
+/* Campos de texto de la marca (fondo gris claro, anillo verde al enfocar) */
+.brand-input:focus {
+  box-shadow: 0 0 0 2px rgba(30, 155, 80, 0.4);
+}
+.brand-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Dibujado progresivo del gráfico de tendencia del tablero */
+@keyframes trend-draw {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+.trend-draw {
+  transform-origin: 0 0;
+  transform-box: fill-box;
+  animation: trend-draw 900ms cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
 :root {
   --radius: 0.75rem;
 

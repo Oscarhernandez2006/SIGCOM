@@ -1,18 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Clock, AlertCircle, CheckCircle2, Save } from 'lucide-react';
 import { isAxiosError } from 'axios';
+import { BRAND } from '@/lib/brand';
+import { PageBackground, Hero, BrandButton } from '@/components/brand/PageShell';
+import { Panel, PanelBody, PanelHeader, PanelTitle } from '@/components/brand/Panel';
+
+const FIELD_STYLE = { backgroundColor: BRAND.field, color: BRAND.text } as const;
 import {
   useOrderSchedule,
   useUpdateOrderSchedule,
 } from '@/hooks/useAdminApi';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 
 /** "HH:MM" (24h) a partir de hora y minuto. */
 function toTimeValue(hour: number, minute: number): string {
@@ -81,27 +78,26 @@ export function OrderSchedulePage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Horario de pedidos</h2>
-        <p className="text-muted-foreground">
-          Define el rango de horas (Colombia) en el que los vendedores pueden
-          crear pedidos.
+    <PageBackground className="space-y-3.5">
+      <Hero>
+        <h2 className="text-xl font-extrabold leading-tight tracking-[-0.4px] sm:text-[22px]">Horario de pedidos</h2>
+        <p className="mt-1 text-sm font-semibold text-white/90">
+          Define el rango de horas (Colombia) en el que los vendedores pueden crear pedidos.
         </p>
-      </div>
+      </Hero>
 
-      <Card className="max-w-xl">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+      <Panel className="max-w-xl">
+        <PanelHeader>
+          <PanelTitle className="flex items-center gap-2 ">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1E9B50]/10 text-[#1E9B50]">
               <Clock className="h-5 w-5" />
             </span>
             Ventana para crear pedidos
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-5">
+          </PanelTitle>
+        </PanelHeader>
+        <PanelBody className="space-y-5">
           {/* Activar / desactivar la restricción */}
-          <label className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-3">
+          <label className="flex items-start gap-3 rounded-lg border border-[#E2E8F0] bg-[#F4FAF6] p-3">
             <input
               type="checkbox"
               checked={enabled}
@@ -110,7 +106,7 @@ export function OrderSchedulePage() {
             />
             <span className="text-sm">
               <span className="font-medium">Restringir el horario</span>
-              <span className="block text-muted-foreground">
+              <span className="block text-[#6B7280]">
                 Si lo desactivas, los pedidos se pueden crear a cualquier hora.
               </span>
             </span>
@@ -118,27 +114,27 @@ export function OrderSchedulePage() {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Desde</label>
-              <Input
+              <label className="text-[13px] font-bold">Desde</label>
+              <input className="brand-input h-10 rounded-xl px-3 text-sm font-semibold outline-none" style={FIELD_STYLE}
                 type="time"
                 value={open}
                 disabled={!enabled}
                 onChange={(e) => setOpen(e.target.value)}
-              />
+            />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Hasta</label>
-              <Input
+              <label className="text-[13px] font-bold">Hasta</label>
+              <input className="brand-input h-10 rounded-xl px-3 text-sm font-semibold outline-none" style={FIELD_STYLE}
                 type="time"
                 value={close}
                 disabled={!enabled}
                 onChange={(e) => setClose(e.target.value)}
-              />
+            />
             </div>
           </div>
 
           {error && (
-            <p className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+            <p className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-red-600">
               <AlertCircle className="h-4 w-4 shrink-0" />
               {error}
             </p>
@@ -151,16 +147,12 @@ export function OrderSchedulePage() {
             </p>
           )}
 
-          <Button
-            onClick={handleSave}
-            disabled={isLoading || update.isPending}
-            className="gap-2"
-          >
+          <BrandButton className="h-10 gap-2" onClick={handleSave} disabled={isLoading || update.isPending}>
             <Save className="h-4 w-4" />
             {update.isPending ? 'Guardando…' : 'Guardar'}
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
+          </BrandButton>
+        </PanelBody>
+      </Panel>
+    </PageBackground>
   );
 }

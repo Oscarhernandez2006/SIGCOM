@@ -4,160 +4,82 @@ import {
   DollarSign,
   Gauge,
   ClipboardList,
-  Scale,
-  Coins,
+  Receipt,
+  PiggyBank,
   TrendingUp,
-  Info,
   Calendar,
   RefreshCw,
-  ChevronDown,
-  ArrowUpRight,
-  ArrowDownRight,
+  Clock,
+  User as UserIcon,
+  LineChart,
+  PieChart,
+  Store,
+  Search,
+  X,
+  ChevronRight,
+  Layers,
+  Beef,
 } from 'lucide-react';
 import { useAuth } from '@/auth/useAuth';
 import { useCompany } from '@/company/useCompany';
 import { useSellerDashboard, useSellers } from '@/hooks/useApi';
-import { formatCurrency, formatDate, cn } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
+import { BRAND } from '@/lib/brand';
+import {
+  formatDateTime,
+  formatDayLabel,
+  formatInt,
+  formatMoney,
+  formatMoneyShort,
+  formatPercent,
+  formatRangeLabel,
+  formatShortDate,
+  firstOfMonthISO,
+  shiftDays,
+  todayISO,
+  qtyUnit,
+} from '@/lib/format';
 import { isDashboardExcludedSellerDoc } from '@/lib/companies';
 import type { SellerCommercialDashboard } from '@/types';
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { SalesTrendChart } from '@/components/SalesTrendChart';
+  CardShell,
+  ErrorCard,
+  FadeIn,
+  GrowthChip,
+  HeroChip,
+  KpiCard,
+  MiniStat,
+  PendingChip,
+  SectionHeader,
+  SkeletonGrid,
+  StatText,
+} from '@/components/dashboard/primitives';
+import { RingGauge } from '@/components/dashboard/RingGauge';
+import { TrendChart } from '@/components/dashboard/TrendChart';
+
+type Dashboard = SellerCommercialDashboard;
+type Category = NonNullable<Dashboard['salesByCategory']>[number];
+type CustomerRow = Dashboard['topCustomers'][number];
+
+const CATEGORY_COLORS: Record<string, string> = {
+  Cortes: BRAND.primary,
+  Canales: '#B91C1C',
+  Subproductos: '#F59E0B',
+};
+const categoryColor = (name: string) => CATEGORY_COLORS[name] ?? '#64748B';
+
+const CUSTOMERS_PAGE = 20;
 
 /** Fecha local de hoy en formato YYYY-MM-DD. */
-function todayISO(): string {
-  const d = new Date();
-  const off = d.getTimezoneOffset();
-  return new Date(d.getTime() - off * 60000).toISOString().slice(0, 10);
-}
-
-/** Primer día del mes actual en formato YYYY-MM-01 (fecha local). */
-function firstOfMonthISO(): string {
-  return `${todayISO().slice(0, 8)}01`;
-}
-
-/** Etiqueta para cuando el vendedor no tiene presupuesto cargado ese mes. */
-function SinPresupuesto({ className }: { className?: string }) {
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground',
-        className,
-      )}
-    >
-      <Info className="h-3 w-3" />
-      Sin presupuesto asignado
-    </span>
-  );
-}
-
-/** Etiqueta para cuando la compañía no tiene proyección asignada ese mes. */
-function SinProyeccion({ className }: { className?: string }) {
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground',
-        className,
-      )}
-    >
-      <Info className="h-3 w-3" />
-      Sin proyección asignada
-    </span>
-  );
-}
-
-/** Medidor circular de cumplimiento (porcentaje). */
-function RingGauge({ pct, label }: { pct: number; label: string }) {
-  const clamped = Math.max(0, Math.min(100, pct));
-  const r = 42;
-  const circ = 2 * Math.PI * r;
-  const offset = circ - (clamped / 100) * circ;
-  const color =
-    clamped >= 100
-      ? 'var(--primary)'
-      : clamped >= 70
-        ? '#16a34a'
-        : clamped >= 40
-          ? '#d97706'
-          : '#dc2626';
-  return (
-    <div className="flex flex-col items-center gap-1">
-      <div className="relative h-28 w-28">
-        <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
-          <circle
-            cx="50"
-            cy="50"
-            r={r}
-            fill="none"
-            stroke="var(--border)"
-            strokeWidth="9"
-          />
-          <circle
-            cx="50"
-            cy="50"
-            r={r}
-            fill="none"
-            stroke={color}
-            strokeWidth="9"
-            strokeDasharray={circ}
-            strokeDashoffset={offset}
-            strokeLinecap="round"
-          />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-lg font-bold">{clamped.toFixed(1)}%</span>
-        </div>
-      </div>
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
-    </div>
-  );
-}
-
-interface KpiProps {
-  label: string;
-  value: React.ReactNode;
-  icon: React.ComponentType<{ className?: string }>;
-  accent: string;
-  subLabel?: string;
-  subValue?: React.ReactNode;
-}
-
-function KpiCard({ label, value, icon: Icon, accent, subLabel, subValue }: KpiProps) {
-  return (
-    <Card className="overflow-hidden">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {label}
-            </p>
-            <div className="mt-1 text-xl font-bold">{value}</div>
-          </div>
-          <div
-            className={cn(
-              'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
-              accent,
-            )}
-          >
-            <Icon className="h-5 w-5" />
-          </div>
-        </div>
-        {subLabel !== undefined && (
-          <div className="mt-3 border-t border-border pt-2">
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-              {subLabel}
-            </p>
-            <div className="text-sm font-semibold">{subValue}</div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
+/** Mismos umbrales de color que la app: ≥100 %, ≥70 %, ≥40 % y menor. */
+function complianceColor(ratio: number): string {
+  return ratio >= 1
+    ? BRAND.primary
+    : ratio >= 0.7
+      ? '#059669'
+      : ratio >= 0.4
+        ? '#D97706'
+        : '#DC2626';
 }
 
 export function DashboardPage({ national = false }: { national?: boolean }) {
@@ -165,39 +87,22 @@ export function DashboardPage({ national = false }: { national?: boolean }) {
   // CARNES FRIAS (cía 8) se mide en UNIDADES; las demás en KILOS.
   const { company } = useCompany();
   const isUnitCompany = company?.id === '8';
-  const unitLong = isUnitCompany ? 'Unidades' : 'Kilos';
-  const unitShort = isUnitCompany ? 'und' : 'kg';
+  const unit = useMemo(() => qtyUnit(isUnitCompany), [isUnitCompany]);
   // CARNES FRIAS (8) y MONTERIA TAT (MTAT) no manejan ventas por canal.
   const hideChannels = company?.id === '8' || company?.id === 'MTAT';
-  // Fecha seleccionada y modo de vista: mes completo, un día, o un rango de
-  // fechas (desde/hasta). De la fecha se derivan mes, año y día.
-  const [dateStr, setDateStr] = useState(() => todayISO());
-  // Vista fija en rango de fechas. Por defecto: del 1 del mes actual hasta hoy
-  // (venta acumulada del mes en curso).
-  const [view] = useState<'month' | 'day' | 'range'>('range');
+
+  // Rango de fechas. Por defecto: del 1 del mes actual hasta hoy.
   const [fromStr, setFromStr] = useState(() => firstOfMonthISO());
   const [toStr, setToStr] = useState(() => todayISO());
-  // Vista de la lista de clientes: los que compran o los que NO compran.
-  const [customerView, setCustomerView] = useState<'buying' | 'not-buying'>(
-    'buying',
-  );
-  // Búsqueda dentro de la lista de clientes (aplica a ambas vistas).
-  const [customerSearch, setCustomerSearch] = useState('');
-  // Categoría seleccionada para abrir el modal con su detalle ítem por ítem.
-  const [categoryModal, setCategoryModal] = useState<
-    NonNullable<SellerCommercialDashboard['salesByCategory']>[number] | null
-  >(null);
+  const [rangeOpen, setRangeOpen] = useState(false);
 
   // Solo los administradores pueden ver el tablero de otro vendedor o el
-  // general. En "negocios nacionales" el tablero es fijo (Juan Sierra), sin
-  // selector de vendedor.
+  // general. En "negocios nacionales" el tablero es fijo, sin selector.
   const isAdmin = user?.role === 'admin' && !national;
   const [sellerId, setSellerId] = useState('all');
   const [sellerSearch, setSellerSearch] = useState('');
   const [sellerOpen, setSellerOpen] = useState(false);
   const { data: sellers = [] } = useSellers();
-  // Solo usuarios con rol de vendedor. Se excluyen los vendedores apartados del
-  // tablero comercial (p. ej. Juan Sierra) del selector.
   const sellerOptions = useMemo(
     () =>
       sellers.filter(
@@ -212,1049 +117,1013 @@ export function DashboardPage({ national = false }: { national?: boolean }) {
   }, [sellerOptions, sellerSearch]);
   const effectiveSellerId = isAdmin ? sellerId : undefined;
 
-  // En modo rango se envían desde/hasta; en mes/día se usan mes/año/día.
-  const isRange = view === 'range';
-  const rangeFrom = isRange ? (fromStr <= toStr ? fromStr : toStr) : undefined;
-  const rangeTo = isRange ? (fromStr <= toStr ? toStr : fromStr) : undefined;
-  // El mes/año (presupuesto, período y comparativo) se anclan al INICIO del
-  // rango: así, si el vendedor se regresa a un mes pasado, ve el presupuesto de
-  // ese mes y no el del mes en curso.
-  const anchorDateStr = isRange ? (rangeFrom as string) : dateStr;
-  const selected = new Date(`${anchorDateStr}T12:00:00`);
-  const month = selected.getMonth() + 1;
-  const year = selected.getFullYear();
-  const day = view === 'day' ? selected.getDate() : 0;
+  const rangeFrom = fromStr <= toStr ? fromStr : toStr;
+  const rangeTo = fromStr <= toStr ? toStr : fromStr;
+  // El mes/año (presupuesto y comparativo) se anclan al INICIO del rango.
+  const anchor = new Date(`${rangeFrom}T12:00:00`);
+  const month = anchor.getMonth() + 1;
+  const year = anchor.getFullYear();
 
-  const { data, isLoading, isFetching, refetch } = useSellerDashboard(
+  const { data, isLoading, isFetching, isError, error, refetch } = useSellerDashboard(
     month,
     year,
-    day,
+    0,
     effectiveSellerId,
     rangeFrom,
     rangeTo,
     national,
   );
 
-  const daysInMonth = useMemo(
-    () => new Date(year, month, 0).getDate(),
-    [month, year],
-  );
-  const isSingleDay = day > 0 || (isRange && rangeFrom === rangeTo);
+  const daysInMonth = useMemo(() => new Date(year, month, 0).getDate(), [month, year]);
+  const isSingleDay = rangeFrom === rangeTo;
 
   const totals = data?.totals;
-  const growth = data?.growth.revenuePct ?? null;
-  const growthKilos = data?.growth.kilosPct ?? null;
-  // Proyección de ventas de la compañía (total del mes), si está asignada.
-  const projection = data?.projection ?? null;
-  // Rentabilidad (venta − costo estándar), si hay costos cargados.
-  const profitability = data?.profitability ?? null;
-  // Desglose de presupuesto por tienda/cliente (vendedores "por cliente").
-  const clientBudgets = data?.clientBudgets ?? null;
-
-  // Presupuesto: mensual, o su parte proporcional del día cuando se filtra un
-  // día (la meta se reparte lineal entre los días del mes).
   const budget = data?.budget ?? null;
-  const targetDivisor = isSingleDay ? daysInMonth : 1;
-  const pptoRevenue =
-    budget?.expectedRevenue != null
-      ? budget.expectedRevenue / targetDivisor
-      : null;
-  const pptoKilos =
-    budget?.targetKilos != null ? budget.targetKilos / targetDivisor : null;
-  const cumplimientoPesos =
-    pptoRevenue && pptoRevenue > 0 && totals
-      ? (totals.revenue / pptoRevenue) * 100
-      : null;
-  const kilosSold = totals?.kilosSold ?? 0;
-  const cumplimientoKilos =
-    pptoKilos && pptoKilos > 0 && totals ? (kilosSold / pptoKilos) * 100 : null;
+  const projection = data?.projection ?? null;
+  const profitability = data?.profitability ?? null;
+  const clientBudgets = data?.clientBudgets ?? null;
+  const workingDays = data?.workingDays ?? { elapsed: 0, total: 0 };
 
-  // Meta acumulada solo aplica en la vista mensual (en un día es por horas).
-  const metaSeries = useMemo(() => {
-    if (isSingleDay) return undefined;
-    const target = budget?.expectedRevenue;
-    if (!data || target == null || target <= 0) return undefined;
-    return data.salesTrend.map((p) => {
-      const d = Number(p.date.slice(8, 10));
-      return (target / daysInMonth) * d;
-    });
-  }, [data, budget, daysInMonth, isSingleDay]);
+  // Presupuesto: mensual, o su parte proporcional cuando se filtra un día.
+  const targetDivisor = isSingleDay ? daysInMonth : 1;
+  const pptoRevenue = budget ? budget.expectedRevenue / targetDivisor : null;
+  const pptoKilos = budget ? budget.targetKilos / targetDivisor : null;
+  const compRevenue =
+    pptoRevenue && pptoRevenue > 0 && totals ? totals.revenue / pptoRevenue : null;
+  const compKilos =
+    pptoKilos && pptoKilos > 0 && totals ? totals.kilosSold / pptoKilos : null;
+  // Ritmo esperado del mes (días hábiles transcurridos / totales).
+  const pace =
+    !isSingleDay && workingDays.total > 0
+      ? workingDays.elapsed / workingDays.total
+      : null;
+  const daysNote =
+    !isSingleDay && workingDays.total > 0
+      ? `Base: ${workingDays.elapsed} de ${workingDays.total} días hábiles`
+      : null;
+  // Meta diaria para la línea punteada de la tendencia.
+  const dailyGoal =
+    !isSingleDay && budget && budget.expectedRevenue > 0 && workingDays.total > 0
+      ? budget.expectedRevenue / workingDays.total
+      : null;
+
+  const sellerLabel = national
+    ? data?.seller.name
+    : isAdmin
+      ? sellerId !== 'all'
+        ? (sellers.find((s) => s.id === sellerId)?.name ?? 'Vendedor')
+        : null
+      : (user?.name ?? '');
+
+  const showProfitability = user?.role === 'admin' && !isUnitCompany;
+
+  const applyRange = (from: string, to: string) => {
+    setFromStr(from);
+    setToStr(to);
+    setRangeOpen(false);
+  };
+  const today = todayISO();
+  const presets: { label: string; from: string; to: string }[] = [
+    { label: 'Hoy', from: today, to: today },
+    { label: 'Ayer', from: shiftDays(today, -1), to: shiftDays(today, -1) },
+    { label: 'Este mes', from: firstOfMonthISO(), to: today },
+    {
+      label: 'Mes anterior',
+      from: `${shiftDays(firstOfMonthISO(), -1).slice(0, 8)}01`,
+      to: shiftDays(firstOfMonthISO(), -1),
+    },
+  ];
 
   return (
-    <div className="space-y-5">
-      {/* Encabezado */}
-      <div className="flex flex-col gap-3 rounded-xl bg-gradient-to-r from-primary/10 to-transparent p-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0">
-          <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
-            {national ? 'Dashboard Negocios Nacionales' : 'Tablero de Gestión Comercial'}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Vendedor:{' '}
-            <span className="font-medium">
-              {data?.seller.name ?? user?.name}
-            </span>
+    <div
+      className="-m-4 min-h-full p-4 md:-m-6 md:p-6"
+      style={{
+        background: `linear-gradient(135deg, #FFFFFF 0%, ${BRAND.background} 50%, #E8F5EC 100%)`,
+      }}
+    >
+      <div className="mx-auto max-w-7xl space-y-3.5">
+        {/* Encabezado con degradado (igual que _Hero en la app) */}
+        <div
+          className="relative rounded-[26px] text-white"
+          style={{
+            background: `linear-gradient(135deg, #0F6B35 0%, ${BRAND.primary} 55%, #34B868 100%)`,
+            boxShadow: `0 12px 24px ${BRAND.primaryDark}47`,
+          }}
+        >
+          <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[26px]">
+            <div className="absolute -right-10 -top-[50px] h-[170px] w-[170px] rounded-full bg-white/[0.08]" />
+            <div className="absolute -bottom-[70px] right-[50px] h-[130px] w-[130px] rounded-full bg-white/[0.06]" />
+          </div>
+          <div className="relative px-4 pb-4 pt-4 sm:px-5 sm:pb-[18px] sm:pr-3 sm:pt-5">
+            <div className="flex items-start gap-2">
+              <h2 className="flex-1 text-xl font-extrabold leading-[1.15] tracking-[-0.4px] sm:text-[22px]">
+                {national ? 'Negocios Nacionales' : 'Tablero de Gestión Comercial'}
+              </h2>
+              <button
+                type="button"
+                title="Actualizar"
+                onClick={() => refetch()}
+                disabled={isFetching}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/[0.16] transition-colors hover:bg-white/25 disabled:hover:bg-white/[0.16]"
+              >
+                <RefreshCw className={cn('h-5 w-5', isFetching && 'animate-spin')} />
+              </button>
+            </div>
+            <p className="mt-1.5 font-semibold text-white/[0.92]">
+              {sellerLabel ? `Vendedor: ${sellerLabel}` : 'Vendedor: General · Todos los vendedores'}
+            </p>
             {data && (
-              <>
-                {' · '}
-                Última actualización:{' '}
-                {new Date(data.generatedAt).toLocaleString('es-CO', {
-                  day: '2-digit',
-                  month: '2-digit',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </>
+              <p className="mt-1 flex items-center gap-1 text-xs text-white/80">
+                <Clock className="h-3.5 w-3.5" />
+                Última actualización: {formatDateTime(data.generatedAt)}
+              </p>
             )}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-end gap-2 lg:shrink-0">
-          {isAdmin && (
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">
-                Vendedor
-              </label>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSellerSearch('');
-                    setSellerOpen((o) => !o);
-                  }}
-                  className="flex h-9 w-56 items-center justify-between rounded-md border border-input bg-background px-2 text-sm"
-                >
-                  <span className="truncate">
-                    {sellerId && sellerId !== 'all'
-                      ? sellers.find((s) => s.id === sellerId)?.name ??
-                        'Vendedor'
-                      : 'Todos (general)'}
-                  </span>
-                  <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-                </button>
-                {sellerOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setSellerOpen(false)}
-                    />
-                    <div className="absolute z-20 mt-1 w-56 rounded-md border border-border bg-background shadow-lg">
-                      <div className="p-1">
-                        <input
-                          autoFocus
-                          type="text"
-                          value={sellerSearch}
-                          onChange={(e) => setSellerSearch(e.target.value)}
-                          placeholder="Buscar vendedor..."
-                          className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
-                        />
-                      </div>
-                      <div className="max-h-56 overflow-auto">
-                        <button
-                          type="button"
-                          className={cn(
-                            'flex w-full items-center px-3 py-2 text-left text-sm hover:bg-accent',
-                            (!sellerId || sellerId === 'all') &&
-                              'bg-accent/60 font-medium',
+            <div className="mt-4 flex flex-wrap gap-2">
+              {isAdmin && (
+                <div className="relative">
+                  <HeroChip
+                    icon={UserIcon}
+                    label={sellerLabel ?? 'Todos (general)'}
+                    active={sellerOpen}
+                    onClick={() => {
+                      setSellerSearch('');
+                      setRangeOpen(false);
+                      setSellerOpen((o) => !o);
+                    }}
+                  />
+                  {sellerOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setSellerOpen(false)} />
+                      <div
+                        className="absolute left-0 z-20 mt-2 w-[min(18rem,calc(100vw-2.5rem))] overflow-hidden rounded-2xl bg-white shadow-xl"
+                        style={{ border: `1px solid ${BRAND.border}`, color: BRAND.text }}
+                      >
+                        <div className="p-2">
+                          <div className="relative">
+                            <Search
+                              className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2"
+                              style={{ color: BRAND.textSoft }}
+                            />
+                            <input
+                              autoFocus
+                              type="text"
+                              value={sellerSearch}
+                              onChange={(e) => setSellerSearch(e.target.value)}
+                              placeholder="Buscar vendedor…"
+                              className="h-9 w-full rounded-xl pl-8 pr-2 text-sm outline-none"
+                              style={{ backgroundColor: BRAND.field }}
+                            />
+                          </div>
+                        </div>
+                        <div className="max-h-64 overflow-auto pb-1">
+                          {[{ id: 'all', name: 'Todos (general)' }, ...filteredSellers].map((s) => (
+                            <button
+                              key={s.id}
+                              type="button"
+                              className={cn(
+                                'flex w-full items-center px-3 py-2 text-left text-sm font-semibold hover:bg-[#F4FAF6]',
+                                s.id === sellerId && 'bg-[#F4FAF6]',
+                              )}
+                              style={s.id === sellerId ? { color: BRAND.primary } : undefined}
+                              onClick={() => {
+                                setSellerId(s.id);
+                                setSellerSearch('');
+                                setSellerOpen(false);
+                              }}
+                            >
+                              {s.name}
+                            </button>
+                          ))}
+                          {filteredSellers.length === 0 && (
+                            <p className="px-3 py-2 text-sm" style={{ color: BRAND.textSoft }}>
+                              Sin vendedores.
+                            </p>
                           )}
-                          onClick={() => {
-                            setSellerId('all');
-                            setSellerSearch('');
-                            setSellerOpen(false);
-                          }}
-                        >
-                          Todos (general)
-                        </button>
-                        {filteredSellers.map((s) => (
-                          <button
-                            key={s.id}
-                            type="button"
-                            className={cn(
-                              'flex w-full items-center px-3 py-2 text-left text-sm hover:bg-accent',
-                              s.id === sellerId && 'bg-accent/60 font-medium',
-                            )}
-                            onClick={() => {
-                              setSellerId(s.id);
-                              setSellerSearch('');
-                              setSellerOpen(false);
-                            }}
-                          >
-                            {s.name}
-                          </button>
-                        ))}
-                        {filteredSellers.length === 0 && (
-                          <p className="px-3 py-2 text-sm text-muted-foreground">
-                            Sin vendedores.
-                          </p>
-                        )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+              <div className="relative">
+                <HeroChip
+                  icon={Calendar}
+                  label={formatRangeLabel(rangeFrom, rangeTo)}
+                  active={rangeOpen}
+                  onClick={() => {
+                    setSellerOpen(false);
+                    setRangeOpen((o) => !o);
+                  }}
+                />
+                {rangeOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setRangeOpen(false)} />
+                    <div
+                      className="absolute left-0 z-20 mt-2 w-[min(300px,calc(100vw-2.5rem))] rounded-2xl bg-white p-3 shadow-xl"
+                      style={{ border: `1px solid ${BRAND.border}`, color: BRAND.text }}
+                    >
+                      <p className="px-1 pb-2 text-base font-extrabold">Periodo</p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {presets.map((p) => {
+                          const active = p.from === rangeFrom && p.to === rangeTo;
+                          return (
+                            <button
+                              key={p.label}
+                              type="button"
+                              onClick={() => applyRange(p.from, p.to)}
+                              className="rounded-xl px-3 py-2 text-left text-[13px] font-bold transition-colors"
+                              style={{
+                                backgroundColor: active ? `${BRAND.primary}1A` : BRAND.field,
+                                color: active ? BRAND.primary : BRAND.text,
+                              }}
+                            >
+                              {p.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p
+                        className="mt-3 px-1 text-[11px] font-bold uppercase tracking-wide"
+                        style={{ color: BRAND.textSoft }}
+                      >
+                        Personalizado
+                      </p>
+                      <div className="mt-1.5 grid grid-cols-2 gap-2">
+                        <label className="text-xs font-semibold" style={{ color: BRAND.textMuted }}>
+                          Desde
+                          <input
+                            type="date"
+                            value={fromStr}
+                            max={toStr || today}
+                            onChange={(e) => setFromStr(e.target.value || today)}
+                            className="mt-1 h-9 w-full rounded-xl px-2 text-sm font-semibold outline-none"
+                            style={{ backgroundColor: BRAND.field, color: BRAND.text }}
+                          />
+                        </label>
+                        <label className="text-xs font-semibold" style={{ color: BRAND.textMuted }}>
+                          Hasta
+                          <input
+                            type="date"
+                            value={toStr}
+                            min={fromStr || undefined}
+                            max={today}
+                            onChange={(e) => setToStr(e.target.value || today)}
+                            className="mt-1 h-9 w-full rounded-xl px-2 text-sm font-semibold outline-none"
+                            style={{ backgroundColor: BRAND.field, color: BRAND.text }}
+                          />
+                        </label>
                       </div>
                     </div>
                   </>
                 )}
               </div>
             </div>
-          )}
-          {view === 'range' ? (
-            <>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">
-                  Desde
-                </label>
-                <div className="relative">
-                  <Calendar className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    type="date"
-                    value={fromStr}
-                    max={toStr || todayISO()}
-                    onChange={(e) => setFromStr(e.target.value || todayISO())}
-                    className="h-9 rounded-md border border-input bg-background pl-8 pr-2 text-sm"
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">
-                  Hasta
-                </label>
-                <div className="relative">
-                  <Calendar className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    type="date"
-                    value={toStr}
-                    min={fromStr || undefined}
-                    max={todayISO()}
-                    onChange={(e) => setToStr(e.target.value || todayISO())}
-                    className="h-9 rounded-md border border-input bg-background pl-8 pr-2 text-sm"
-                  />
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">
-                Fecha
-              </label>
-              <div className="relative">
-                <Calendar className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="date"
-                  value={dateStr}
-                  max={todayISO()}
-                  onChange={(e) => setDateStr(e.target.value || todayISO())}
-                  className="h-9 rounded-md border border-input bg-background pl-8 pr-2 text-sm"
-                />
-              </div>
-            </div>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refetch()}
-            disabled={isFetching}
-          >
-            <RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin')} />
-          </Button>
-        </div>
-      </div>
-
-      {/* Aviso de carga: al cambiar de vendedor o fecha la consulta tarda; se
-          muestra un mensaje claro en lugar de dejar las tarjetas en "…". */}
-      {isFetching && (
-        <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2 text-sm font-medium text-primary">
-          <RefreshCw className="h-4 w-4 animate-spin" />
-          Cargando información...
-        </div>
-      )}
-
-      {/* KPIs */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          label={`Ppto ${isSingleDay ? 'Día' : 'Mes'} (Pesos)`}
-          value={
-            isLoading ? (
-              '…'
-            ) : pptoRevenue != null ? (
-              formatCurrency(pptoRevenue)
-            ) : (
-              <SinPresupuesto />
-            )
-          }
-          icon={Wallet}
-          accent="bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300"
-          subLabel={isUnitCompany ? undefined : `Ppto (${unitLong})`}
-          subValue={
-            isUnitCompany ? undefined : isLoading ? (
-              '…'
-            ) : pptoKilos != null ? (
-              `${pptoKilos.toLocaleString('es-CO')} ${unitShort}`
-            ) : (
-              <SinPresupuesto />
-            )
-          }
-        />
-        <KpiCard
-          label="Ventas Acumuladas"
-          value={isLoading ? '…' : formatCurrency(totals?.revenue ?? 0)}
-          icon={DollarSign}
-          accent="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300"
-          subLabel={isUnitCompany ? 'Unidades Vendidas' : 'Kilos Vendidos'}
-          subValue={
-            isLoading ? '…' : `${kilosSold.toLocaleString('es-CO')} ${unitShort}`
-          }
-        />
-        <KpiCard
-          label="Cumplimiento (Pesos)"
-          value={
-            isLoading ? (
-              '…'
-            ) : cumplimientoPesos != null ? (
-              `${cumplimientoPesos.toFixed(1)}%`
-            ) : (
-              <SinPresupuesto />
-            )
-          }
-          icon={Gauge}
-          accent="bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-300"
-          subLabel={isUnitCompany ? undefined : `Cumplimiento (${unitLong})`}
-          subValue={
-            isUnitCompany ? undefined : isLoading ? (
-              '…'
-            ) : cumplimientoKilos != null ? (
-              `${cumplimientoKilos.toFixed(1)}%`
-            ) : (
-              <SinPresupuesto />
-            )
-          }
-        />
-        <KpiCard
-          label="Proyección (Pesos)"
-          value={
-            isLoading ? (
-              '…'
-            ) : projection != null ? (
-              formatCurrency(projection.revenue)
-            ) : (
-              <SinProyeccion />
-            )
-          }
-          icon={TrendingUp}
-          accent="bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-300"
-        />
-        <KpiCard
-          label={`Proyección (${unitLong})`}
-          value={
-            isLoading ? (
-              '…'
-            ) : projection != null ? (
-              `${projection.kilos.toLocaleString('es-CO')} ${unitShort}`
-            ) : (
-              <SinProyeccion />
-            )
-          }
-          icon={Scale}
-          accent="bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-300"
-        />
-        <KpiCard
-          label="Número de Pedidos"
-          value={isLoading ? '…' : (totals?.orders ?? 0)}
-          icon={ClipboardList}
-          accent="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-300"
-        />
-        <KpiCard
-          label={`Pedidos (${unitLong})`}
-          value={
-            isLoading
-              ? '…'
-              : `${(totals?.orderKilos ?? 0).toLocaleString('es-CO')} ${unitShort}`
-          }
-          icon={Scale}
-          accent="bg-fuchsia-100 text-fuchsia-600 dark:bg-fuchsia-900/40 dark:text-fuchsia-300"
-        />
-        <KpiCard
-          label="Pedidos (Pesos)"
-          value={isLoading ? '…' : formatCurrency(totals?.orderRevenue ?? 0)}
-          icon={Coins}
-          accent="bg-cyan-100 text-cyan-600 dark:bg-cyan-900/40 dark:text-cyan-300"
-        />
-        {user?.role === 'admin' && !isUnitCompany && (
-          <KpiCard
-            label="Rentabilidad (Pesos)"
-            value={
-              isLoading ? (
-                '…'
-              ) : profitability != null ? (
-                formatCurrency(profitability.margin)
-              ) : (
-                <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                  <Info className="h-3 w-3" />
-                  Sin costos cargados
-                </span>
-              )
-            }
-            icon={Coins}
-            accent="bg-teal-100 text-teal-600 dark:bg-teal-900/40 dark:text-teal-300"
-            subLabel="Margen"
-            subValue={
-              isLoading
-                ? '…'
-                : profitability?.marginPct != null
-                  ? `${profitability.marginPct.toFixed(1)}%`
-                  : '—'
-            }
-          />
-        )}
-      </div>
-
-      {/* Presupuesto por tienda/cliente (solo vendedores "por cliente", p. ej.
-          Juan Sierra): meta vs. venta real de cada tienda y su cumplimiento. */}
-      {clientBudgets && clientBudgets.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Wallet className="h-4 w-4 text-primary" />
-              Presupuesto por Tienda / Cliente
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="border-b border-border bg-muted/50 text-left text-xs text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-2 font-medium">
-                      Cliente / Razón social
-                    </th>
-                    <th className="px-4 py-2 font-medium">Tienda</th>
-                    <th className="px-4 py-2 text-right font-medium">
-                      Meta (Pesos)
-                    </th>
-                    <th className="px-4 py-2 text-right font-medium">Venta</th>
-                    <th className="px-4 py-2 text-right font-medium">
-                      Cumplimiento
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {clientBudgets.map((c) => (
-                    <tr key={c.clientCode} className="hover:bg-muted/40">
-                      <td className="px-4 py-2">
-                        <div className="font-medium">{c.clientName}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {c.clientCode}
-                        </div>
-                      </td>
-                      <td className="px-4 py-2 text-muted-foreground">
-                        {c.branchName ?? c.branch ?? '—'}
-                      </td>
-                      <td className="px-4 py-2 text-right tabular-nums">
-                        {c.targetRevenue > 0
-                          ? formatCurrency(c.targetRevenue)
-                          : '—'}
-                      </td>
-                      <td className="px-4 py-2 text-right tabular-nums">
-                        {formatCurrency(c.revenue)}
-                      </td>
-                      <td className="px-4 py-2 text-right font-medium tabular-nums">
-                        {c.compliancePct != null ? (
-                          <span
-                            className={cn(
-                              c.compliancePct >= 100
-                                ? 'text-primary'
-                                : c.compliancePct >= 70
-                                  ? 'text-emerald-600'
-                                  : c.compliancePct >= 40
-                                    ? 'text-amber-600'
-                                    : 'text-red-600',
-                            )}
-                          >
-                            {c.compliancePct.toFixed(1)}%
-                          </span>
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot className="border-t border-border bg-muted/50 font-semibold">
-                  <tr>
-                    <td className="px-4 py-2" colSpan={2}>
-                      TOTAL (aparte del general)
-                    </td>
-                    <td className="px-4 py-2 text-right tabular-nums">
-                      {formatCurrency(
-                        clientBudgets.reduce((s, c) => s + c.targetRevenue, 0),
-                      )}
-                    </td>
-                    <td className="px-4 py-2 text-right tabular-nums">
-                      {formatCurrency(
-                        clientBudgets.reduce((s, c) => s + c.revenue, 0),
-                      )}
-                    </td>
-                    <td className="px-4 py-2" />
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Cumplimiento + Tendencia + Mis clientes */}
-      <div className="grid gap-4 lg:grid-cols-4">
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-base">Cumplimiento del Mes</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center gap-6 py-6">
-            {cumplimientoPesos != null ? (
-              <RingGauge pct={cumplimientoPesos} label="Pesos" />
-            ) : (
-              <div className="flex flex-col items-center gap-2 text-center">
-                <Gauge className="h-9 w-9 text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground">
-                  Pesos
-                </span>
-                <SinPresupuesto />
-              </div>
-            )}
-            {cumplimientoKilos != null ? (
-              <RingGauge pct={cumplimientoKilos} label={unitLong} />
-            ) : (
-              <div className="flex flex-col items-center gap-2 text-center">
-                <Gauge className="h-9 w-9 text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground">
-                  {unitLong}
-                </span>
-                <SinPresupuesto />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <TrendingUp className="h-4 w-4 text-primary" />
-              Tendencia de Ventas Diarias
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data ? (
-              <SalesTrendChart data={data.salesTrend} metaSeries={metaSeries} />
-            ) : (
-              <div className="flex h-56 items-center justify-center text-sm text-muted-foreground">
-                Cargando…
-              </div>
-            )}
-            {data && !metaSeries && (
-              <p className="mt-1 flex items-center justify-center gap-1 text-center text-[11px] text-muted-foreground">
-                Meta acumulada: <SinPresupuesto /> — carga el presupuesto del mes.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-1 lg:self-start">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Mis Clientes / Tiendas</CardTitle>
-            <div className="mt-2 inline-flex overflow-hidden rounded-md border border-input text-xs">
-              {(
-                [
-                  ['buying', 'Compran'],
-                  ['not-buying', 'No compran'],
-                ] as const
-              ).map(([key, txt]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setCustomerView(key)}
-                  className={cn(
-                    'px-3 py-1 font-medium transition-colors',
-                    customerView === key
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-background text-muted-foreground hover:bg-accent',
-                  )}
-                >
-                  {txt}
-                </button>
-              ))}
-            </div>
-            <input
-              type="text"
-              value={customerSearch}
-              onChange={(e) => setCustomerSearch(e.target.value)}
-              placeholder="Buscar cliente o tienda…"
-              className="mt-2 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
-            />
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="max-h-96 divide-y divide-border overflow-y-auto">
-              {(() => {
-                const source =
-                  customerView === 'buying'
-                    ? data?.topCustomers
-                    : data?.customersNotBuying;
-                const q = customerSearch.trim().toLowerCase();
-                const list = q
-                  ? source?.filter((c) =>
-                      [c.name, c.branchName, c.branch, c.city, c.code]
-                        .filter(Boolean)
-                        .some((v) => String(v).toLowerCase().includes(q)),
-                    )
-                  : source;
-                if (data && list && list.length > 0) {
-                  return list.map((c, i) => (
-                    <div
-                      key={`${c.code}-${i}`}
-                      className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/50"
-                    >
-                      <span
-                        className={cn(
-                          'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold',
-                          customerView === 'buying'
-                            ? 'bg-primary/10 text-primary'
-                            : 'bg-amber-100 text-amber-700',
-                        )}
-                      >
-                        {i + 1}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p
-                          className="text-sm font-medium leading-snug"
-                          title={c.name}
-                        >
-                          {c.name}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {c.branchName ?? c.branch ?? c.city ?? 'Sin tienda'}
-                        </p>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        {customerView === 'buying' ? (
-                          <>
-                            <p className="text-sm font-semibold tabular-nums">
-                              {formatCurrency(c.revenue)}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {formatDate(c.lastPurchase)}
-                            </p>
-                          </>
-                        ) : (
-                          <>
-                            <p className="text-[11px] text-muted-foreground">
-                              Última compra
-                            </p>
-                            <p className="text-xs font-medium">
-                              {c.lastPurchase
-                                ? formatDate(c.lastPurchase)
-                                : 'Nunca'}
-                            </p>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  ));
-                }
-                return (
-                  <p className="px-4 py-10 text-center text-sm text-muted-foreground">
-                    {isLoading
-                      ? 'Cargando…'
-                      : q
-                        ? 'Sin coincidencias para la búsqueda.'
-                        : customerView === 'buying'
-                          ? 'Sin ventas en el período.'
-                          : 'Todos tus clientes compraron.'}
-                  </p>
-                );
-              })()}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Ventas por categoría (Canales / Cortes / Subproductos). Cada fila
-          abre un modal con el detalle ítem por ítem, de mayor a menor. */}
-      {data?.salesByCategory ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Ventas por Categoría</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {(() => {
-              const cats = data.salesByCategory ?? [];
-              const totalCat = cats.reduce((s, c) => s + c.revenue, 0);
-              if (cats.length === 0) {
-                return (
-                  <p className="px-4 py-10 text-center text-sm text-muted-foreground">
-                    {isLoading ? 'Cargando…' : 'Sin ventas en el período.'}
-                  </p>
-                );
-              }
-              return (
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
-                    <tr>
-                      <th className="px-4 py-2 font-medium">Categoría</th>
-                      <th className="px-4 py-2 text-right font-medium">Kg</th>
-                      <th className="px-4 py-2 text-right font-medium">Venta</th>
-                      <th className="px-4 py-2 text-right font-medium">%</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {cats.map((c) => {
-                      const pct =
-                        totalCat > 0 ? (c.revenue / totalCat) * 100 : 0;
-                      return (
-                        <tr
-                          key={c.category}
-                          onClick={() => setCategoryModal(c)}
-                          className="cursor-pointer hover:bg-muted/50"
-                        >
-                          <td className="px-4 py-3 font-medium">
-                            <span className="flex items-center gap-2">
-                              {c.category}
-                              <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
-                            </span>
-                            <span className="text-[11px] font-normal text-muted-foreground">
-                              {c.items.length} ítem
-                              {c.items.length === 1 ? '' : 's'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-right tabular-nums">
-                            {c.kilos.toLocaleString('es-CO', {
-                              maximumFractionDigits: 1,
-                            })}
-                          </td>
-                          <td className="px-4 py-3 text-right font-semibold tabular-nums">
-                            {formatCurrency(c.revenue)}
-                          </td>
-                          <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
-                            {pct.toFixed(1)}%
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot className="border-t-2 border-border bg-muted/30">
-                    <tr>
-                      <td className="px-4 py-3 font-semibold">Total</td>
-                      <td className="px-4 py-3 text-right font-semibold tabular-nums">
-                        {cats
-                          .reduce((s, c) => s + c.kilos, 0)
-                          .toLocaleString('es-CO', {
-                            maximumFractionDigits: 1,
-                          })}
-                      </td>
-                      <td className="px-4 py-3 text-right font-semibold tabular-nums">
-                        {formatCurrency(totalCat)}
-                      </td>
-                      <td className="px-4 py-3 text-right font-semibold tabular-nums">
-                        100%
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              );
-            })()}
-          </CardContent>
-        </Card>
-      ) : (
-        <div className={`grid gap-4 ${hideChannels ? '' : 'lg:grid-cols-3'}`}>
-          {!hideChannels && (
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-base">Ventas por Canal</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="max-h-56 overflow-y-auto">
-                {data && data.salesByChannel.length > 0 ? (
-                  (() => {
-                    const totalCh = data.salesByChannel.reduce(
-                      (s, c) => s + c.revenue,
-                      0,
-                    );
-                    return (
-                      <table className="w-full text-sm">
-                        <thead className="sticky top-0 bg-muted/50 text-left text-xs text-muted-foreground">
-                          <tr>
-                            <th className="px-3 py-2 font-medium">Canal</th>
-                            <th className="px-3 py-2 text-right font-medium">
-                              {isUnitCompany ? 'Und' : 'Kg'}
-                            </th>
-                            <th className="px-3 py-2 text-right font-medium">
-                              Venta
-                            </th>
-                            <th className="px-3 py-2 text-right font-medium">
-                              %
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                          {data.salesByChannel.map((c, i) => {
-                            const pct =
-                              totalCh > 0 ? (c.revenue / totalCh) * 100 : 0;
-                            return (
-                              <tr
-                                key={`${c.name}-${i}`}
-                                className="hover:bg-muted/40"
-                              >
-                                <td className="px-3 py-2 font-medium">
-                                  {c.name}
-                                </td>
-                                <td className="px-3 py-2 text-right tabular-nums">
-                                  {c.kilos.toLocaleString('es-CO', {
-                                    maximumFractionDigits: 1,
-                                  })}
-                                </td>
-                                <td className="px-3 py-2 text-right font-medium tabular-nums">
-                                  {formatCurrency(c.revenue)}
-                                </td>
-                                <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
-                                  {pct.toFixed(1)}%
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    );
-                  })()
-                ) : (
-                  <p className="px-4 py-10 text-center text-sm text-muted-foreground">
-                    {isLoading
-                      ? 'Cargando…'
-                      : 'Sin ventas de canal en el período.'}
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-          )}
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Ventas en Cortes</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="max-h-56 divide-y divide-border overflow-y-auto">
-                {data && data.salesByCut.length > 0 ? (
-                  (() => {
-                    const totalCut = data.salesByCut.reduce(
-                      (s, c) => s + c.revenue,
-                      0,
-                    );
-                    return data.salesByCut.map((c, i) => {
-                      const pct =
-                        totalCut > 0 ? (c.revenue / totalCut) * 100 : 0;
-                      return (
-                        <div key={`${c.name}-${i}`} className="px-4 py-2">
-                          <div className="flex items-center justify-between gap-3">
-                            <p
-                              className="min-w-0 flex-1 truncate text-sm font-medium"
-                              title={c.name}
-                            >
-                              {c.name}
-                            </p>
-                            <span className="shrink-0 text-sm font-semibold tabular-nums">
-                              {formatCurrency(c.revenue)}
-                            </span>
-                          </div>
-                          <div className="mt-1 flex items-center gap-2">
-                            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                              <div
-                                className="h-full rounded-full bg-primary"
-                                style={{ width: `${pct}%` }}
-                              />
-                            </div>
-                            <span className="w-10 shrink-0 text-right text-[11px] text-muted-foreground">
-                              {pct.toFixed(1)}%
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    });
-                  })()
-                ) : (
-                  <p className="px-4 py-10 text-center text-sm text-muted-foreground">
-                    {isLoading ? 'Cargando…' : 'Sin ventas en el período.'}
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Modal con el detalle ítem por ítem de la categoría seleccionada. */}
-      {categoryModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => setCategoryModal(null)}
-        >
-          <div
-            className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-background shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-border px-5 py-4">
-              <div>
-                <h3 className="text-lg font-semibold">
-                  {categoryModal.category}
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  {formatCurrency(categoryModal.revenue)} ·{' '}
-                  {categoryModal.kilos.toLocaleString('es-CO', {
-                    maximumFractionDigits: 1,
-                  })}{' '}
-                  Kg · {categoryModal.items.length} ítem
-                  {categoryModal.items.length === 1 ? '' : 's'}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setCategoryModal(null)}
-                className="rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-muted"
-              >
-                Cerrar
-              </button>
-            </div>
-            <div className="overflow-y-auto">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-muted/50 text-left text-xs text-muted-foreground">
-                  <tr>
-                    <th className="px-5 py-2 font-medium">Producto</th>
-                    <th className="px-3 py-2 text-right font-medium">Kg</th>
-                    <th className="px-5 py-2 text-right font-medium">Venta</th>
-                    <th className="px-3 py-2 text-right font-medium">%</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {categoryModal.items.map((it) => {
-                    const pct =
-                      categoryModal.revenue > 0
-                        ? (it.revenue / categoryModal.revenue) * 100
-                        : 0;
-                    return (
-                      <tr key={it.ref} className="hover:bg-muted/40">
-                        <td className="px-5 py-2">
-                          <span className="font-medium">{it.name}</span>
-                          <span className="block text-[11px] text-muted-foreground">
-                            {it.ref}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2 text-right tabular-nums">
-                          {it.kilos.toLocaleString('es-CO', {
-                            maximumFractionDigits: 1,
-                          })}
-                        </td>
-                        <td className="px-5 py-2 text-right font-medium tabular-nums">
-                          {formatCurrency(it.revenue)}
-                        </td>
-                        <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
-                          {pct.toFixed(1)}%
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
           </div>
         </div>
-      )}
 
-      {/* Ranking personal */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Ranking Personal</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-          <RankItem
-            label="Clientes Atendidos"
-            value={isLoading ? '…' : String(totals?.customersServed ?? 0)}
-            hint={
-              isLoading
-                ? undefined
-                : totals && totals.activeCustomers > 0
-                  ? `${((totals.customersServed / totals.activeCustomers) * 100).toFixed(1)}% de activos`
-                  : undefined
+        {isError && (
+          <ErrorCard
+            message={
+              error instanceof Error ? error.message : 'No se pudo cargar el tablero.'
             }
+            onRetry={() => refetch()}
           />
-          <RankItem
-            label="Clientes Activos"
-            value={isLoading ? '…' : String(totals?.activeCustomers ?? 0)}
-          />
-          <RankItem
-            label="Tickets Facturados"
-            value={isLoading ? '…' : String(totals?.orders ?? 0)}
-          />
-          <RankItem
-            label="Ticket Promedio"
-            value={isLoading ? '…' : formatCurrency(totals?.avgTicket ?? 0)}
-          />
-          <RankItem
-            label="Crecimiento Ventas ($)"
-            value={
-              growth === null ? (
-                <span className="text-muted-foreground">—</span>
+        )}
+
+        {!data ? (
+          isLoading && <SkeletonGrid />
+        ) : (
+          <div
+            className="space-y-3.5 transition-opacity duration-200"
+            style={{ opacity: isFetching ? 0.55 : 1 }}
+          >
+            {/* Ventas acumuladas + Cumplimiento */}
+            <div className="grid gap-3.5 lg:grid-cols-5">
+              <FadeIn index={0} className="lg:col-span-3">
+                <CardShell className="flex h-full flex-col">
+                  <SectionHeader icon={DollarSign} color="#10B981" title="Ventas acumuladas" />
+                  <p
+                    className="mt-3.5 truncate text-[28px] font-extrabold tracking-[-0.8px] sm:text-[32px] lg:mt-auto lg:pt-3.5 lg:text-[40px]"
+                    style={{ color: BRAND.text }}
+                  >
+                    {formatMoney(totals?.revenue ?? 0)}
+                  </p>
+                  <div className="mt-3.5 grid grid-cols-3 gap-3 lg:mt-auto lg:pt-3.5">
+                    <MiniStat label={unit.soldLabel}>
+                      <StatText>{unit.format(totals?.kilosSold ?? 0)}</StatText>
+                    </MiniStat>
+                    <MiniStat label="Crec. pesos">
+                      <GrowthChip
+                        ratio={data.growth.revenuePct == null ? null : data.growth.revenuePct / 100}
+                      />
+                    </MiniStat>
+                    <MiniStat label={`Crec. ${unit.word}`}>
+                      <GrowthChip
+                        ratio={data.growth.kilosPct == null ? null : data.growth.kilosPct / 100}
+                      />
+                    </MiniStat>
+                  </div>
+                  {(data.growth.revenuePct != null || data.growth.kilosPct != null) && (
+                    <p className="mt-2.5 text-[11.5px]" style={{ color: BRAND.textSoft }}>
+                      Crecimiento vs. periodo anterior de igual duración
+                    </p>
+                  )}
+                </CardShell>
+              </FadeIn>
+
+              <FadeIn index={1} className="lg:col-span-2">
+                <CardShell className="h-full">
+                  <SectionHeader
+                    icon={Gauge}
+                    color="#F59E0B"
+                    title="Cumplimiento"
+                    trailing={budget ? undefined : <PendingChip label="Sin presupuesto" />}
+                  />
+                  <div className="mt-[18px] grid grid-cols-2 gap-3">
+                    <RingGauge
+                      label="Pesos"
+                      ratio={compRevenue}
+                      pace={pace}
+                      detail={totals ? formatMoneyShort(totals.revenue) : null}
+                      target={formatMoneyShort(pptoRevenue ?? 0)}
+                    />
+                    <RingGauge
+                      label={unit.label}
+                      ratio={compKilos}
+                      pace={pace}
+                      detail={totals ? unit.format(Math.round(totals.kilosSold)) : null}
+                      target={unit.format(pptoKilos ?? 0)}
+                    />
+                  </div>
+                  {pace != null && (
+                    <div
+                      className="mt-4 flex items-center gap-2 rounded-xl px-3 py-2.5"
+                      style={{ backgroundColor: BRAND.field }}
+                    >
+                      <span className="h-3.5 w-[3px]" style={{ backgroundColor: BRAND.text }} />
+                      <p className="text-xs font-semibold" style={{ color: BRAND.textMuted }}>
+                        Meta a la fecha: {formatPercent(pace)} · día hábil {workingDays.elapsed} de{' '}
+                        {workingDays.total}
+                      </p>
+                    </div>
+                  )}
+                </CardShell>
+              </FadeIn>
+            </div>
+
+            {/* KPIs */}
+            <FadeIn index={2}>
+              <div
+                className={cn(
+                  'grid grid-cols-2 gap-3',
+                  showProfitability ? 'lg:grid-cols-5' : 'lg:grid-cols-4',
+                )}
+              >
+                <KpiCard
+                  title={isSingleDay ? 'Ppto día' : 'Ppto mes'}
+                  value={pptoRevenue == null ? null : formatMoney(pptoRevenue)}
+                  emptyLabel="Sin presupuesto"
+                  icon={Wallet}
+                  color="#3B82F6"
+                  metrics={[
+                    { label: unit.label, value: pptoKilos == null ? null : unit.format(pptoKilos) },
+                  ]}
+                />
+                <KpiCard
+                  title="Proyección"
+                  value={projection ? formatMoney(projection.revenue) : null}
+                  emptyLabel={isSingleDay ? 'No aplica' : 'Sin días hábiles'}
+                  icon={TrendingUp}
+                  color="#8B5CF6"
+                  metrics={[
+                    { label: unit.label, value: projection ? unit.format(projection.kilos) : null },
+                  ]}
+                  footnote={daysNote}
+                />
+                <KpiCard
+                  title="Pedidos"
+                  value={formatInt(totals?.orders ?? 0)}
+                  icon={ClipboardList}
+                  color="#6366F1"
+                  metrics={[
+                    { label: 'Pesos', value: formatMoney(totals?.orderRevenue ?? 0) },
+                    { label: unit.label, value: unit.format(totals?.orderKilos ?? 0) },
+                  ]}
+                />
+                <KpiCard
+                  title="Ticket promedio"
+                  value={formatMoney(totals?.avgTicket ?? 0)}
+                  icon={Receipt}
+                  color="#0891B2"
+                  metrics={[
+                    { label: 'Clientes atendidos', value: formatInt(totals?.customersServed ?? 0) },
+                    { label: 'Clientes activos', value: formatInt(totals?.activeCustomers ?? 0) },
+                  ]}
+                />
+                {showProfitability && (
+                  <KpiCard
+                    title="Rentabilidad"
+                    value={profitability ? formatMoney(profitability.margin) : null}
+                    emptyLabel="Sin costos"
+                    icon={PiggyBank}
+                    color="#14B8A6"
+                    className="col-span-2 lg:col-span-1"
+                    metrics={[
+                      {
+                        label: 'Margen',
+                        value:
+                          profitability?.marginPct == null
+                            ? null
+                            : formatPercent(profitability.marginPct / 100),
+                      },
+                      { label: 'Costo', value: profitability ? formatMoney(profitability.cost) : null },
+                    ]}
+                  />
+                )}
+              </div>
+            </FadeIn>
+
+            {/* Tendencia + Categorías */}
+            <div className="grid gap-3.5 xl:grid-cols-3">
+              {data.salesTrend.length > 0 && (
+                <FadeIn index={3} className="xl:col-span-2">
+                  <TrendCard key={data.generatedAt} data={data} goal={dailyGoal} />
+                </FadeIn>
+              )}
+              {data.salesByCategory ? (
+                <FadeIn index={4}>
+                  <CategoriesCard categories={data.salesByCategory} unit={unit} />
+                </FadeIn>
               ) : (
-                <span
-                  className={cn(
-                    'inline-flex items-center gap-1',
-                    growth >= 0 ? 'text-emerald-600' : 'text-red-600',
-                  )}
-                >
-                  {growth >= 0 ? (
-                    <ArrowUpRight className="h-4 w-4" />
-                  ) : (
-                    <ArrowDownRight className="h-4 w-4" />
-                  )}
-                  {Math.abs(growth)}%
-                </span>
-              )
-            }
-            hint="Vs. mes anterior"
-          />
-          <RankItem
-            label={`Crecimiento ${unitLong} (${unitShort})`}
-            value={
-              growthKilos === null ? (
-                <span className="text-muted-foreground">—</span>
+                <FadeIn index={4}>
+                  <CutsCard data={data} unit={unit} />
+                </FadeIn>
+              )}
+            </div>
+
+            {!data.salesByCategory && !hideChannels && (
+              <FadeIn index={5}>
+                <ChannelsCard data={data} unit={unit} />
+              </FadeIn>
+            )}
+
+            {/* Presupuesto por tienda o clientes */}
+            <FadeIn index={6}>
+              {clientBudgets ? (
+                <ClientBudgetsCard rows={clientBudgets} />
               ) : (
-                <span
-                  className={cn(
-                    'inline-flex items-center gap-1',
-                    growthKilos >= 0 ? 'text-emerald-600' : 'text-red-600',
-                  )}
-                >
-                  {growthKilos >= 0 ? (
-                    <ArrowUpRight className="h-4 w-4" />
-                  ) : (
-                    <ArrowDownRight className="h-4 w-4" />
-                  )}
-                  {Math.abs(growthKilos)}%
-                </span>
-              )
-            }
-            hint="Vs. mes anterior"
-          />
-        </CardContent>
-      </Card>
+                <CustomersCard
+                  key={`${rangeFrom}-${rangeTo}-${sellerId}`}
+                  buying={data.topCustomers}
+                  notBuying={data.customersNotBuying}
+                />
+              )}
+            </FadeIn>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-function RankItem({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: React.ReactNode;
-  hint?: string;
-}) {
+/* ---------------------------------------------------------------------- */
+
+function TrendCard({ data, goal }: { data: Dashboard; goal: number | null }) {
+  const points = data.salesTrend;
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const lastWithSales = (() => {
+    for (let i = points.length - 1; i >= 0; i--) if (points[i].revenue !== 0) return i;
+    return -1;
+  })();
+  const fallback = lastWithSales >= 0 ? lastWithSales : points.length - 1;
+  const selected =
+    selectedIdx != null && selectedIdx < points.length ? selectedIdx : fallback;
+  const point = points[selected];
+  const total = points.reduce((s, p) => s + p.revenue, 0);
+  const activeDays = points.filter((p) => p.revenue !== 0).length;
+  // En la vista intradía los puntos traen la hora como etiqueta.
+  const pointLabel = (p: Dashboard['salesTrend'][number]) =>
+    p.label ? `${formatDayLabel(p.date)} · ${p.label}` : formatDayLabel(p.date);
+  const axisLabel = (p: Dashboard['salesTrend'][number]) => p.label ?? formatShortDate(p.date);
+
   return (
-    <div className="rounded-lg border border-border p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <div className="mt-1 text-lg font-bold">{value}</div>
-      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
-    </div>
+    <CardShell className="h-full">
+      <SectionHeader icon={LineChart} color={BRAND.primary} title="Tendencia de ventas diarias" />
+      <p className="mt-3.5 text-[12.5px] font-semibold first-letter:uppercase" style={{ color: BRAND.textSoft }}>
+        {pointLabel(point)}
+      </p>
+      <div className="mt-0.5 flex flex-wrap items-end gap-x-2">
+        <p className="text-2xl font-extrabold tracking-[-0.5px]" style={{ color: BRAND.text }}>
+          {formatMoney(point.revenue)}
+        </p>
+        {goal != null && (
+          <p
+            className="pb-1 text-xs font-bold"
+            style={{ color: point.revenue >= goal ? BRAND.primary : '#B45309' }}
+          >
+            {formatPercent(point.revenue / goal)} de la meta
+          </p>
+        )}
+      </div>
+      <div className="mt-3.5">
+        <TrendChart
+          values={points.map((p) => p.revenue)}
+          selected={selected}
+          goal={goal}
+          onSelect={setSelectedIdx}
+        />
+      </div>
+      <div className="mt-1.5 flex justify-between text-[11px]" style={{ color: BRAND.textSoft }}>
+        <span>{axisLabel(points[0])}</span>
+        <span>{axisLabel(points[points.length - 1])}</span>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
+        <Legend color={BRAND.primary} label="Venta diaria" />
+        {goal != null && (
+          <Legend color="#F59E0B" label={`Meta diaria ${formatMoneyShort(goal)}`} dashed />
+        )}
+        <Legend
+          color={BRAND.textSoft}
+          label={`Promedio ${formatMoneyShort(activeDays > 0 ? total / activeDays : 0)}`}
+        />
+      </div>
+    </CardShell>
+  );
+}
+
+function Legend({ color, label, dashed = false }: { color: string; label: string; dashed?: boolean }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      {dashed ? (
+        <span className="flex gap-0.5">
+          {[0, 1, 2].map((i) => (
+            <span key={i} className="h-[3px] w-1" style={{ backgroundColor: color }} />
+          ))}
+        </span>
+      ) : (
+        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
+      )}
+      <span className="text-[11.5px] font-semibold" style={{ color: BRAND.textMuted }}>
+        {label}
+      </span>
+    </span>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+
+function CategoriesCard({
+  categories,
+  unit,
+}: {
+  categories: Category[];
+  unit: ReturnType<typeof qtyUnit>;
+}) {
+  const [open, setOpen] = useState<Category | null>(null);
+  const total = categories.reduce((s, c) => s + c.revenue, 0);
+  const totalKilos = categories.reduce((s, c) => s + c.kilos, 0);
+  const withSales = categories.filter((c) => c.revenue > 0);
+
+  return (
+    <CardShell className="h-full">
+      <SectionHeader icon={PieChart} color="#B91C1C" title="Ventas por categoría" />
+      <div className="mt-4 flex h-3.5 overflow-hidden rounded-lg" style={{ backgroundColor: BRAND.field }}>
+        {total > 0 &&
+          withSales.map((c) => (
+            <div
+              key={c.category}
+              style={{ flex: `${Math.max(1, Math.round((c.revenue / total) * 1000))} 1 0%`, backgroundColor: categoryColor(c.category) }}
+              title={`${c.category}: ${formatPercent(c.revenue / total)}`}
+            />
+          ))}
+      </div>
+      <div className="mt-2">
+        {categories.length === 0 && (
+          <p className="py-6 text-center text-sm" style={{ color: BRAND.textSoft }}>
+            Sin ventas en el período.
+          </p>
+        )}
+        {categories.map((c) => (
+          <button
+            key={c.category}
+            type="button"
+            disabled={c.items.length === 0}
+            onClick={() => setOpen(c)}
+            className="flex w-full items-center gap-2.5 rounded-xl px-1 py-2.5 text-left transition-colors hover:bg-[#F4FAF6] disabled:cursor-default disabled:hover:bg-transparent"
+          >
+            <span className="h-3 w-3 shrink-0 rounded" style={{ backgroundColor: categoryColor(c.category) }} />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-extrabold" style={{ color: BRAND.text }}>
+                {c.category}
+              </span>
+              <span className="block text-xs" style={{ color: BRAND.textSoft }}>
+                {c.items.length} ítem{c.items.length === 1 ? '' : 's'} · {unit.format(c.kilos)}
+              </span>
+            </span>
+            <span className="text-right">
+              <span className="block font-extrabold" style={{ color: BRAND.text }}>
+                {formatMoney(c.revenue)}
+              </span>
+              <span className="block text-xs font-semibold" style={{ color: BRAND.textSoft }}>
+                {total > 0 ? formatPercent(c.revenue / total) : '—'}
+              </span>
+            </span>
+            {c.items.length > 0 && (
+              <ChevronRight className="h-4 w-4 shrink-0" style={{ color: BRAND.textSoft }} />
+            )}
+          </button>
+        ))}
+      </div>
+      <div className="mt-2 flex items-center justify-between border-t pt-3" style={{ borderColor: BRAND.border }}>
+        <span className="font-extrabold" style={{ color: BRAND.text }}>
+          Total
+        </span>
+        <span className="text-right">
+          <span className="block font-extrabold" style={{ color: BRAND.text }}>
+            {formatMoney(total)}
+          </span>
+          <span className="block text-xs" style={{ color: BRAND.textSoft }}>
+            {unit.format(totalKilos)}
+          </span>
+        </span>
+      </div>
+
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
+          onClick={() => setOpen(null)}
+        >
+          <div
+            className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[26px] bg-white shadow-xl sm:rounded-[26px]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3 px-5 pb-3 pt-5">
+              <span
+                className="mt-1 h-3 w-3 shrink-0 rounded"
+                style={{ backgroundColor: categoryColor(open.category) }}
+              />
+              <div className="min-w-0 flex-1">
+                <h3 className="text-xl font-extrabold" style={{ color: BRAND.text }}>
+                  {open.category}
+                </h3>
+                <p className="text-sm" style={{ color: BRAND.textSoft }}>
+                  {formatMoney(open.revenue)} · {unit.format(open.kilos)} · {open.items.length} ítem
+                  {open.items.length === 1 ? '' : 's'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOpen(null)}
+                className="rounded-full p-2 hover:bg-[#F1F5F9]"
+                style={{ color: BRAND.textSoft }}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="overflow-y-auto px-3 pb-3">
+              {open.items.map((it, i) => {
+                const pct = open.revenue > 0 ? it.revenue / open.revenue : 0;
+                return (
+                  <div key={`${it.ref}-${i}`} className="px-2 py-2.5">
+                    <div className="flex items-start gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold" style={{ color: BRAND.text }}>
+                          {it.name}
+                        </p>
+                        <p className="text-[11px]" style={{ color: BRAND.textSoft }}>
+                          {it.ref} · {unit.format(it.kilos)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-extrabold tabular-nums" style={{ color: BRAND.text }}>
+                          {formatMoney(it.revenue)}
+                        </p>
+                        <p className="text-[11px] font-semibold" style={{ color: BRAND.textSoft }}>
+                          {formatPercent(pct)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-1.5 h-1.5 overflow-hidden rounded" style={{ backgroundColor: BRAND.field }}>
+                      <div
+                        className="h-full rounded"
+                        style={{ width: `${Math.min(100, pct * 100)}%`, backgroundColor: categoryColor(open.category) }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </CardShell>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+
+function CutsCard({ data, unit }: { data: Dashboard; unit: ReturnType<typeof qtyUnit> }) {
+  const total = data.salesByCut.reduce((s, c) => s + c.revenue, 0);
+  return (
+    <CardShell className="h-full">
+      <SectionHeader icon={Beef} color="#B91C1C" title="Ventas en cortes" />
+      <div className="mt-2 max-h-[420px] overflow-y-auto">
+        {data.salesByCut.length === 0 && (
+          <p className="py-8 text-center text-sm" style={{ color: BRAND.textSoft }}>
+            Sin ventas en el período.
+          </p>
+        )}
+        {data.salesByCut.map((c, i) => {
+          const pct = total > 0 ? c.revenue / total : 0;
+          return (
+            <div key={`${c.name}-${i}`} className="py-2">
+              <div className="flex items-center justify-between gap-3">
+                <p className="min-w-0 flex-1 truncate text-sm font-bold" style={{ color: BRAND.text }} title={c.name}>
+                  {c.name}
+                </p>
+                <span className="shrink-0 text-sm font-extrabold tabular-nums" style={{ color: BRAND.text }}>
+                  {formatMoney(c.revenue)}
+                </span>
+              </div>
+              <div className="mt-1 flex items-center gap-2">
+                <div className="h-1.5 flex-1 overflow-hidden rounded" style={{ backgroundColor: BRAND.field }}>
+                  <div className="h-full rounded" style={{ width: `${pct * 100}%`, backgroundColor: BRAND.primary }} />
+                </div>
+                <span className="w-14 shrink-0 text-right text-[11px] font-semibold" style={{ color: BRAND.textSoft }}>
+                  {formatPercent(pct)}
+                </span>
+              </div>
+              <p className="text-[11px]" style={{ color: BRAND.textSoft }}>
+                {unit.format(c.quantity)}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </CardShell>
+  );
+}
+
+function ChannelsCard({ data, unit }: { data: Dashboard; unit: ReturnType<typeof qtyUnit> }) {
+  const total = data.salesByChannel.reduce((s, c) => s + c.revenue, 0);
+  return (
+    <CardShell>
+      <SectionHeader icon={Layers} color="#6366F1" title="Ventas por canal" />
+      <div className="mt-2 divide-y" style={{ borderColor: BRAND.border }}>
+        {data.salesByChannel.length === 0 && (
+          <p className="py-8 text-center text-sm" style={{ color: BRAND.textSoft }}>
+            Sin ventas de canal en el período.
+          </p>
+        )}
+        {data.salesByChannel.map((c, i) => {
+          const pct = total > 0 ? c.revenue / total : 0;
+          return (
+            <div key={`${c.name}-${i}`} className="flex items-center gap-3 py-2.5">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold" style={{ color: BRAND.text }}>
+                  {c.name}
+                </p>
+                <p className="text-xs" style={{ color: BRAND.textSoft }}>
+                  {unit.format(c.kilos)}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-extrabold tabular-nums" style={{ color: BRAND.text }}>
+                  {formatMoney(c.revenue)}
+                </p>
+                <p className="text-xs font-semibold" style={{ color: BRAND.textSoft }}>
+                  {formatPercent(pct)}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </CardShell>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+
+function ClientBudgetsCard({ rows }: { rows: NonNullable<Dashboard['clientBudgets']> }) {
+  const sorted = [...rows].sort((a, b) => b.revenue - a.revenue);
+  const target = rows.reduce((s, r) => s + r.targetRevenue, 0);
+  const revenue = rows.reduce((s, r) => s + r.revenue, 0);
+
+  return (
+    <CardShell>
+      <SectionHeader icon={Store} color="#3B82F6" title="Presupuesto por tienda / cliente" />
+      {sorted.length === 0 && (
+        <p className="py-5 text-center text-sm" style={{ color: BRAND.textSoft }}>
+          Sin clientes asignados.
+        </p>
+      )}
+      <div className="mt-3 grid gap-x-8 md:grid-cols-2">
+        {sorted.map((r) => {
+          const ratio = r.compliancePct == null ? null : r.compliancePct / 100;
+          const branch = r.branchName ?? r.branch;
+          return (
+            <div key={`${r.clientCode}-${r.branch ?? ''}`} className="py-2">
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold" style={{ color: BRAND.text }}>
+                    {r.clientName}
+                  </p>
+                  <p className="truncate text-xs" style={{ color: BRAND.textSoft }}>
+                    {[r.clientCode, branch && branch !== r.clientName ? branch : null]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                </div>
+                <span
+                  className="text-[15px] font-extrabold"
+                  style={{ color: ratio == null ? BRAND.textSoft : complianceColor(ratio) }}
+                >
+                  {ratio == null ? '—' : formatPercent(ratio)}
+                </span>
+              </div>
+              <div className="mt-1.5 flex items-center justify-between gap-2">
+                <span className="text-[12.5px] font-bold" style={{ color: BRAND.text }}>
+                  Venta {formatMoney(r.revenue)}
+                </span>
+                <span className="text-xs" style={{ color: BRAND.textSoft }}>
+                  {r.targetRevenue > 0 ? `Meta ${formatMoney(r.targetRevenue)}` : 'Sin meta'}
+                </span>
+              </div>
+              {ratio != null && (
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded" style={{ backgroundColor: BRAND.field }}>
+                  <div
+                    className="h-full rounded"
+                    style={{ width: `${Math.min(100, ratio * 100)}%`, backgroundColor: complianceColor(ratio) }}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-3 flex items-center justify-between border-t pt-3" style={{ borderColor: BRAND.border }}>
+        <span className="font-extrabold" style={{ color: BRAND.text }}>
+          Total (aparte del general)
+        </span>
+        <span className="text-right">
+          <span className="block font-extrabold" style={{ color: BRAND.text }}>
+            {formatMoney(revenue)}
+          </span>
+          <span className="block text-xs" style={{ color: BRAND.textSoft }}>
+            Meta {formatMoney(target)}
+          </span>
+        </span>
+      </div>
+    </CardShell>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+
+function CustomersCard({ buying, notBuying }: { buying: CustomerRow[]; notBuying: CustomerRow[] }) {
+  const [showBuying, setShowBuying] = useState(true);
+  const [query, setQuery] = useState('');
+  const [visible, setVisible] = useState(CUSTOMERS_PAGE);
+
+  const source = showBuying ? buying : notBuying;
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? source.filter((c) =>
+        [c.name, c.branchName, c.branch, c.city, c.code]
+          .filter(Boolean)
+          .some((v) => String(v).toLowerCase().includes(q)),
+      )
+    : source;
+  const shown = filtered.slice(0, visible);
+  const accent = showBuying ? BRAND.primary : '#B45309';
+
+  return (
+    <CardShell>
+      <SectionHeader icon={Store} color="#6366F1" title="Mis clientes / tiendas" />
+      <div className="mt-3.5 flex flex-col gap-3 sm:flex-row">
+        <div
+          className="grid grid-cols-2 overflow-hidden rounded-full text-[13px] font-bold sm:w-80"
+          style={{ border: `1px solid ${BRAND.border}` }}
+        >
+          {(
+            [
+              [true, `Compran (${buying.length})`],
+              [false, `No compran (${notBuying.length})`],
+            ] as const
+          ).map(([val, label]) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => {
+                setShowBuying(val);
+                setVisible(CUSTOMERS_PAGE);
+              }}
+              className="h-10 px-3 transition-colors"
+              style={
+                showBuying === val
+                  ? { backgroundColor: accent, color: '#fff' }
+                  : { color: BRAND.textMuted }
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="relative flex-1">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2"
+            style={{ color: BRAND.textSoft }}
+          />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setVisible(CUSTOMERS_PAGE);
+            }}
+            placeholder="Buscar cliente, tienda, NIT o ciudad"
+            className="h-10 w-full rounded-full pl-9 pr-9 text-sm outline-none focus:ring-2"
+            style={{ backgroundColor: BRAND.field, color: BRAND.text }}
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => {
+                setQuery('');
+                setVisible(CUSTOMERS_PAGE);
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 hover:bg-white"
+              style={{ color: BRAND.textSoft }}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {shown.length === 0 ? (
+        <p className="py-6 text-center text-sm" style={{ color: BRAND.textSoft }}>
+          {q
+            ? 'Sin coincidencias para la búsqueda.'
+            : showBuying
+              ? 'Sin ventas en el período.'
+              : 'Todos tus clientes compraron.'}
+        </p>
+      ) : (
+        <div className="mt-2 grid gap-x-6 md:grid-cols-2">
+          {shown.map((c, i) => (
+            <div
+              key={`${c.code}-${i}`}
+              className="flex items-center gap-3 border-b py-2.5"
+              style={{ borderColor: `${BRAND.border}99` }}
+            >
+              <span
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold"
+                style={{ backgroundColor: `${accent}1A`, color: accent }}
+              >
+                {i + 1}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold" style={{ color: BRAND.text }} title={c.name}>
+                  {c.name}
+                </p>
+                <p className="truncate text-xs" style={{ color: BRAND.textSoft }}>
+                  {c.branchName ?? c.branch ?? c.city ?? 'Sin tienda'}
+                </p>
+              </div>
+              <div className="shrink-0 text-right">
+                {showBuying ? (
+                  <p className="text-sm font-extrabold tabular-nums" style={{ color: BRAND.text }}>
+                    {formatMoney(c.revenue)}
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-[11px]" style={{ color: BRAND.textSoft }}>
+                      Última compra
+                    </p>
+                    <p className="text-xs font-bold" style={{ color: BRAND.text }}>
+                      {c.lastPurchase ? formatDate(c.lastPurchase) : 'Nunca'}
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {filtered.length > shown.length && (
+        <div className="mt-3 text-center">
+          <button
+            type="button"
+            onClick={() => setVisible((v) => v + CUSTOMERS_PAGE)}
+            className="rounded-full px-4 py-2 text-[13px] font-bold hover:bg-[#F4FAF6]"
+            style={{ color: BRAND.primary }}
+          >
+            Ver más ({filtered.length - shown.length} restantes)
+          </button>
+        </div>
+      )}
+    </CardShell>
   );
 }

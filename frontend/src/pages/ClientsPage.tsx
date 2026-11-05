@@ -17,16 +17,12 @@ import { isAxiosError } from 'axios';
 import { useClients, useSyncClients, useClientPortfolio } from '@/hooks/useAdminApi';
 import { COMPANIES } from '@/lib/companies';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import type { Client } from '@/types';
+import { BRAND } from '@/lib/brand';
+import { PageBackground, Hero, BrandButton, StatusPill, Modal } from '@/components/brand/PageShell';
+import { Panel, PanelBody, PanelHeader, PanelTitle } from '@/components/brand/Panel';
+
+const FIELD_STYLE = { backgroundColor: BRAND.field, color: BRAND.text } as const;
 
 /** Extrae el mensaje de error que envía el backend, si lo hay. */
 function getErrorMessage(error: unknown): string {
@@ -73,13 +69,13 @@ export function ClientsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <PageBackground className="space-y-3.5">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Clientes</h2>
-        <p className="text-muted-foreground">
-          Clientes sincronizados desde Siesa. Incluye lista de precios,
-          condición de pago y vendedor asignado.
-        </p>
+        <Hero>
+        <h2 className="text-xl font-extrabold leading-tight tracking-[-0.4px] sm:text-[22px]">Clientes</h2>
+        <p className="mt-1 text-sm font-semibold text-white/90">Clientes sincronizados desde Siesa. Incluye lista de precios,
+          condición de pago y vendedor asignado.</p>
+      </Hero>
       </div>
 
       {/* Selector de compañía */}
@@ -89,10 +85,10 @@ export function ClientsPage() {
             key={c.id}
             onClick={() => handleCompany(c.id)}
             className={cn(
-              'flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors',
+              'flex h-9 items-center gap-1.5 rounded-full border px-4 text-[13px] font-bold transition-colors',
               companyId === c.id
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'border-border text-muted-foreground hover:bg-accent',
+                ? 'border-[#1E9B50] bg-[#1E9B50] text-white'
+                : 'border-[#E2E8F0] bg-white text-[#4B5563] hover:bg-[#F4FAF6]',
             )}
           >
             <Building2 className="h-4 w-4" />
@@ -103,32 +99,32 @@ export function ClientsPage() {
       </div>
 
       {/* Acción de sincronización */}
-      <Card>
-        <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+      <Panel>
+        <PanelBody className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#1E9B50]/10 text-[#1E9B50]">
               <Users className="h-5 w-5" />
             </div>
             <div>
               <p className="font-semibold">Clientes · {company.name}</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-[#6B7280]">
                 La sincronización trae los cambios desde Siesa y actualiza la
                 base de datos.
               </p>
             </div>
           </div>
-          <Button size="sm" disabled={syncClients.isPending} onClick={handleSync}>
+          <BrandButton className="h-9 px-3" disabled={syncClients.isPending} onClick={handleSync}>
             <RefreshCw
               className={cn('h-4 w-4', syncClients.isPending && 'animate-spin')}
             />
             {syncClients.isPending ? 'Sincronizando…' : 'Sincronizar'}
-          </Button>
-        </CardContent>
-      </Card>
+          </BrandButton>
+        </PanelBody>
+      </Panel>
 
       {/* Resultado de la sincronización */}
       {syncClients.isSuccess && (
-        <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary">
+        <div className="flex items-center gap-2 rounded-lg border border-[#1E9B50]/30 bg-[#1E9B50]/10 px-4 py-3 text-sm text-[#1E9B50]">
           <Check className="h-4 w-4" />
           <span>
             {syncClients.data.total} clientes · {syncClients.data.created} nuevos
@@ -138,36 +134,35 @@ export function ClientsPage() {
         </div>
       )}
       {syncClients.isError && (
-        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div className="flex items-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
           <AlertCircle className="h-4 w-4" />
           <span>{getErrorMessage(syncClients.error)}</span>
         </div>
       )}
 
       {/* Listado de clientes */}
-      <Card>
-        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-          <CardTitle className="text-base">
+      <Panel>
+        <PanelHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+          <PanelTitle className="">
             Clientes ({clients.length}
             {clients.length === 500 && '+'})
-          </CardTitle>
+          </PanelTitle>
           <div className="relative w-full sm:max-w-xs">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              style={{ paddingLeft: '2.5rem' }}
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
+            <input className="brand-input h-10 w-full rounded-xl pl-10 pr-3 text-sm font-semibold outline-none" style={FIELD_STYLE}
               placeholder="Buscar por nombre, código o vendedor…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-        </CardHeader>
-        <CardContent>
+        </PanelHeader>
+        <PanelBody>
           {isLoading ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">
+            <p className="py-10 text-center text-sm text-[#6B7280]">
               Cargando clientes…
             </p>
           ) : clients.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">
+            <p className="py-10 text-center text-sm text-[#6B7280]">
               {search
                 ? 'Sin resultados.'
                 : 'No hay clientes. Sincroniza desde Siesa.'}
@@ -176,7 +171,7 @@ export function ClientsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b text-left text-muted-foreground">
+                  <tr className="border-b text-left text-[#6B7280]">
                     <th className="px-2 py-2 font-medium">Código</th>
                     <th className="px-2 py-2 font-medium">Cliente</th>
                     <th className="px-2 py-2 font-medium">Sucursal</th>
@@ -194,12 +189,12 @@ export function ClientsPage() {
                       <td className="px-2 py-2">
                         <p className="font-medium">{c.name}</p>
                         {c.address && (
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-[#6B7280]">
                             {c.address}
                           </p>
                         )}
                         {(c.neighborhood || c.city || c.department) && (
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-[#6B7280]">
                             {[c.neighborhood, c.city, c.department]
                               .filter(Boolean)
                               .join(', ')}
@@ -209,11 +204,11 @@ export function ClientsPage() {
                       <td className="px-2 py-2 text-xs">
                         {c.branchName || c.branch ? (
                           <span>
-                            <span className="font-medium text-[var(--success)]">
+                            <span className="font-medium text-[#1E9B50]">
                               {c.branchName || c.branch}
                             </span>
                             {c.branchName && c.branch ? (
-                              <span className="font-mono text-muted-foreground">
+                              <span className="font-mono text-[#6B7280]">
                                 {' '}
                                 ({c.branch})
                               </span>
@@ -225,24 +220,22 @@ export function ClientsPage() {
                       </td>
                       <td className="px-2 py-2">
                         {c.priceList ? (
-                          <Badge variant="secondary">
-                            {c.priceListName || c.priceList}
-                          </Badge>
+                          <StatusPill label={c.priceListName || c.priceList} color={BRAND.textMuted} />
                         ) : (
                           '—'
                         )}
                       </td>
-                      <td className="px-2 py-2 font-medium text-[var(--success)]">
+                      <td className="px-2 py-2 font-medium text-[#1E9B50]">
                         {c.paymentTerm ?? '—'}
                       </td>
                       <td className="px-2 py-2 text-xs">
                         {c.sellerName || c.sellerCode ? (
                           <span>
-                            <span className="font-medium text-[var(--success)]">
+                            <span className="font-medium text-[#1E9B50]">
                               {c.sellerName || c.sellerCode}
                             </span>
                             {c.sellerName && c.sellerCode ? (
-                              <span className="font-mono text-muted-foreground">
+                              <span className="font-mono text-[#6B7280]">
                                 {' '}
                                 ({c.sellerCode})
                               </span>
@@ -256,13 +249,13 @@ export function ClientsPage() {
                         <div className="space-y-0.5 text-xs">
                           {c.phone && (
                             <p className="flex items-center gap-1">
-                              <Phone className="h-3 w-3 text-muted-foreground" />
+                              <Phone className="h-3 w-3 text-[#6B7280]" />
                               {c.phone}
                             </p>
                           )}
                           {c.email && (
                             <p className="flex items-center gap-1 break-all">
-                              <Mail className="h-3 w-3 shrink-0 text-muted-foreground" />
+                              <Mail className="h-3 w-3 shrink-0 text-[#6B7280]" />
                               {c.email}
                             </p>
                           )}
@@ -270,14 +263,11 @@ export function ClientsPage() {
                         </div>
                       </td>
                       <td className="px-2 py-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setPortfolioClient(c)}
+                        <BrandButton variant="outlined" className="h-9 px-3" onClick={() => setPortfolioClient(c)}
                         >
                           <Wallet className="h-4 w-4" />
                           Ver
-                        </Button>
+                        </BrandButton>
                       </td>
                     </tr>
                   ))}
@@ -285,40 +275,33 @@ export function ClientsPage() {
               </table>
 
               <div className="flex items-center justify-between gap-2 pt-3">
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-[#6B7280]">
                   {clients.length} cliente{clients.length === 1 ? '' : 's'}
                   {clients.length === 500 && ' (máx., refina la búsqueda)'}
                 </span>
                 {clients.length > CLIENTS_PER_PAGE && (
                   <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={page <= 1}
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    <BrandButton variant="outlined" className="h-9 px-3" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}
                     >
                       <ChevronLeft className="h-4 w-4" />
                       Anterior
-                    </Button>
-                    <span className="text-xs text-muted-foreground">
+                    </BrandButton>
+                    <span className="text-xs text-[#6B7280]">
                       {page} / {totalPages}
                     </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={page >= totalPages}
+                    <BrandButton variant="outlined" className="h-9 px-3" disabled={page>= totalPages}
                       onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     >
                       Siguiente
                       <ChevronRight className="h-4 w-4" />
-                    </Button>
+                    </BrandButton>
                   </div>
                 )}
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </PanelBody>
+      </Panel>
 
       {portfolioClient && (
         <PortfolioModal
@@ -327,7 +310,7 @@ export function ClientsPage() {
           onClose={() => setPortfolioClient(null)}
         />
       )}
-    </div>
+    </PageBackground>
   );
 }
 
@@ -346,94 +329,120 @@ function PortfolioModal({
     client.code.trim(),
   );
 
+  const [now] = useState(() => Date.now());
+
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={onClose}
-    >
-      <Card
-        className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <CardHeader className="flex flex-row items-start justify-between space-y-0 border-b">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Wallet className="h-5 w-5 text-primary" />
-              Cartera · {client.name}
-            </CardTitle>
-            <p className="text-xs text-muted-foreground">
-              NIT/Código {client.code.trim()}
+    <Modal onClose={onClose} className="max-w-3xl">
+      <div className="flex items-start justify-between gap-3 border-b border-[#E2E8F0] px-4 py-4 sm:px-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#1E9B50]/10 text-[#1E9B50]">
+            <Wallet className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-base font-extrabold tracking-[-0.3px] text-[#111827]">
+              {client.name}
+            </p>
+            <p className="text-xs font-semibold text-[#6B7280]">
+              Cartera · NIT/Código {client.code.trim()}
             </p>
           </div>
-          <Button size="sm" variant="ghost" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </CardHeader>
-        <CardContent className="flex-1 overflow-y-auto p-5">
-          {isLoading ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">
-              Consultando cartera…
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Cerrar"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F1F5F9] text-[#4B5563] transition hover:bg-[#E2E8F0]"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+      {isLoading ? (
+        <p className="py-10 text-center text-sm font-semibold text-[#6B7280]">
+          Consultando cartera…
+        </p>
+      ) : isError ? (
+        <div className="flex items-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          <AlertCircle className="h-4 w-4" />
+          <span>{getErrorMessage(error)}</span>
+        </div>
+      ) : !data || data.documents.length === 0 ? (
+        <p className="py-10 text-center text-sm font-semibold text-[#6B7280]">
+          El cliente no tiene documentos pendientes en cartera.
+        </p>
+      ) : (
+        <div className="space-y-4">
+          <div className="rounded-2xl bg-gradient-to-br from-[#1E9B50] to-[#15803D] px-5 py-4 text-white shadow-sm">
+            <p className="text-[11px] font-extrabold uppercase tracking-wider text-white/80">
+              Saldo total pendiente
             </p>
-          ) : isError ? (
-            <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              <AlertCircle className="h-4 w-4" />
-              <span>{getErrorMessage(error)}</span>
+            <div className="mt-1 flex flex-wrap items-end justify-between gap-2">
+              <span className="text-2xl font-extrabold tracking-[-0.5px]">
+                {formatCurrency(data.totalBalance)}
+              </span>
+              <span className="rounded-full bg-white/[0.16] px-3 py-1 text-xs font-bold">
+                {data.count} documento{data.count === 1 ? '' : 's'}
+              </span>
             </div>
-          ) : !data || data.documents.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">
-              El cliente no tiene documentos pendientes en cartera.
-            </p>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between rounded-lg border border-primary/30 bg-primary/10 px-4 py-3">
-                <span className="text-sm font-medium text-primary">
-                  Saldo total pendiente ({data.count} documento
-                  {data.count === 1 ? '' : 's'})
-                </span>
-                <span className="text-lg font-bold text-primary">
-                  {formatCurrency(data.totalBalance)}
-                </span>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-left text-muted-foreground">
-                      <th className="px-2 py-2 font-medium">Documento</th>
-                      <th className="px-2 py-2 font-medium">Tipo</th>
-                      <th className="px-2 py-2 font-medium">Fecha factura</th>
-                      <th className="px-2 py-2 font-medium">Vence</th>
-                      <th className="px-2 py-2 font-medium">Sucursal</th>
-                      <th className="px-2 py-2 text-right font-medium">Saldo</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.documents.map((d, i) => (
-                      <tr key={i} className="border-b last:border-0">
-                        <td className="px-2 py-2 font-mono text-xs">
+          </div>
+
+          <div className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
+                  <tr>
+                    <th className="px-4 py-3">Documento</th>
+                    <th className="px-4 py-3">Tipo</th>
+                    <th className="px-4 py-3">Factura</th>
+                    <th className="px-4 py-3">Vence</th>
+                    <th className="px-4 py-3">Sucursal</th>
+                    <th className="px-4 py-3 text-right">Saldo</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#E2E8F0]">
+                  {data.documents.map((d, i) => {
+                    const overdue =
+                      !!d.dueDate && new Date(d.dueDate).getTime() < now;
+                    return (
+                      <tr key={i} className="hover:bg-[#F4FAF6]/60">
+                        <td className="px-4 py-3 font-mono text-xs font-bold text-[#111827]">
                           {d.documentNumber}
                         </td>
-                        <td className="px-2 py-2 text-xs">
+                        <td className="px-4 py-3 text-xs font-semibold text-[#4B5563]">
                           {d.description || d.docType || '—'}
                         </td>
-                        <td className="px-2 py-2 text-xs whitespace-nowrap">
+                        <td className="whitespace-nowrap px-4 py-3 text-xs font-semibold text-[#4B5563]">
                           {formatDate(d.invoiceDate)}
                         </td>
-                        <td className="px-2 py-2 text-xs whitespace-nowrap">
-                          {formatDate(d.dueDate)}
+                        <td className="whitespace-nowrap px-4 py-3 text-xs">
+                          <span
+                            className={cn(
+                              'inline-flex rounded-full px-2 py-0.5 font-bold',
+                              overdue
+                                ? 'bg-red-50 text-red-700'
+                                : 'bg-[#1E9B50]/10 text-[#15803D]',
+                            )}
+                          >
+                            {formatDate(d.dueDate)}
+                          </span>
                         </td>
-                        <td className="px-2 py-2 text-xs">{d.branch}</td>
-                        <td className="px-2 py-2 text-right font-medium">
+                        <td className="px-4 py-3 text-xs font-semibold text-[#4B5563]">
+                          {d.branch}
+                        </td>
+                        <td className="px-4 py-3 text-right font-extrabold text-[#111827]">
                           {formatCurrency(d.balance)}
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+          </div>
+        </div>
+      )}
+      </div>
+    </Modal>
   );
 }

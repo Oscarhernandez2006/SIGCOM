@@ -57,7 +57,7 @@ export class BajasController {
       year ? Number(year) : undefined,
       month ? Number(month) : undefined,
     );
-    const buffer = buildBajasReportExcel(bajas);
+    const buffer = await buildBajasReportExcel(bajas);
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

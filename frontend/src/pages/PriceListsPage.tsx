@@ -19,15 +19,11 @@ import {
 } from '@/hooks/useAdminApi';
 import { COMPANIES } from '@/lib/companies';
 import { formatCurrency, cn } from '@/lib/utils';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { BRAND } from '@/lib/brand';
+import { PageBackground, Hero, BrandButton, StatusPill } from '@/components/brand/PageShell';
+import { Panel, PanelBody, PanelHeader, PanelTitle } from '@/components/brand/Panel';
+
+const FIELD_STYLE = { backgroundColor: BRAND.field, color: BRAND.text } as const;
 
 /** Extrae el mensaje de error que envía el backend, si lo hay. */
 function getErrorMessage(error: unknown): string {
@@ -119,13 +115,13 @@ export function PriceListsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <PageBackground className="space-y-3.5">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Listas de precios</h2>
-        <p className="text-muted-foreground">
-          Listas de precios sincronizadas desde Siesa. Cada lista se asigna a
-          los clientes según su tipo.
-        </p>
+        <Hero>
+        <h2 className="text-xl font-extrabold leading-tight tracking-[-0.4px] sm:text-[22px]">Listas de precios</h2>
+        <p className="mt-1 text-sm font-semibold text-white/90">Listas de precios sincronizadas desde Siesa. Cada lista se asigna a
+          los clientes según su tipo.</p>
+      </Hero>
       </div>
 
       {/* Selector de compañía */}
@@ -135,10 +131,10 @@ export function PriceListsPage() {
             key={c.id}
             onClick={() => handleCompany(c.id)}
             className={cn(
-              'flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors',
+              'flex h-9 items-center gap-1.5 rounded-full border px-4 text-[13px] font-bold transition-colors',
               companyId === c.id
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'border-border text-muted-foreground hover:bg-accent',
+                ? 'border-[#1E9B50] bg-[#1E9B50] text-white'
+                : 'border-[#E2E8F0] bg-white text-[#4B5563] hover:bg-[#F4FAF6]',
             )}
           >
             <Building2 className="h-4 w-4" />
@@ -149,25 +145,21 @@ export function PriceListsPage() {
       </div>
 
       {/* Acción de sincronización */}
-      <Card>
-        <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+      <Panel>
+        <PanelBody className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#1E9B50]/10 text-[#1E9B50]">
               <Tags className="h-5 w-5" />
             </div>
             <div>
               <p className="font-semibold">Listas de precios · {company.name}</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-[#6B7280]">
                 La sincronización trae los cambios desde Siesa y actualiza la
                 base de datos.
               </p>
             </div>
           </div>
-          <Button
-            size="sm"
-            disabled={syncPriceLists.isPending}
-            onClick={handleSync}
-          >
+          <BrandButton className="h-9 px-3" disabled={syncPriceLists.isPending} onClick={handleSync}>
             <RefreshCw
               className={cn(
                 'h-4 w-4',
@@ -175,13 +167,13 @@ export function PriceListsPage() {
               )}
             />
             {syncPriceLists.isPending ? 'Sincronizando…' : 'Sincronizar'}
-          </Button>
-        </CardContent>
-      </Card>
+          </BrandButton>
+        </PanelBody>
+      </Panel>
 
       {/* Resultado de la sincronización */}
       {syncPriceLists.isSuccess && (
-        <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary">
+        <div className="flex items-center gap-2 rounded-lg border border-[#1E9B50]/30 bg-[#1E9B50]/10 px-4 py-3 text-sm text-[#1E9B50]">
           <Check className="h-4 w-4" />
           <span>
             {syncPriceLists.data.lists} listas ·{' '}
@@ -192,7 +184,7 @@ export function PriceListsPage() {
         </div>
       )}
       {syncPriceLists.isError && (
-        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-red-600">
           <AlertCircle className="h-4 w-4" />
           <span>{getErrorMessage(syncPriceLists.error)}</span>
         </div>
@@ -200,32 +192,31 @@ export function PriceListsPage() {
 
       <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
         {/* Listado de listas */}
-        <Card>
-          <CardHeader className="space-y-3">
-            <CardTitle className="text-base">
+        <Panel>
+          <PanelHeader className="space-y-3">
+            <PanelTitle className="">
               Listas ({filteredLists.length})
-            </CardTitle>
+            </PanelTitle>
             <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                style={{ paddingLeft: '2.5rem' }}
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
+              <input className="brand-input h-10 w-full rounded-xl pl-10 pr-3 text-sm font-semibold outline-none" style={FIELD_STYLE}
                 placeholder="Buscar lista…"
                 value={listSearch}
                 onChange={(e) => setListSearch(e.target.value)}
-              />
+            />
             </div>
-          </CardHeader>
-          <CardContent className="space-y-1">
+          </PanelHeader>
+          <PanelBody className="space-y-1">
             {loadingLists ? (
-              <p className="py-4 text-center text-sm text-muted-foreground">
+              <p className="py-4 text-center text-sm text-[#6B7280]">
                 Cargando…
               </p>
             ) : lists.length === 0 ? (
-              <p className="py-4 text-center text-sm text-muted-foreground">
+              <p className="py-4 text-center text-sm text-[#6B7280]">
                 No hay listas. Sincroniza desde Siesa.
               </p>
             ) : filteredLists.length === 0 ? (
-              <p className="py-4 text-center text-sm text-muted-foreground">
+              <p className="py-4 text-center text-sm text-[#6B7280]">
                 Sin resultados para “{listSearch}”.
               </p>
             ) : (
@@ -236,98 +227,85 @@ export function PriceListsPage() {
                   className={cn(
                     'flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors',
                     selectedList === l.listCode
-                      ? 'border-primary bg-primary/10'
-                      : 'border-transparent hover:bg-accent',
+                      ? 'border-[#1E9B50] bg-[#1E9B50]/10'
+                      : 'border-transparent hover:bg-[#F4FAF6]',
                   )}
                 >
                   <div className="min-w-0">
                     <p className="truncate font-medium">{l.listName}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-[#6B7280]">
                       #{l.listCode} · {l.itemCount} productos
                     </p>
                   </div>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <ChevronRight className="h-4 w-4 shrink-0 text-[#6B7280]" />
                 </button>
               ))
             )}
 
             {filteredLists.length > LISTS_PER_PAGE && (
               <div className="flex items-center justify-between gap-2 pt-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={listPage <= 1}
-                  onClick={() => setListPage((p) => Math.max(1, p - 1))}
+                <BrandButton variant="outlined" className="h-9 px-3" disabled={listPage <= 1} onClick={() => setListPage((p) => Math.max(1, p - 1))}
                 >
                   <ChevronLeft className="h-4 w-4" />
                   Anterior
-                </Button>
-                <span className="text-xs text-muted-foreground">
+                </BrandButton>
+                <span className="text-xs text-[#6B7280]">
                   {listPage} / {listTotalPages}
                 </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={listPage >= listTotalPages}
+                <BrandButton variant="outlined" className="h-9 px-3" disabled={listPage>= listTotalPages}
                   onClick={() =>
                     setListPage((p) => Math.min(listTotalPages, p + 1))
                   }
                 >
                   Siguiente
                   <ChevronRight className="h-4 w-4" />
-                </Button>
+                </BrandButton>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </PanelBody>
+        </Panel>
 
         {/* Ítems de la lista seleccionada */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
-            <CardTitle className="text-base">
+        <Panel>
+          <PanelHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
+            <PanelTitle className="">
               {currentList ? currentList.listName : 'Selecciona una lista'}
-            </CardTitle>
+            </PanelTitle>
             {selectedList && (
               <div className="flex w-full max-w-xl items-center gap-2">
                 <div className="relative w-full max-w-xs">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    style={{ paddingLeft: '2.5rem' }}
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
+                  <input className="brand-input h-10 w-full rounded-xl pl-10 pr-3 text-sm font-semibold outline-none" style={FIELD_STYLE}
                     placeholder="Buscar producto o referencia…"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                  />
+            />
                 </div>
-                <Button
-                  variant="outline"
-                  className="shrink-0 whitespace-nowrap"
-                  onClick={handlePrint}
-                  disabled={printing}
-                >
+                <BrandButton variant="outlined" className="h-10 shrink-0 whitespace-nowrap" onClick={handlePrint} disabled={printing}>
                   <Printer className="h-4 w-4" />
                   {printing ? 'Generando…' : 'Imprimir lista de precios'}
-                </Button>
+                </BrandButton>
               </div>
             )}
-          </CardHeader>
-          <CardContent>
+          </PanelHeader>
+          <PanelBody>
             {!selectedList ? (
-              <p className="py-10 text-center text-sm text-muted-foreground">
+              <p className="py-10 text-center text-sm text-[#6B7280]">
                 Elige una lista para ver sus productos y precios.
               </p>
             ) : loadingItems ? (
-              <p className="py-10 text-center text-sm text-muted-foreground">
+              <p className="py-10 text-center text-sm text-[#6B7280]">
                 Cargando productos…
               </p>
             ) : items.length === 0 ? (
-              <p className="py-10 text-center text-sm text-muted-foreground">
+              <p className="py-10 text-center text-sm text-[#6B7280]">
                 Sin resultados.
               </p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b text-left text-muted-foreground">
+                    <tr className="border-b text-left text-[#6B7280]">
                       <th className="px-2 py-2 font-medium">Referencia</th>
                       <th className="px-2 py-2 font-medium">Producto</th>
                       <th className="px-2 py-2 font-medium">U.M.</th>
@@ -345,7 +323,7 @@ export function PriceListsPage() {
                         <td className="px-2 py-2">{it.productName}</td>
                         <td className="px-2 py-2">
                           {it.unitOfMeasure ? (
-                            <Badge variant="secondary">{it.unitOfMeasure}</Badge>
+                            <StatusPill label={it.unitOfMeasure} color={BRAND.textMuted} />
                           ) : (
                             '—'
                           )}
@@ -359,43 +337,36 @@ export function PriceListsPage() {
                 </table>
 
                 <div className="flex items-center justify-between gap-2 pt-3">
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-[#6B7280]">
                     {items.length} producto{items.length === 1 ? '' : 's'}
                     {items.length === 500 && ' (máx.)'}
                   </span>
                   {items.length > ITEMS_PER_PAGE && (
                     <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={itemPage <= 1}
-                        onClick={() => setItemPage((p) => Math.max(1, p - 1))}
+                      <BrandButton variant="outlined" className="h-9 px-3" disabled={itemPage <= 1} onClick={() => setItemPage((p) => Math.max(1, p - 1))}
                       >
                         <ChevronLeft className="h-4 w-4" />
                         Anterior
-                      </Button>
-                      <span className="text-xs text-muted-foreground">
+                      </BrandButton>
+                      <span className="text-xs text-[#6B7280]">
                         {itemPage} / {itemTotalPages}
                       </span>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={itemPage >= itemTotalPages}
+                      <BrandButton variant="outlined" className="h-9 px-3" disabled={itemPage>= itemTotalPages}
                         onClick={() =>
                           setItemPage((p) => Math.min(itemTotalPages, p + 1))
                         }
                       >
                         Siguiente
                         <ChevronRight className="h-4 w-4" />
-                      </Button>
+                      </BrandButton>
                     </div>
                   )}
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </PanelBody>
+        </Panel>
       </div>
-    </div>
+    </PageBackground>
   );
 }

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Save,
-  Target,
   RefreshCw,
   Check,
   Search,
@@ -22,13 +21,11 @@ import {
 } from '@/hooks/useAdminApi';
 import { COMPANIES } from '@/lib/companies';
 import { cn } from '@/lib/utils';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { BRAND } from '@/lib/brand';
+import { PageBackground, Hero, BrandButton } from '@/components/brand/PageShell';
+import { Panel, PanelBody, PanelHeader, PanelTitle } from '@/components/brand/Panel';
+
+const FIELD_STYLE = { backgroundColor: BRAND.field, color: BRAND.text } as const;
 
 /**
  * Formatea un valor con el mismo formato que SIGCOM: miles con coma y dos
@@ -151,13 +148,13 @@ function ProjectionSection({
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <TrendingUp className="h-5 w-5 text-primary" />
+    <Panel>
+      <PanelHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <PanelTitle className="flex items-center gap-2 ">
+          <TrendingUp className="h-5 w-5 text-[#1E9B50]" />
           Proyección de ventas · {MONTHS[month - 1]} {year}
-        </CardTitle>
-        <Button size="sm" onClick={handleSave} disabled={saveMutation.isPending}>
+        </PanelTitle>
+        <BrandButton className="h-9 px-3" onClick={handleSave} disabled={saveMutation.isPending}>
           {saved ? (
             <Check className="h-4 w-4" />
           ) : (
@@ -168,10 +165,10 @@ function ProjectionSection({
             : saved
               ? 'Guardado'
               : 'Guardar proyección'}
-        </Button>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+        </BrandButton>
+      </PanelHeader>
+      <PanelBody className="space-y-4">
+        <p className="flex items-start gap-2 rounded-2xl border border-[#1E9B50]/20 bg-[#1E9B50]/[0.06] p-3 text-sm text-[#166534]">
           <TrendingUp className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
             Marca los <strong>días hábiles</strong> del mes. La proyección se
@@ -185,37 +182,25 @@ function ProjectionSection({
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="flex items-center gap-1.5 text-sm font-medium">
-              <CalendarDays className="h-4 w-4 text-muted-foreground" />
+              <CalendarDays className="h-4 w-4 text-[#6B7280]" />
               Días hábiles ({workingCount})
             </span>
             <div className="flex flex-wrap gap-1.5">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => selectWeekdays(false)}
+              <BrandButton variant="outlined" className="h-9 px-3" type="button" onClick={() => selectWeekdays(false)}
               >
                 Lun–Vie
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => selectWeekdays(true)}
+              </BrandButton>
+              <BrandButton variant="outlined" className="h-9 px-3" type="button" onClick={() => selectWeekdays(true)}
               >
                 Lun–Sáb
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
+              </BrandButton>
+              <BrandButton variant="outlined" className="h-9 px-3" type="button" onClick={() => {
                   setDays(new Set());
                   setSaved(false);
                 }}
               >
                 Limpiar
-              </Button>
+              </BrandButton>
             </div>
           </div>
 
@@ -223,7 +208,7 @@ function ProjectionSection({
             {WEEKDAY_LABELS.map((w) => (
               <span
                 key={w}
-                className="py-1 text-[11px] font-semibold text-muted-foreground"
+                className="py-1 text-[11px] font-semibold text-[#6B7280]"
               >
                 {w}
               </span>
@@ -243,8 +228,8 @@ function ProjectionSection({
                   className={cn(
                     'aspect-square rounded-md text-sm font-medium transition-colors',
                     active
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted/50 text-foreground hover:bg-muted',
+                      ? 'bg-[#1E9B50] text-white'
+                      : 'bg-[#F4FAF6] text-[#111827] hover:bg-[#E2E8F0]',
                   )}
                 >
                   {d}
@@ -253,8 +238,8 @@ function ProjectionSection({
             })}
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </PanelBody>
+    </Panel>
   );
 }
 
@@ -380,40 +365,38 @@ export function BudgetsPage() {
   }, [data, search]);
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-            <Target className="h-6 w-6 text-primary" />
-            Presupuestos
-          </h2>
-          <p className="text-muted-foreground">
-            Meta de kilos y valor de venta por vendedor · {companyName} ·{' '}
-            {MONTHS[month - 1]} {year}
-          </p>
+    <PageBackground className="space-y-3.5">
+      <Hero>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-xl font-extrabold leading-tight tracking-[-0.4px] sm:text-[22px]">Presupuestos</h2>
+            <p className="mt-1 text-sm font-semibold text-white/90">Meta de kilos y valor de venta por vendedor · {companyName} ·{' '}
+            {MONTHS[month - 1]} {year}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            aria-label="Actualizar"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/[0.16] text-white transition hover:bg-white/25 disabled:opacity-60"
+          >
+            <RefreshCw className={cn('h-5 w-5', isFetching && 'animate-spin')} />
+          </button>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => refetch()}
-          disabled={isFetching}
-        >
-          <RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin')} />
-          Actualizar
-        </Button>
-      </div>
+      </Hero>
 
       {/* Filtros */}
-      <Card>
-        <CardContent className="flex flex-wrap items-end gap-3 p-4">
+      <Panel>
+        <PanelBody className="flex flex-wrap items-end gap-3 p-4 sm:p-[18px]">
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">
+            <label className="text-xs font-bold text-[#6B7280]">
               Compañía
             </label>
             <select
               value={companyId}
               onChange={(e) => setCompanyId(e.target.value)}
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+              className="brand-input h-10 rounded-xl px-3 text-sm font-semibold outline-none"
+              style={FIELD_STYLE}
             >
               {availableCompanies.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -423,13 +406,14 @@ export function BudgetsPage() {
             </select>
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">
+            <label className="text-xs font-bold text-[#6B7280]">
               Mes
             </label>
             <select
               value={month}
               onChange={(e) => setMonth(Number(e.target.value))}
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+              className="brand-input h-10 rounded-xl px-3 text-sm font-semibold outline-none"
+              style={FIELD_STYLE}
             >
               {MONTHS.map((m, i) => (
                 <option key={m} value={i + 1}>
@@ -439,13 +423,14 @@ export function BudgetsPage() {
             </select>
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">
+            <label className="text-xs font-bold text-[#6B7280]">
               Año
             </label>
             <select
               value={year}
               onChange={(e) => setYear(Number(e.target.value))}
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+              className="brand-input h-10 rounded-xl px-3 text-sm font-semibold outline-none"
+              style={FIELD_STYLE}
             >
               {years.map((y) => (
                 <option key={y} value={y}>
@@ -454,8 +439,8 @@ export function BudgetsPage() {
               ))}
             </select>
           </div>
-        </CardContent>
-      </Card>
+        </PanelBody>
+      </Panel>
 
       {/* Proyección de ventas de la compañía */}
       {companyId && (
@@ -463,27 +448,23 @@ export function BudgetsPage() {
       )}
 
       {/* Tabla editable */}
-      <Card>
-        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle className="text-base">
+      <Panel>
+        <PanelHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <PanelTitle className="">
             Vendedores ({visibleRows.length}
             {search ? ` de ${data?.length ?? 0}` : ''})
-          </CardTitle>
+          </PanelTitle>
           <div className="flex items-center gap-2">
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Buscar vendedor…"
-                className="h-9 w-52 rounded-md border border-input bg-background pl-8 pr-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+                className="h-9 w-52 rounded-md border border-[#E2E8F0] bg-white pl-8 pr-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
               />
             </div>
-            <Button
-              size="sm"
-              onClick={handleSave}
-              disabled={!companyId || saveMutation.isPending || !data?.length}
-            >
+            <BrandButton className="h-9 px-3" onClick={handleSave} disabled={!companyId || saveMutation.isPending || !data?.length}>
               {saved ? (
                 <Check className="h-4 w-4" />
               ) : (
@@ -494,13 +475,13 @@ export function BudgetsPage() {
                 : saved
                   ? 'Guardado'
                   : 'Guardar'}
-            </Button>
+            </BrandButton>
           </div>
-        </CardHeader>
-        <CardContent className="p-0">
+        </PanelHeader>
+        <PanelBody className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-border bg-muted/50 text-left text-xs text-muted-foreground">
+              <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
                 <tr>
                   <th className="px-4 py-2 font-medium">Vendedor</th>
                   <th className="px-4 py-2 font-medium">Código</th>
@@ -517,29 +498,26 @@ export function BudgetsPage() {
                   <tr>
                     <td
                       colSpan={4}
-                      className="px-4 py-10 text-center text-muted-foreground"
+                      className="px-4 py-10 text-center text-[#6B7280]"
                     >
                       Cargando…
                     </td>
                   </tr>
                 ) : visibleRows.length > 0 ? (
                   visibleRows.map((row) => (
-                    <tr key={row.sellerId} className="hover:bg-muted/40">
+                    <tr key={row.sellerId} className="hover:bg-[#F4FAF6]">
                       <td className="px-4 py-2 font-medium">{row.sellerName}</td>
-                      <td className="px-4 py-2 text-muted-foreground">
+                      <td className="px-4 py-2 text-[#6B7280]">
                         {row.siesaSellerCode ?? '—'}
                       </td>
                       {row.clientBudget ? (
                         <td className="px-4 py-2 text-right" colSpan={2}>
                           <div className="flex items-center justify-end gap-2">
-                            <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                            <span className="inline-flex items-center gap-1 rounded-md bg-[#1E9B50]/10 px-2 py-0.5 text-xs font-medium text-[#1E9B50]">
                               <Store className="h-3 w-3" />
                               Meta por cliente/tienda
                             </span>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
+                            <BrandButton variant="outlined" className="h-9 px-3" onClick={() =>
                                 setClientSeller({
                                   id: row.sellerId,
                                   name: row.sellerName,
@@ -547,7 +525,7 @@ export function BudgetsPage() {
                               }
                             >
                               Editar por cliente
-                            </Button>
+                            </BrandButton>
                           </div>
                         </td>
                       ) : (
@@ -564,7 +542,7 @@ export function BudgetsPage() {
                                 )
                               }
                               placeholder="0"
-                              className="w-28 rounded-md border border-input bg-background px-2 py-1 text-right tabular-nums outline-none focus:ring-2 focus:ring-primary/40"
+                              className="w-28 rounded-md border border-[#E2E8F0] bg-white px-2 py-1 text-right tabular-nums outline-none focus:ring-2 focus:ring-primary/40"
                             />
                           </td>
                           <td className="px-4 py-2 text-right">
@@ -579,7 +557,7 @@ export function BudgetsPage() {
                                 )
                               }
                               placeholder="0"
-                              className="w-36 rounded-md border border-input bg-background px-2 py-1 text-right tabular-nums outline-none focus:ring-2 focus:ring-primary/40"
+                              className="w-36 rounded-md border border-[#E2E8F0] bg-white px-2 py-1 text-right tabular-nums outline-none focus:ring-2 focus:ring-primary/40"
                             />
                           </td>
                         </>
@@ -590,7 +568,7 @@ export function BudgetsPage() {
                   <tr>
                     <td
                       colSpan={4}
-                      className="px-4 py-10 text-center text-muted-foreground"
+                      className="px-4 py-10 text-center text-[#6B7280]"
                     >
                       {search
                         ? 'Ningún vendedor coincide con la búsqueda.'
@@ -600,7 +578,7 @@ export function BudgetsPage() {
                 )}
               </tbody>
               {data && data.length > 0 && (
-                <tfoot className="border-t border-border bg-muted/50 font-semibold">
+                <tfoot className="border-t border-[#E2E8F0] bg-[#F4FAF6] font-semibold">
                   <tr>
                     <td className="px-4 py-2" colSpan={2}>
                       TOTAL
@@ -619,8 +597,8 @@ export function BudgetsPage() {
               )}
             </table>
           </div>
-        </CardContent>
-      </Card>
+        </PanelBody>
+      </Panel>
 
       {clientSeller && companyId && (
         <ClientBudgetModal
@@ -632,7 +610,7 @@ export function BudgetsPage() {
           onClose={() => setClientSeller(null)}
         />
       )}
-    </div>
+    </PageBackground>
   );
 }
 
@@ -725,52 +703,48 @@ function ClientBudgetModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl bg-background shadow-xl">
-        <div className="flex items-center justify-between border-b border-border p-4">
+      <div className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-[#E2E8F0] p-4">
           <div>
             <h3 className="flex items-center gap-2 text-lg font-bold">
-              <Store className="h-5 w-5 text-primary" />
+              <Store className="h-5 w-5 text-[#1E9B50]" />
               Presupuesto por cliente/tienda
             </h3>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-[#6B7280]">
               {sellerName} · {MONTHS[month - 1]} {year}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="rounded-md p-1 text-muted-foreground hover:bg-muted"
+            className="rounded-md p-1 text-[#6B7280] hover:bg-[#EEF2F7]"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="flex items-center gap-2 border-b border-border p-3">
+        <div className="flex items-center gap-2 border-b border-[#E2E8F0] p-3">
           <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar cliente o tienda…"
-              className="h-9 w-full rounded-md border border-input bg-background pl-8 pr-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+              className="h-9 w-full rounded-md border border-[#E2E8F0] bg-white pl-8 pr-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
             />
           </div>
-          <Button
-            size="sm"
-            onClick={handleSave}
-            disabled={saveMutation.isPending || !data?.length}
-          >
+          <BrandButton className="h-9 px-3" onClick={handleSave} disabled={saveMutation.isPending || !data?.length}>
             {saved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
             {saveMutation.isPending
               ? 'Guardando…'
               : saved
                 ? 'Guardado'
                 : 'Guardar'}
-          </Button>
+          </BrandButton>
         </div>
 
         <div className="overflow-auto">
           <table className="w-full text-sm">
-            <thead className="sticky top-0 border-b border-border bg-muted/50 text-left text-xs text-muted-foreground">
+            <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
               <tr>
                 <th className="px-4 py-2 font-medium">Cliente / Razón social</th>
                 <th className="px-4 py-2 font-medium">Tienda</th>
@@ -787,21 +761,21 @@ function ClientBudgetModal({
                 <tr>
                   <td
                     colSpan={4}
-                    className="px-4 py-10 text-center text-muted-foreground"
+                    className="px-4 py-10 text-center text-[#6B7280]"
                   >
                     Cargando clientes…
                   </td>
                 </tr>
               ) : visibleRows.length > 0 ? (
                 visibleRows.map((row) => (
-                  <tr key={row.clientCode} className="hover:bg-muted/40">
+                  <tr key={row.clientCode} className="hover:bg-[#F4FAF6]">
                     <td className="px-4 py-2">
                       <div className="font-medium">{row.clientName}</div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs text-[#6B7280]">
                         {row.clientCode}
                       </div>
                     </td>
-                    <td className="px-4 py-2 text-muted-foreground">
+                    <td className="px-4 py-2 text-[#6B7280]">
                       {row.branchName ?? row.branch ?? '—'}
                     </td>
                     <td className="px-4 py-2 text-right">
@@ -812,7 +786,7 @@ function ClientBudgetModal({
                           setField(row.clientCode, 'targetKilos', e.target.value)
                         }
                         placeholder="0"
-                        className="w-28 rounded-md border border-input bg-background px-2 py-1 text-right tabular-nums outline-none focus:ring-2 focus:ring-primary/40"
+                        className="w-28 rounded-md border border-[#E2E8F0] bg-white px-2 py-1 text-right tabular-nums outline-none focus:ring-2 focus:ring-primary/40"
                       />
                     </td>
                     <td className="px-4 py-2 text-right">
@@ -827,7 +801,7 @@ function ClientBudgetModal({
                           )
                         }
                         placeholder="0"
-                        className="w-36 rounded-md border border-input bg-background px-2 py-1 text-right tabular-nums outline-none focus:ring-2 focus:ring-primary/40"
+                        className="w-36 rounded-md border border-[#E2E8F0] bg-white px-2 py-1 text-right tabular-nums outline-none focus:ring-2 focus:ring-primary/40"
                       />
                     </td>
                   </tr>
@@ -836,7 +810,7 @@ function ClientBudgetModal({
                 <tr>
                   <td
                     colSpan={4}
-                    className="px-4 py-10 text-center text-muted-foreground"
+                    className="px-4 py-10 text-center text-[#6B7280]"
                   >
                     {search
                       ? 'Ningún cliente coincide con la búsqueda.'
@@ -846,7 +820,7 @@ function ClientBudgetModal({
               )}
             </tbody>
             {data && data.length > 0 && (
-              <tfoot className="sticky bottom-0 border-t border-border bg-muted/50 font-semibold">
+              <tfoot className="sticky bottom-0 border-t border-[#E2E8F0] bg-[#F4FAF6] font-semibold">
                 <tr>
                   <td className="px-4 py-2" colSpan={2}>
                     TOTAL (aparte del general)

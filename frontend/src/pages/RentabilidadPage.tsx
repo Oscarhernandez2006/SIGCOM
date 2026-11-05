@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Coins, Save, Check, RefreshCw, Plus, Trash2, Search } from 'lucide-react';
+import { Save, Check, RefreshCw, Plus, Trash2, Search } from 'lucide-react';
 import { useAuth } from '@/auth/useAuth';
 import { useCompany } from '@/company/useCompany';
 import { useProductCosts, useSaveProductCosts } from '@/hooks/useAdminApi';
 import { COMPANIES } from '@/lib/companies';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { BRAND } from '@/lib/brand';
+import { PageBackground, Hero, BrandButton } from '@/components/brand/PageShell';
+import { Panel, PanelBody, PanelHeader, PanelTitle } from '@/components/brand/Panel';
+
+const FIELD_STYLE = { backgroundColor: BRAND.field, color: BRAND.text } as const;
 
 interface CostDraft {
   productRef: string;
@@ -122,39 +125,37 @@ export function RentabilidadPage() {
     availableCompanies.find((c) => c.id === companyId)?.name ?? '';
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-            <Coins className="h-6 w-6 text-primary" />
-            Rentabilidad · Costos estándar
-          </h2>
-          <p className="text-muted-foreground">
-            Costo por kilo de cada producto (referencia) · {companyName}. Con
-            esto el tablero calcula la rentabilidad (venta − costo).
-          </p>
+    <PageBackground className="space-y-3.5">
+      <Hero>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-xl font-extrabold leading-tight tracking-[-0.4px] sm:text-[22px]">Rentabilidad · Costos estándar</h2>
+            <p className="mt-1 text-sm font-semibold text-white/90">Costo por kilo de cada producto (referencia) · {companyName}. Con
+            esto el tablero calcula la rentabilidad (venta − costo).</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            aria-label="Actualizar"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/[0.16] text-white transition hover:bg-white/25 disabled:opacity-60"
+          >
+            <RefreshCw className={cn('h-5 w-5', isFetching && 'animate-spin')} />
+          </button>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => refetch()}
-          disabled={isFetching}
-        >
-          <RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin')} />
-          Actualizar
-        </Button>
-      </div>
+      </Hero>
 
-      <Card>
-        <CardContent className="flex flex-wrap items-end gap-3 p-4">
+      <Panel>
+        <PanelBody className="flex flex-wrap items-end gap-3 p-4 sm:p-[18px]">
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">
+            <label className="text-xs font-bold text-[#6B7280]">
               Compañía
             </label>
             <select
               value={companyId}
               onChange={(e) => setCompanyId(e.target.value)}
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+              className="brand-input h-10 rounded-xl px-3 text-sm font-semibold outline-none"
+              style={FIELD_STYLE}
             >
               {availableCompanies.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -163,34 +164,30 @@ export function RentabilidadPage() {
               ))}
             </select>
           </div>
-        </CardContent>
-      </Card>
+        </PanelBody>
+      </Panel>
 
-      <Card>
-        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle className="text-base">
+      <Panel>
+        <PanelHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <PanelTitle className="">
             Costos ({visibleRows.length}
             {search ? ` de ${rows.length}` : ''})
-          </CardTitle>
+          </PanelTitle>
           <div className="flex items-center gap-2">
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Buscar referencia o nombre…"
-                className="h-9 w-56 rounded-md border border-input bg-background pl-8 pr-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+                className="h-9 w-56 rounded-md border border-[#E2E8F0] bg-white pl-8 pr-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
               />
             </div>
-            <Button size="sm" variant="outline" onClick={addRow}>
+            <BrandButton variant="outlined" className="h-9 px-3" onClick={addRow}>
               <Plus className="h-4 w-4" />
               Agregar
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleSave}
-              disabled={!companyId || saveMutation.isPending}
-            >
+            </BrandButton>
+            <BrandButton className="h-9 px-3" onClick={handleSave} disabled={!companyId || saveMutation.isPending}>
               {saved ? (
                 <Check className="h-4 w-4" />
               ) : (
@@ -201,13 +198,13 @@ export function RentabilidadPage() {
                 : saved
                   ? 'Guardado'
                   : 'Guardar'}
-            </Button>
+            </BrandButton>
           </div>
-        </CardHeader>
-        <CardContent className="p-0">
+        </PanelHeader>
+        <PanelBody className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-border bg-muted/50 text-left text-xs text-muted-foreground">
+              <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
                 <tr>
                   <th className="px-4 py-2 font-medium">Referencia</th>
                   <th className="px-4 py-2 font-medium">Nombre (opcional)</th>
@@ -222,14 +219,14 @@ export function RentabilidadPage() {
                   <tr>
                     <td
                       colSpan={4}
-                      className="px-4 py-10 text-center text-muted-foreground"
+                      className="px-4 py-10 text-center text-[#6B7280]"
                     >
                       Cargando…
                     </td>
                   </tr>
                 ) : visibleRows.length > 0 ? (
                   visibleRows.map(({ r, idx }) => (
-                    <tr key={idx} className="hover:bg-muted/40">
+                    <tr key={idx} className="hover:bg-[#F4FAF6]">
                       <td className="px-4 py-2">
                         <input
                           value={r.productRef}
@@ -237,7 +234,7 @@ export function RentabilidadPage() {
                             setField(idx, 'productRef', e.target.value)
                           }
                           placeholder="Ref."
-                          className="w-28 rounded-md border border-input bg-background px-2 py-1 outline-none focus:ring-2 focus:ring-primary/40"
+                          className="w-28 rounded-md border border-[#E2E8F0] bg-white px-2 py-1 outline-none focus:ring-2 focus:ring-primary/40"
                         />
                       </td>
                       <td className="px-4 py-2">
@@ -245,7 +242,7 @@ export function RentabilidadPage() {
                           value={r.name}
                           onChange={(e) => setField(idx, 'name', e.target.value)}
                           placeholder="Nombre del producto"
-                          className="w-full min-w-48 rounded-md border border-input bg-background px-2 py-1 outline-none focus:ring-2 focus:ring-primary/40"
+                          className="w-full min-w-48 rounded-md border border-[#E2E8F0] bg-white px-2 py-1 outline-none focus:ring-2 focus:ring-primary/40"
                         />
                       </td>
                       <td className="px-4 py-2 text-right">
@@ -256,13 +253,13 @@ export function RentabilidadPage() {
                             setField(idx, 'unitCost', e.target.value)
                           }
                           placeholder="0"
-                          className="w-32 rounded-md border border-input bg-background px-2 py-1 text-right tabular-nums outline-none focus:ring-2 focus:ring-primary/40"
+                          className="w-32 rounded-md border border-[#E2E8F0] bg-white px-2 py-1 text-right tabular-nums outline-none focus:ring-2 focus:ring-primary/40"
                         />
                       </td>
                       <td className="px-4 py-2 text-right">
                         <button
                           onClick={() => removeRow(idx)}
-                          className="rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          className="rounded-md p-1 text-[#6B7280] hover:bg-destructive/10 hover:text-red-600"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -273,7 +270,7 @@ export function RentabilidadPage() {
                   <tr>
                     <td
                       colSpan={4}
-                      className="px-4 py-10 text-center text-muted-foreground"
+                      className="px-4 py-10 text-center text-[#6B7280]"
                     >
                       {search
                         ? 'Ninguna referencia coincide.'
@@ -284,8 +281,8 @@ export function RentabilidadPage() {
               </tbody>
             </table>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </PanelBody>
+      </Panel>
+    </PageBackground>
   );
 }

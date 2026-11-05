@@ -1,33 +1,29 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Search,
-  Plus,
-  Minus,
-  Trash2,
-  ShoppingCart,
-  Check,
-  MapPin,
-  Phone,
-  Mail,
-  Tag,
-  CreditCard,
-  Building,
-  UserCircle,
-  CheckCircle2,
-  Download,
-  Package,
-  ClipboardCheck,
-  ArrowRight,
   AlertCircle,
-  PackageOpen,
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
   Boxes,
-  StickyNote,
-  Truck,
-  Clock,
   CalendarDays,
-  Star,
+  Check,
+  CheckCircle2,
+  ChevronRight,
+  ClipboardList,
+  Download,
   Link2,
+  Loader2,
+  Lock,
+  Package,
+  Plus,
+  Search,
+  Star,
+  StickyNote,
+  Trash2,
+  Truck,
+  UserCircle,
+  Warehouse,
 } from 'lucide-react';
 import { isAxiosError } from 'axios';
 import {
@@ -42,13 +38,29 @@ import {
 } from '@/hooks/useApi';
 import { useOrderSchedule } from '@/hooks/useAdminApi';
 import { CanalOrderForm } from '@/components/CanalOrderForm';
-import { formatCurrency, cn, orderNos } from '@/lib/utils';
+import { cn, orderNos } from '@/lib/utils';
+import { formatInt, formatMoney } from '@/lib/format';
+import { BRAND } from '@/lib/brand';
+import { QtyControl } from '@/components/brand/QtyControl';
 import { DeliverySchedulePicker } from '@/components/DeliverySchedulePicker';
 import { ClientSellerInfoModal } from '@/components/ClientSellerInfoModal';
 import { isScheduleComplete, formatDeliverySchedule } from '@/lib/delivery-schedule';
 import { getMinOrderTotal } from '@/lib/companies';
 import { useCompany } from '@/company/useCompany';
 import { useAuth } from '@/auth/useAuth';
+import {
+  AmountRow,
+  BrandButton,
+  BrandInput,
+  BrandTextarea,
+  EmptyMessage,
+  Field,
+  Hero,
+  Modal,
+  PageBackground,
+  Segmented,
+  TitledCard,
+} from '@/components/brand/PageShell';
 import type {
   CartLine,
   Client,
@@ -58,9 +70,6 @@ import type {
   Order,
   SellableProduct,
 } from '@/types';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 
 /** Iniciales para el avatar del cliente. */
 function initials(name: string): string {
@@ -72,11 +81,13 @@ function initials(name: string): string {
     .join('');
 }
 
-const STEPS = [
-  { n: 1, label: 'Cliente', icon: UserCircle },
-  { n: 2, label: 'Productos', icon: Package },
-  { n: 3, label: 'Confirmar', icon: ClipboardCheck },
-] as const;
+type Step = 1 | 2 | 3;
+
+const STEPS: { n: Step; label: string }[] = [
+  { n: 1, label: 'Cliente' },
+  { n: 2, label: 'Productos' },
+  { n: 3, label: 'Entrega' },
+];
 
 // Se exige la ubicación del cliente (digitada por el vendedor) justo antes
 // de crear el pedido, después del aviso de productos estrella. Solo aplica
@@ -131,15 +142,15 @@ function formatScheduleTime(hour: number, minute: number): string {
   return `${h}:${String(minute).padStart(2, '0')} ${period}`;
 }
 
+const AMBER = { bg: '#FEF3C7', border: '#FDE68A', text: '#92400E', icon: '#B45309' };
+
 export function NewOrderPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const tipo = (searchParams.get('tipo') ?? 'cortes') as
-    | 'cortes'
-    | 'canales'
-    | 'subproductos';
+  const tipo = (searchParams.get('tipo') ?? 'cortes') as 'cortes' | 'canales' | 'subproductos';
   const isSubproducto = tipo === 'subproductos';
   const { user } = useAuth();
+  const [step, setStep] = useState<Step>(1);
   const [customerSearch, setCustomerSearch] = useState('');
   const [customer, setCustomer] = useState<Client | null>(null);
   const [productSearch, setProductSearch] = useState('');
@@ -147,19 +158,14 @@ export function NewOrderPage() {
   const [notes, setNotes] = useState('');
   const [logisticsNote, setLogisticsNote] = useState('');
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('despacho');
-  const [deliverySchedule, setDeliverySchedule] =
-    useState<DeliverySchedule | null>(null);
+  const [deliverySchedule, setDeliverySchedule] = useState<DeliverySchedule | null>(null);
   const [deliveryDate, setDeliveryDate] = useState('');
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
   const [submitError, setSubmitError] = useState('');
   // Productos estrella que faltan en el carrito (dispara el modal informativo).
-  const [featuredWarning, setFeaturedWarning] = useState<
-    FeaturedProduct[] | null
-  >(null);
-  // Solo subproductos: categoría (especie) activa en el catálogo de productos.
-  const [subproductoCategory, setSubproductoCategory] = useState<'CERDO' | 'RES'>(
-    'CERDO',
-  );
+  const [featuredWarning, setFeaturedWarning] = useState<FeaturedProduct[] | null>(null);
+  // Especie activa en el catálogo (cortes: Res/Cerdo; subproductos: Cerdo/Res).
+  const [species, setSpecies] = useState<'CERDO' | 'RES'>(isSubproducto ? 'CERDO' : 'RES');
 
   // Se revisa el horario cada minuto para bloquear/desbloquear el botón en vivo.
   // El rango es configurable desde el panel admin (horario de pedidos).
@@ -167,10 +173,7 @@ export function NewOrderPage() {
   const [withinHours, setWithinHours] = useState(true);
   useEffect(() => {
     setWithinHours(isWithinOrderHours(orderSchedule));
-    const id = setInterval(
-      () => setWithinHours(isWithinOrderHours(orderSchedule)),
-      60_000,
-    );
+    const id = setInterval(() => setWithinHours(isWithinOrderHours(orderSchedule)), 60_000);
     return () => clearInterval(id);
   }, [orderSchedule]);
 
@@ -179,7 +182,7 @@ export function NewOrderPage() {
       ? `de ${formatScheduleTime(orderSchedule.openHour, orderSchedule.openMinute)} a ${formatScheduleTime(orderSchedule.closeHour, orderSchedule.closeMinute)}`
       : '';
 
-  const { data: customers = [] } = useClients(customerSearch);
+  const { data: customers = [], isFetching: customersLoading } = useClients(customerSearch);
   // Tope mínimo de pedido según la compañía activa; también decide si se
   // exige la ubicación del cliente (solo Agropecuaria y Carnes Frias).
   const { company } = useCompany();
@@ -231,17 +234,10 @@ export function NewOrderPage() {
   // anterior para que quede marcado en alistamiento/despacho. Solo aplica a
   // cortes (los subproductos no usan este flujo).
   const [associationDecided, setAssociationDecided] = useState(false);
-  const [linkedOrderId, setLinkedOrderId] = useState<string | undefined>(
-    undefined,
-  );
-  const [linkedOrderSummary, setLinkedOrderSummary] = useState<Order | null>(
-    null,
-  );
-  const [associationStep, setAssociationStep] = useState<
-    'ask' | 'list' | 'detail' | null
-  >(null);
-  const [associationDetailOrder, setAssociationDetailOrder] =
-    useState<Order | null>(null);
+  const [linkedOrderId, setLinkedOrderId] = useState<string | undefined>(undefined);
+  const [linkedOrderSummary, setLinkedOrderSummary] = useState<Order | null>(null);
+  const [associationStep, setAssociationStep] = useState<'ask' | 'list' | 'detail' | null>(null);
+  const [associationDetailOrder, setAssociationDetailOrder] = useState<Order | null>(null);
   useEffect(() => {
     setAssociationDecided(false);
     setLinkedOrderId(undefined);
@@ -253,49 +249,40 @@ export function NewOrderPage() {
     customer?.id,
     associationStep === 'list',
   );
-  const { data: products = [] } = useProductsForList(
+  const { data: products = [], isFetching: productsLoading } = useProductsForList(
     productSearch,
     customer?.priceList,
     isSubproducto ? 'subproducto' : undefined,
   );
   // Productos estrella/favoritos de la compañía (para priorizar y avisar).
   const { data: featured = [] } = useFeaturedProducts();
-  const featuredSkus = useMemo(
-    () => new Set(featured.map((f) => f.sku)),
-    [featured],
-  );
+  const featuredSkus = useMemo(() => new Set(featured.map((f) => f.sku)), [featured]);
   // Catálogo ordenado con los productos estrella de primero (prioridad visual).
   const sortedProducts = useMemo(() => {
     if (featuredSkus.size === 0) return products;
     return [...products].sort(
-      (a, b) =>
-        (featuredSkus.has(a.sku) ? 0 : 1) - (featuredSkus.has(b.sku) ? 0 : 1),
+      (a, b) => (featuredSkus.has(a.sku) ? 0 : 1) - (featuredSkus.has(b.sku) ? 0 : 1),
     );
   }, [products, featuredSkus]);
   // Subproductos: se divide el catálogo por especie (CERDO / RES). Los que no
   // traen categoría se muestran en ambas pestañas para no perderlos.
-  const visibleProducts = useMemo(() => {
-    if (!isSubproducto) return sortedProducts;
-    return sortedProducts.filter(
-      (p) => !p.category || p.category === subproductoCategory,
-    );
-  }, [sortedProducts, isSubproducto, subproductoCategory]);
-  // Cortes: dos grillas. Cerdo = categoría CERDO; Res = todo lo demás (incluye
-  // Carnes Frías, Víveres y los que no traen categoría), para no perder ninguno.
+  // Cortes: Cerdo = categoría CERDO; Res = todo lo demás (incluye Carnes
+  // Frías, Víveres y los que no traen categoría), para no perder ninguno.
   const cerdoProducts = useMemo(
     () =>
-      isSubproducto
-        ? []
-        : sortedProducts.filter((p) => p.category === 'CERDO'),
+      sortedProducts.filter((p) =>
+        isSubproducto ? !p.category || p.category === 'CERDO' : p.category === 'CERDO',
+      ),
     [sortedProducts, isSubproducto],
   );
   const resProducts = useMemo(
     () =>
-      isSubproducto
-        ? []
-        : sortedProducts.filter((p) => p.category !== 'CERDO'),
+      sortedProducts.filter((p) =>
+        isSubproducto ? !p.category || p.category === 'RES' : p.category !== 'CERDO',
+      ),
     [sortedProducts, isSubproducto],
   );
+  const visibleProducts = species === 'CERDO' ? cerdoProducts : resProducts;
   const createOrder = useCreateOrder();
 
   const totals = useMemo(() => {
@@ -308,34 +295,30 @@ export function NewOrderPage() {
       // El IVA se agrega solo para mostrarlo (el precio base va sin IVA).
       taxes += (net * (line.product.taxRate ?? 0)) / 100;
     }
-    return {
-      subtotal,
-      taxes,
-      total: subtotal + taxes,
-    };
+    return { subtotal, taxes, total: subtotal + taxes };
   }, [cart]);
 
   // Tope mínimo de pedido según la compañía activa. Los subproductos no tienen
   // monto mínimo.
   const minOrderTotal = isSubproducto ? 0 : getMinOrderTotal(company?.id);
   // El mínimo es por día por cliente: si el cliente ya pidió hoy, no se exige.
-  const { data: customerOrderedToday = false } = useCustomerHasOrderToday(
-    customer?.id,
-  );
-  const belowMinimum =
-    minOrderTotal > 0 &&
-    totals.subtotal < minOrderTotal &&
-    !customerOrderedToday;
+  const { data: customerOrderedToday = false } = useCustomerHasOrderToday(customer?.id);
+  const belowMinimum = minOrderTotal > 0 && totals.subtotal < minOrderTotal && !customerOrderedToday;
   // MONTERIA TAT AGROPECUARIA: se pueden montar pedidos a cualquier hora.
   const hoursOk = withinHours || company?.id === 'MTAT';
 
-  const totalUnits = useMemo(
-    () => cart.reduce((acc, l) => acc + l.quantity, 0),
-    [cart],
-  );
+  const totalUnits = useMemo(() => cart.reduce((acc, l) => acc + l.quantity, 0), [cart]);
 
-  // Paso actual del flujo guiado (para el stepper).
-  const currentStep = !customer ? 1 : cart.length === 0 ? 2 : 3;
+  const selectCustomer = (c: Client) => {
+    if (c.id !== customer?.id) {
+      setCart([]);
+      setProductSearch('');
+    }
+    setCustomer(c);
+    setDeliverySchedule(c.deliverySchedule ?? null);
+    setSubmitError('');
+    setStep(2);
+  };
 
   const addProduct = (product: SellableProduct) => {
     // No se puede vender lo que no hay en inventario.
@@ -346,9 +329,7 @@ export function NewOrderPage() {
       if (existing) {
         // Se vende de uno en uno: cada toque suma una unidad.
         return prev.map((l) =>
-          l.product.sku === product.sku
-            ? { ...l, quantity: l.quantity + 1 }
-            : l,
+          l.product.sku === product.sku ? { ...l, quantity: l.quantity + 1 } : l,
         );
       }
       return [...prev, { product, quantity: 1, discountPct: 0, unitPrice }];
@@ -359,116 +340,24 @@ export function NewOrderPage() {
     setCart((prev) =>
       prev
         .map((l) =>
-          l.product.sku === sku
-            ? { ...l, quantity: Math.max(0, l.quantity + delta) }
-            : l,
+          l.product.sku === sku ? { ...l, quantity: Math.max(0, l.quantity + delta) } : l,
         )
         .filter((l) => l.quantity > 0),
     );
   };
 
-  // Permite escribir la cantidad directamente (sin tener que dar clic muchas
-  // veces). Se admite vacio temporalmente para poder borrar y reescribir; el
-  // valor 0 se filtra al salir del campo (onBlur).
+  // Permite escribir la cantidad directamente. Se admite 0 temporalmente para
+  // poder borrar y reescribir; el valor 0 se filtra al salir del campo (onBlur).
   const setQty = (sku: string, value: number) => {
     setCart((prev) =>
       prev.map((l) =>
-        l.product.sku === sku
-          ? { ...l, quantity: Math.max(0, Math.floor(value) || 0) }
-          : l,
-      ),
-    );
-  };
-
-  const updateDiscount = (sku: string, discountPct: number) => {
-    setCart((prev) =>
-      prev.map((l) =>
-        l.product.sku === sku
-          ? { ...l, discountPct: Math.min(100, Math.max(0, discountPct)) }
-          : l,
+        l.product.sku === sku ? { ...l, quantity: Math.max(0, Math.floor(value) || 0) } : l,
       ),
     );
   };
 
   const removeLine = (sku: string) => {
     setCart((prev) => prev.filter((l) => l.product.sku !== sku));
-  };
-
-  // Fila de producto reutilizable (para la lista única de subproductos y para
-  // las dos grillas Res/Cerdo de cortes).
-  const renderProductRow = (p: SellableProduct) => {
-    const inCart = cart.find((l) => l.product.sku === p.sku);
-    const hasStock = Number(p.stock) > 0;
-    return (
-      <button
-        key={p.sku}
-        onClick={() => addProduct(p)}
-        disabled={!hasStock}
-        className={cn(
-          'group flex w-full items-end justify-between gap-3 rounded-lg border px-3 py-2.5 text-left text-sm transition-all',
-          !hasStock
-            ? 'cursor-not-allowed border-border opacity-60'
-            : inCart
-              ? 'border-primary bg-primary/[0.06]'
-              : 'border-border hover:border-primary/40 hover:bg-accent',
-        )}
-      >
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          {featuredSkus.has(p.sku) && (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-400 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-950">
-              <Star className="h-3 w-3 fill-amber-950" />
-              Estrella
-            </span>
-          )}
-          <span className="shrink-0 text-sm font-medium text-muted-foreground">
-            {p.sku}
-          </span>
-          <p className="text-sm font-medium">{p.name}</p>
-          {p.unitOfMeasure && (
-            <span className="shrink-0 rounded bg-secondary px-1.5 py-0.5 text-sm font-medium text-secondary-foreground">
-              {p.unitOfMeasure}
-            </span>
-          )}
-          <span
-            className={cn(
-              'inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-sm font-medium',
-              hasStock
-                ? 'bg-[var(--success)]/10 text-[var(--success)]'
-                : 'bg-destructive/10 text-destructive',
-            )}
-          >
-            <Boxes className="h-3 w-3" />
-            {hasStock ? `Stock ${Number(p.stock)}` : 'Sin stock'}
-          </span>
-        </div>
-        <div className="flex shrink-0 items-center gap-2.5">
-          <span
-            className={cn(
-              'font-semibold',
-              hasStock ? 'text-foreground' : 'text-muted-foreground',
-            )}
-          >
-            {formatCurrency(Number(p.price))}
-          </span>
-          {hasStock && (
-            <span
-              className={cn(
-                'flex h-7 w-7 items-center justify-center rounded-full transition-colors',
-                inCart
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground',
-              )}
-            >
-              {inCart ? (
-                <span className="text-xs font-bold">{inCart.quantity}</span>
-              ) : (
-                <Plus className="h-4 w-4" />
-              )}
-            </span>
-          )}
-        </div>
-      </button>
-    );
   };
 
   const handleSubmit = async (skipFeaturedCheck = false) => {
@@ -487,9 +376,7 @@ export function NewOrderPage() {
     // Aviso de productos estrella no incluidos (solo cortes). Si faltan, se
     // muestra el modal informativo antes de crear el pedido.
     if (!skipFeaturedCheck && !isSubproducto) {
-      const missing = featured.filter(
-        (f) => !cart.some((l) => l.product.sku === f.sku),
-      );
+      const missing = featured.filter((f) => !cart.some((l) => l.product.sku === f.sku));
       if (missing.length > 0) {
         setFeaturedWarning(missing);
         return;
@@ -501,23 +388,17 @@ export function NewOrderPage() {
     // acá, ya superado el aviso de productos estrella.
     if (requireClientSellerInfo) {
       if (sellerInfoLoading) {
-        setSubmitError(
-          'Cargando la información del cliente, intenta de nuevo en un momento.',
-        );
+        setSubmitError('Cargando la información del cliente, intenta de nuevo en un momento.');
         return;
       }
       if (sellerInfoError) {
-        setSubmitError(
-          'No se pudo verificar la ubicación del cliente. Intenta de nuevo.',
-        );
+        setSubmitError('No se pudo verificar la ubicación del cliente. Intenta de nuevo.');
         return;
       }
       // Fail-closed: si no hay registro confirmado (null o aún sin datos), se
       // exige diligenciarlo antes de permitir el pedido.
       if (!sellerInfo) {
-        setSubmitError(
-          'Antes de crear el pedido debes registrar la ubicación del cliente.',
-        );
+        setSubmitError('Antes de crear el pedido debes registrar la ubicación del cliente.');
         setShowSellerInfoModal(true);
         return;
       }
@@ -574,117 +455,103 @@ export function NewOrderPage() {
       setRetrySubmitAfterSave(false);
       handleSubmit(true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [retrySubmitAfterSave, sellerInfo]);
 
-  // Subproductos: valida el permiso (por si se entra por URL) y continúa al
-  // flujo normal de toma de pedido. Otras vistas no-cortes siguen en
-  // construcción.
-  if (tipo === 'subproductos') {
+  // Subproductos / canales: valida el permiso (por si se entra por URL).
+  if (tipo === 'subproductos' || tipo === 'canales') {
     const allowed =
-      user?.role === 'admin' ||
-      (company?.permissions ?? []).includes('/pedidos/subproductos');
+      user?.role === 'admin' || (company?.permissions ?? []).includes(`/pedidos/${tipo}`);
     if (!allowed) {
       return (
-        <div className="mx-auto max-w-lg py-16">
-          <Card>
-            <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-              <AlertCircle className="h-10 w-10 text-destructive" />
-              <h2 className="text-xl font-bold">Sin permiso</h2>
-              <p className="text-sm text-muted-foreground">
-                No tienes permiso para tomar pedidos de Subproductos.
-              </p>
-              <Button variant="outline" onClick={() => navigate('/pedidos')}>
-                Volver a Pedidos
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+        <PageBackground className="flex min-h-[60vh] items-center justify-center">
+          <div
+            className="flex w-full max-w-md flex-col items-center gap-3 rounded-[24px] bg-white p-8 text-center"
+            style={{ border: `1px solid ${BRAND.border}` }}
+          >
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
+              <Lock className="h-7 w-7 text-red-600" />
+            </span>
+            <h2 className="text-xl font-extrabold">Sin permiso</h2>
+            <p className="text-sm" style={{ color: BRAND.textMuted }}>
+              No tienes permiso para tomar pedidos de{' '}
+              {tipo === 'canales' ? 'Canales' : 'Subproductos'}.
+            </p>
+            <BrandButton variant="outlined" onClick={() => navigate('/pedidos')}>
+              Volver a Pedidos
+            </BrandButton>
+          </div>
+        </PageBackground>
       );
     }
-  } else if (tipo === 'canales') {
-    const allowed =
-      user?.role === 'admin' ||
-      (company?.permissions ?? []).includes('/pedidos/canales');
-    if (!allowed) {
-      return (
-        <div className="mx-auto max-w-lg py-16">
-          <Card>
-            <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-              <AlertCircle className="h-10 w-10 text-destructive" />
-              <h2 className="text-xl font-bold">Sin permiso</h2>
-              <p className="text-sm text-muted-foreground">
-                No tienes permiso para tomar pedidos de Canales.
-              </p>
-              <Button variant="outline" onClick={() => navigate('/pedidos')}>
-                Volver a Pedidos
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      );
-    }
-    return <CanalOrderForm />;
+    if (tipo === 'canales') return <CanalOrderForm />;
   }
 
-  return (
-    <div className="space-y-6">
-      {/* Encabezado + stepper guiado */}
-      <div className="space-y-5">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">
-            {isSubproducto ? 'Nuevo pedido de subproductos' : 'Nuevo pedido'}
-          </h2>
-          <p className="text-muted-foreground">
-            Sigue los pasos: elige el cliente, agrega productos y confirma.
-          </p>
-        </div>
+  const canContinue = step === 1 ? !!customer : step === 2 ? cart.length > 0 : true;
+  const submitDisabled =
+    !customer || cart.length === 0 || !deliveryDate || !hoursOk || createOrder.isPending;
 
-        <ol className="flex items-center gap-2">
-          {STEPS.map((step, i) => {
-            const done = currentStep > step.n;
-            const active = currentStep === step.n;
+  const goBack = () => {
+    if (step === 1) navigate('/pedidos');
+    else setStep((s) => (s - 1) as Step);
+  };
+
+  return (
+    <PageBackground className="space-y-3.5 pb-32">
+      {/* Encabezado con barra de pasos (_StepBar en la app) */}
+      <Hero>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={goBack}
+            aria-label="Volver"
+            className="-ml-1 flex h-9 w-9 items-center justify-center rounded-full hover:bg-white/15"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <h2 className="flex-1 truncate text-xl font-extrabold leading-tight tracking-[-0.4px] sm:text-[22px]">
+            {isSubproducto ? 'Nuevo pedido · Subproductos' : 'Nuevo pedido'}
+          </h2>
+        </div>
+        <ol className="mt-4 flex items-center gap-1.5 sm:gap-2">
+          {STEPS.map((s, i) => {
+            const done = step > s.n;
+            const active = step === s.n;
             return (
-              <li key={step.n} className="flex flex-1 items-center gap-2">
-                <div className="flex items-center gap-2.5">
+              <li
+                key={s.n}
+                className={cn('flex items-center gap-1.5 sm:flex-1 sm:gap-2', active && 'flex-1')}
+              >
+                <button
+                  type="button"
+                  disabled={!done}
+                  onClick={() => setStep(s.n)}
+                  className="flex min-w-0 items-center gap-2 disabled:cursor-default"
+                >
                   <span
                     className={cn(
-                      'flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 text-sm font-semibold transition-colors',
-                      done &&
-                        'border-primary bg-primary text-primary-foreground',
-                      active &&
-                        'border-primary bg-primary/10 text-primary ring-4 ring-primary/10',
-                      !done &&
-                        !active &&
-                        'border-border bg-card text-muted-foreground',
+                      'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-extrabold',
+                      done || active ? 'bg-white' : 'bg-white/25 text-white',
+                    )}
+                    style={done || active ? { color: BRAND.primaryDark } : undefined}
+                  >
+                    {done ? <Check className="h-4 w-4" /> : s.n}
+                  </span>
+                  {/* En móvil solo se muestra la etiqueta del paso activo */}
+                  <span
+                    className={cn(
+                      'truncate text-[13px]',
+                      active ? 'font-extrabold text-white' : 'hidden font-semibold text-white/75 sm:inline',
                     )}
                   >
-                    {done ? (
-                      <Check className="h-4 w-4" />
-                    ) : (
-                      <step.icon className="h-4 w-4" />
-                    )}
+                    {s.label}
                   </span>
-                  <div className="hidden sm:block">
-                    <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                      Paso {step.n}
-                    </p>
-                    <p
-                      className={cn(
-                        'text-sm font-semibold leading-none',
-                        active || done
-                          ? 'text-foreground'
-                          : 'text-muted-foreground',
-                      )}
-                    >
-                      {step.label}
-                    </p>
-                  </div>
-                </div>
+                </button>
                 {i < STEPS.length - 1 && (
-                  <div
+                  <span
                     className={cn(
-                      'h-0.5 flex-1 rounded-full transition-colors',
-                      done ? 'bg-primary' : 'bg-border',
+                      'h-0.5 min-w-3 flex-1 rounded-full',
+                      done ? 'bg-white' : 'bg-white/25',
                     )}
                   />
                 )}
@@ -692,770 +559,426 @@ export function NewOrderPage() {
             );
           })}
         </ol>
-      </div>
+      </Hero>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
-          {/* Paso 1 · Cliente */}
-          <Card className="overflow-hidden">
-            <div className="flex items-center gap-3 border-b border-border bg-muted/30 px-5 py-3">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                1
-              </span>
-              <div>
-                <p className="text-sm font-semibold leading-none">Cliente</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Define la cartera y la lista de precios del pedido
-                </p>
-              </div>
-            </div>
-            <CardContent className="space-y-3 p-5">
-              {customer ? (
-                <div className="rounded-xl border border-primary/30 bg-primary/[0.03] p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-base font-bold text-primary">
-                      {initials(customer.name)}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="font-semibold leading-tight">
-                            {customer.name}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            NIT {customer.code}
-                            {customer.branch ? ` · Sucursal ${customer.branch}` : ''}
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setCustomer(null);
-                            setCart([]);
-                            setProductSearch('');
-                            setDeliverySchedule(null);
-                          }}
-                        >
-                          Cambiar
-                        </Button>
-                      </div>
-
-                      <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-                        <p className="flex items-center gap-2">
-                          <Tag className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          {customer.priceList ? (
-                            <span>
-                              Lista de precios:{' '}
-                              <span className="font-medium text-[var(--success)]">
-                                {customer.priceListName || customer.priceList}
-                              </span>
-                            </span>
-                          ) : (
-                            <span className="font-medium text-destructive">
-                              Sin lista de precios
-                            </span>
-                          )}
-                        </p>
-                        <p className="flex items-center gap-2">
-                          <CreditCard className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          {customer.paymentTerm ? (
-                            <span>
-                              Cond. pago:{' '}
-                              <span className="font-medium text-[var(--success)]">
-                                {customer.paymentTerm}
-                              </span>
-                            </span>
-                          ) : (
-                            <span>Sin condición de pago</span>
-                          )}
-                        </p>
-                        <p className="flex items-center gap-2">
-                          <UserCircle className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          {customer.sellerCode ? (
-                            <span>
-                              Vendedor:{' '}
-                              <span className="font-medium text-[var(--success)]">
-                                {customer.sellerName || customer.sellerCode}
-                              </span>
-                              {customer.sellerName ? ` (${customer.sellerCode})` : ''}
-                            </span>
-                          ) : (
-                            <span>Sin vendedor</span>
-                          )}
-                        </p>
-                        <p className="flex items-center gap-2">
-                          <Building className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          <span>
-                            Sucursal:{' '}
-                            <span className="font-medium text-[var(--success)]">
-                              {customer.branchName || customer.branch || '—'}
-                            </span>
-                            {customer.branchName && customer.branch
-                              ? ` (${customer.branch})`
-                              : ''}
-                          </span>
-                        </p>
-                        {customer.address && (
-                          <p className="flex items-center gap-2 sm:col-span-2">
-                            <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
-                            <span>
-                              Dirección:{' '}
-                              <span className="font-medium text-[var(--success)]">
-                                {customer.address}
-                              </span>
-                            </span>
-                          </p>
-                        )}
-                        {customer.neighborhood && (
-                          <p className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
-                            <span>
-                              Barrio:{' '}
-                              <span className="font-medium text-[var(--success)]">
-                                {customer.neighborhood}
-                              </span>
-                            </span>
-                          </p>
-                        )}
-                        {customer.city && (
-                          <p className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
-                            <span>
-                              Ciudad:{' '}
-                              <span className="font-medium text-[var(--success)]">
-                                {customer.city}
-                              </span>
-                            </span>
-                          </p>
-                        )}
-                        {customer.department && (
-                          <p className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
-                            <span>
-                              Departamento:{' '}
-                              <span className="font-medium text-[var(--success)]">
-                                {customer.department}
-                              </span>
-                            </span>
-                          </p>
-                        )}
-                        {customer.phone && (
-                          <p className="flex items-center gap-2">
-                            <Phone className="h-4 w-4 shrink-0 text-muted-foreground" />
-                            <span>
-                              Teléfono:{' '}
-                              <span className="font-medium text-[var(--success)]">
-                                {customer.phone}
-                              </span>
-                            </span>
-                          </p>
-                        )}
-                        {customer.email && (
-                          <p className="flex items-center gap-2 break-all">
-                            <Mail className="h-4 w-4 shrink-0 text-muted-foreground" />
-                            <span>
-                              Email:{' '}
-                              <span className="font-medium text-[var(--success)]">
-                                {customer.email}
-                              </span>
-                            </span>
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      value={customerSearch}
-                      onChange={(e) => setCustomerSearch(e.target.value)}
-                      placeholder="Buscar cliente por nombre o NIT..."
-                      className="pl-9"
-                    />
-                  </div>
-                  {customerSearch ? (
-                    <div className="max-h-80 space-y-1 overflow-auto">
-                      {customers.length === 0 ? (
-                        <p className="px-3 py-2 text-sm text-muted-foreground">
-                          No se encontraron clientes en tu cartera.
-                        </p>
-                      ) : (
-                        customers.map((c) => (
-                          <button
-                            key={c.id}
-                            onClick={() => {
-                              setCustomer(c);
-                              setDeliverySchedule(c.deliverySchedule ?? null);
-                              setCustomerSearch('');
-                            }}
-                            className="flex w-full items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 text-left text-sm transition-colors hover:border-border hover:bg-accent"
-                          >
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
-                              {initials(c.name)}
-                            </div>
-                            <div className="min-w-0 flex-1 space-y-0.5">
-                              <p className="truncate font-medium">{c.name}</p>
-                              <p className="text-xs font-medium text-foreground">
-                                Sucursal:{' '}
-                                <span className="text-[var(--success)]">
-                                  {c.branchName || c.branch || '—'}
-                                </span>
-                                {c.branchName && c.branch ? ` (${c.branch})` : ''}
-                                <span className="text-muted-foreground">
-                                  {' '}
-                                  · NIT {c.code}
-                                </span>
-                              </p>
-                              <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
-                                <span>
-                                  Lista:{' '}
-                                  <span className="font-medium text-[var(--success)]">
-                                    {c.priceListName || c.priceList || '—'}
-                                  </span>
-                                </span>
-                                <span>
-                                  · Cond. pago:{' '}
-                                  <span className="font-medium text-[var(--success)]">
-                                    {c.paymentTerm || '—'}
-                                  </span>
-                                </span>
-                                <span>
-                                  · Vendedor:{' '}
-                                  <span className="font-medium text-[var(--success)]">
-                                    {c.sellerName || c.sellerCode || '—'}
-                                  </span>
-                                  {c.sellerName && c.sellerCode
-                                    ? ` (${c.sellerCode})`
-                                    : ''}
-                                </span>
-                              </div>
-                              {c.address && (
-                                <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
-                                  <MapPin className="h-3 w-3 shrink-0" />
-                                  Dirección:{' '}
-                                  <span className="font-medium text-[var(--success)]">
-                                    {c.address}
-                                  </span>
-                                </p>
-                              )}
-                              {(c.neighborhood || c.city || c.department) && (
-                                <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
-                                  <MapPin className="h-3 w-3 shrink-0" />
-                                  Ubicación:{' '}
-                                  <span className="font-medium text-[var(--success)]">
-                                    {[c.neighborhood, c.city, c.department]
-                                      .filter(Boolean)
-                                      .join(', ')}
-                                  </span>
-                                </p>
-                              )}
-                              {c.phone && (
-                                <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
-                                  <Phone className="h-3 w-3 shrink-0" />
-                                  Teléfono:{' '}
-                                  <span className="font-medium text-[var(--success)]">
-                                    {c.phone}
-                                  </span>
-                                </p>
-                              )}
-                              {c.email && (
-                                <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
-                                  <Mail className="h-3 w-3 shrink-0" />
-                                  Email:{' '}
-                                  <span className="font-medium text-[var(--success)]">
-                                    {c.email}
-                                  </span>
-                                </p>
-                              )}
-                            </div>
-                            <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  ) : (
-                    <p className="flex items-center gap-2 rounded-lg bg-muted/40 px-3 py-2.5 text-xs text-muted-foreground">
-                      <Search className="h-3.5 w-3.5 shrink-0" />
-                      Escribe el nombre o NIT del cliente para empezar.
-                    </p>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Paso 2 · Productos */}
-          <Card className={cn('overflow-hidden', !customer && 'opacity-60')}>
-            <div className="flex items-center gap-3 border-b border-border bg-muted/30 px-5 py-3">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                2
-              </span>
-              <div>
-                <p className="text-sm font-semibold leading-none">Productos</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Precios según la lista del cliente · stock en tiempo real
-                </p>
-              </div>
-            </div>
-            <CardContent className="space-y-3 p-5">
-              {!customer ? (
-                <div className="flex flex-col items-center gap-2 py-8 text-center">
-                  <PackageOpen className="h-8 w-8 text-muted-foreground/50" />
-                  <p className="text-sm text-muted-foreground">
-                    Selecciona primero un cliente para ver los precios de su
-                    lista.
-                  </p>
-                </div>
-              ) : !customer.priceList ? (
-                <div className="flex flex-col items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 py-8 text-center">
-                  <AlertCircle className="h-8 w-8 text-destructive" />
-                  <p className="px-4 text-sm font-medium text-destructive">
-                    El cliente no tiene una lista de precios asignada. No es
-                    posible tomar el pedido.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {isSubproducto && (
-                    <div className="grid grid-cols-2 gap-2">
-                      {(['CERDO', 'RES'] as const).map((cat) => (
-                        <button
-                          key={cat}
-                          type="button"
-                          onClick={() => setSubproductoCategory(cat)}
-                          className={cn(
-                            'rounded-lg border px-3 py-2 text-sm font-semibold transition-colors',
-                            subproductoCategory === cat
-                              ? 'border-primary bg-primary/10 text-primary'
-                              : 'border-border text-muted-foreground hover:bg-accent',
-                          )}
-                        >
-                          Subproductos {cat === 'CERDO' ? 'Cerdo' : 'Res'}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      value={productSearch}
-                      onChange={(e) => setProductSearch(e.target.value)}
-                      placeholder="Buscar producto por nombre o SKU..."
-                      className="pl-9"
-                    />
-                  </div>
-                  {isSubproducto ? (
-                    <div className="max-h-[26rem] space-y-1.5 overflow-auto pr-0.5">
-                      {visibleProducts.length === 0 ? (
-                        <p className="px-3 py-2 text-sm text-muted-foreground">
-                          No hay productos en la lista del cliente.
-                        </p>
-                      ) : (
-                        visibleProducts.map(renderProductRow)
-                      )}
-                    </div>
-                  ) : (
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      {/* Grilla RES (incluye Carnes Frías, Víveres y demás) */}
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between px-1">
-                          <h4 className="text-lg font-bold text-primary">Res</h4>
-                          <span className="text-xs text-muted-foreground">
-                            {resProducts.length}
-                          </span>
-                        </div>
-                        <div className="max-h-[26rem] space-y-1.5 overflow-auto pr-0.5">
-                          {resProducts.length === 0 ? (
-                            <p className="px-3 py-2 text-sm text-muted-foreground">
-                              Sin productos.
-                            </p>
-                          ) : (
-                            resProducts.map(renderProductRow)
-                          )}
-                        </div>
-                      </div>
-                      {/* Grilla CERDO */}
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between px-1">
-                          <h4 className="text-lg font-bold text-primary">
-                            Cerdo
-                          </h4>
-                          <span className="text-xs text-muted-foreground">
-                            {cerdoProducts.length}
-                          </span>
-                        </div>
-                        <div className="max-h-[26rem] space-y-1.5 overflow-auto pr-0.5">
-                          {cerdoProducts.length === 0 ? (
-                            <p className="px-3 py-2 text-sm text-muted-foreground">
-                              Sin productos.
-                            </p>
-                          ) : (
-                            cerdoProducts.map(renderProductRow)
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
+      {!hoursOk && (
+        <div
+          className="flex items-start gap-2.5 rounded-2xl px-4 py-3 text-[13px]"
+          style={{ backgroundColor: AMBER.bg, border: `1px solid ${AMBER.border}`, color: AMBER.text }}
+        >
+          <AlertTriangle className="mt-0.5 h-[18px] w-[18px] shrink-0" style={{ color: AMBER.icon }} />
+          <span>
+            <strong>Fuera de horario.</strong> La toma de pedidos está disponible {scheduleRangeText}.
+            Puedes armar el pedido, pero no podrás enviarlo hasta que abra el horario.
+          </span>
         </div>
+      )}
 
-        {/* Paso 3 · Carrito / resumen */}
-        <div className="lg:col-span-1">
-          <Card className="sticky top-6 overflow-hidden">
-            <div className="flex items-center justify-between gap-3 border-b border-border bg-primary/5 px-5 py-3.5">
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <ShoppingCart className="h-4 w-4" />
-                </span>
-                <div>
-                  <p className="text-sm font-semibold leading-none">
-                    Resumen del pedido
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {cart.length === 0
-                      ? 'Aún sin productos'
-                      : `${cart.length} producto${cart.length === 1 ? '' : 's'} · ${totalUnits} und.`}
-                  </p>
-                </div>
+      {/* Paso 1 · Cliente */}
+      {step === 1 && (
+        <section className="space-y-3">
+          <BrandInput
+            icon={Search}
+            autoFocus
+            placeholder="Buscar cliente por nombre o NIT"
+            value={customerSearch}
+            onChange={(e) => setCustomerSearch(e.target.value)}
+          />
+          {customers.length === 0 ? (
+            customersLoading ? (
+              <div className="flex justify-center py-10">
+                <Loader2 className="h-6 w-6 animate-spin" style={{ color: BRAND.primary }} />
               </div>
+            ) : (
+              <EmptyMessage
+                icon={UserCircle}
+                text={
+                  customerSearch
+                    ? 'No se encontraron clientes con esa búsqueda.'
+                    : 'Escribe el nombre o NIT del cliente para comenzar.'
+                }
+              />
+            )
+          ) : (
+            <div className="grid gap-2 md:grid-cols-2">
+              {customers.map((c) => {
+                const selected = customer?.id === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => selectCustomer(c)}
+                    className="flex items-center gap-3 rounded-[18px] bg-white p-3.5 text-left transition-colors hover:bg-[#F4FAF6]"
+                    style={{
+                      border: `1.5px solid ${selected ? BRAND.primary : `${BRAND.border}CC`}`,
+                    }}
+                  >
+                    <span
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-extrabold"
+                      style={{ backgroundColor: '#E8F5EC', color: BRAND.primaryDark }}
+                    >
+                      {initials(c.name) || '?'}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[15px] font-extrabold">{c.name}</span>
+                      <span className="block truncate text-xs" style={{ color: BRAND.textSoft }}>
+                        NIT {c.code}
+                        {c.branchName || c.branch ? ` · ${c.branchName || c.branch}` : ''}
+                        {c.city ? ` · ${c.city}` : ''}
+                      </span>
+                    </span>
+                    <ChevronRight className="h-5 w-5 shrink-0" style={{ color: BRAND.textSoft }} />
+                  </button>
+                );
+              })}
             </div>
-            <CardContent className="space-y-4 p-5">
-              {cart.length === 0 ? (
-                <div className="flex flex-col items-center gap-2 py-8 text-center">
-                  <ShoppingCart className="h-8 w-8 text-muted-foreground/40" />
-                  <p className="text-sm text-muted-foreground">
-                    Toca un producto para agregarlo al pedido.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  {cart.map((line) => {
-                    const lineTotal =
-                      line.unitPrice *
-                      line.quantity *
-                      (1 - line.discountPct / 100);
-                    const lineIva =
-                      (lineTotal * (line.product.taxRate ?? 0)) / 100;
-                    return (
-                      <div
-                        key={line.product.sku}
-                        className="space-y-2.5 rounded-lg border border-border p-3"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium leading-tight">
-                              {line.product.name}
-                            </p>
-                            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <span>{formatCurrency(line.unitPrice)} c/u</span>
-                              {line.product.unitOfMeasure && (
-                                <span className="rounded bg-secondary px-1.5 py-0.5 font-semibold text-secondary-foreground">
-                                  {line.product.unitOfMeasure}
-                                </span>
-                              )}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => removeLine(line.product.sku)}
-                            className="text-muted-foreground transition-colors hover:text-destructive"
-                            aria-label="Quitar producto"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => updateQty(line.product.sku, -1)}
-                            >
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                            <Input
-                              type="text"
-                              inputMode="numeric"
-                              value={line.quantity === 0 ? '' : String(line.quantity)}
-                              onChange={(e) => {
-                                const digits = e.target.value.replace(
-                                  /\D/g,
-                                  '',
-                                );
-                                setQty(
-                                  line.product.sku,
-                                  digits === '' ? 0 : Number(digits),
-                                );
-                              }}
-                              onFocus={(e) => e.target.select()}
-                              onBlur={() => {
-                                if (line.quantity <= 0)
-                                  removeLine(line.product.sku);
-                              }}
-                              className="h-8 w-20 text-center text-base font-semibold"
-                            />
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => updateQty(line.product.sku, 1)}
-                            >
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Input
-                              type="number"
-                              min={0}
-                              max={100}
-                              value={line.discountPct}
-                              disabled
-                              title="El descuento aún no está habilitado"
-                              onChange={(e) =>
-                                updateDiscount(
-                                  line.product.sku,
-                                  Number(e.target.value),
-                                )
-                              }
-                              className="h-7 w-14 cursor-not-allowed text-right text-xs opacity-60"
-                            />
-                            <span className="text-xs text-muted-foreground">
-                              % dto
-                            </span>
-                          </div>
-                        </div>
-                        <div className="space-y-1 border-t border-border/60 pt-2 text-xs">
-                          <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground">Subtotal</span>
-                            <span className="font-semibold">
-                              {formatCurrency(lineTotal)}
-                            </span>
-                          </div>
-                          {lineIva > 0 && (
-                            <>
-                              <div className="flex items-center justify-between text-muted-foreground">
-                                <span>IVA ({line.product.taxRate}%)</span>
-                                <span>{formatCurrency(lineIva)}</span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-muted-foreground">Total</span>
-                                <span className="font-semibold">
-                                  {formatCurrency(lineTotal + lineIva)}
-                                </span>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+          )}
+        </section>
+      )}
 
-              <div className="space-y-1.5 border-t border-border pt-4 text-sm">
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Subtotal</span>
-                  <span>{formatCurrency(totals.subtotal)}</span>
-                </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>IVA</span>
-                  <span>{formatCurrency(totals.taxes)}</span>
-                </div>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-base font-semibold">Total</span>
-                  <span className="text-xl font-bold text-primary">
-                    {formatCurrency(totals.total)}
+      {/* Paso 2 · Productos */}
+      {step === 2 && customer && (
+        <section className="space-y-3">
+          <TitledCard className="!p-3">
+            <div className="flex items-center gap-3">
+              <span
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-extrabold"
+                style={{ backgroundColor: '#E8F5EC', color: BRAND.primaryDark }}
+              >
+                {initials(customer.name) || '?'}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[15px] font-extrabold">{customer.name}</p>
+                <p className="truncate text-xs" style={{ color: BRAND.textSoft }}>
+                  NIT {customer.code}
+                  {customer.priceListName || customer.priceList
+                    ? ` · Lista ${customer.priceListName || customer.priceList}`
+                    : ''}
+                  {customer.paymentTerm ? ` · ${customer.paymentTerm}` : ''}
+                </p>
+              </div>
+              <BrandButton variant="text" className="h-9 px-3 text-[13px]" onClick={() => setStep(1)}>
+                Cambiar
+              </BrandButton>
+            </div>
+          </TitledCard>
+
+          <div className="flex flex-col gap-2.5 sm:flex-row">
+            <Segmented
+              className="sm:w-72"
+              value={species}
+              onChange={setSpecies}
+              options={[
+                ...(isSubproducto
+                  ? [
+                      { value: 'CERDO' as const, label: `Cerdo (${cerdoProducts.length})` },
+                      { value: 'RES' as const, label: `Res (${resProducts.length})` },
+                    ]
+                  : [
+                      { value: 'RES' as const, label: `Res (${resProducts.length})` },
+                      { value: 'CERDO' as const, label: `Cerdo (${cerdoProducts.length})` },
+                    ]),
+              ]}
+            />
+            <BrandInput
+              icon={Search}
+              placeholder="Buscar producto o código"
+              value={productSearch}
+              onChange={(e) => setProductSearch(e.target.value)}
+              className="flex-1"
+            />
+          </div>
+
+          {visibleProducts.length === 0 ? (
+            productsLoading ? (
+              <div className="flex justify-center py-10">
+                <Loader2 className="h-6 w-6 animate-spin" style={{ color: BRAND.primary }} />
+              </div>
+            ) : (
+              <EmptyMessage icon={Package} text="No hay productos para mostrar." />
+            )
+          ) : (
+            <div
+              className="overflow-hidden rounded-[20px] bg-white"
+              style={{ border: `1px solid ${BRAND.border}CC` }}
+            >
+              {visibleProducts.map((p, i) => {
+                const line = cart.find((l) => l.product.sku === p.sku);
+                const hasStock = Number(p.stock) > 0;
+                const isStar = featuredSkus.has(p.sku);
+                return (
+                  <div
+                    key={p.sku}
+                    className={cn(
+                      'flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-3 sm:flex-nowrap sm:px-4',
+                      i > 0 && 'border-t',
+                      !hasStock && 'opacity-60',
+                    )}
+                    style={{ borderColor: `${BRAND.border}99` }}
+                  >
+                    <div className="min-w-[180px] flex-1 sm:min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {isStar && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-400 px-1.5 py-0.5 text-[10px] font-extrabold uppercase text-amber-950">
+                            <Star className="h-3 w-3 fill-amber-950" />
+                            Estrella
+                          </span>
+                        )}
+                        <p className="text-sm font-bold leading-tight">{p.name}</p>
+                      </div>
+                      <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs" style={{ color: BRAND.textSoft }}>
+                        <span>{p.sku}</span>
+                        {p.unitOfMeasure && <span>· {p.unitOfMeasure}</span>}
+                        <span className={cn('inline-flex items-center gap-1 font-semibold', hasStock ? 'text-emerald-600' : 'text-red-600')}>
+                          <Boxes className="h-3 w-3" />
+                          {hasStock ? `Stock ${formatInt(Number(p.stock))}` : 'Sin stock'}
+                        </span>
+                      </p>
+                      <p className="mt-1 text-sm font-extrabold">{formatMoney(Number(p.price))}</p>
+                    </div>
+                    <QtyControl
+                      quantity={line?.quantity ?? 0}
+                      disabled={!hasStock}
+                      onAdd={() => addProduct(p)}
+                      onInc={() => updateQty(p.sku, 1)}
+                      onDec={() => updateQty(p.sku, -1)}
+                      onSet={(v) => setQty(p.sku, v)}
+                      onBlur={() => line && line.quantity <= 0 && removeLine(p.sku)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Paso 3 · Entrega */}
+      {step === 3 && customer && (
+        <section className="grid gap-3.5 lg:grid-cols-2">
+          <div className="space-y-3.5">
+            <TitledCard
+              title={`Resumen (${cart.length})`}
+              icon={ClipboardList}
+              trailing={
+                <BrandButton variant="text" className="h-8 px-2.5 text-xs" onClick={() => setStep(2)}>
+                  <Plus className="h-3.5 w-3.5" />
+                  Agregar
+                </BrandButton>
+              }
+            >
+              <div className="divide-y" style={{ borderColor: `${BRAND.border}99` }}>
+                {cart.map((l) => (
+                  <div key={l.product.sku} className="flex items-center gap-3 py-2.5">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold">{l.product.name}</p>
+                      <p className="text-xs" style={{ color: BRAND.textSoft }}>
+                        {formatMoney(l.unitPrice)}
+                        {l.product.unitOfMeasure ? ` / ${l.product.unitOfMeasure}` : ''}
+                        {' · '}
+                        <span className="font-semibold" style={{ color: BRAND.text }}>
+                          {formatMoney(l.unitPrice * l.quantity)}
+                        </span>
+                      </p>
+                    </div>
+                    <QtyControl
+                      quantity={l.quantity}
+                      onAdd={() => updateQty(l.product.sku, 1)}
+                      onInc={() => updateQty(l.product.sku, 1)}
+                      onDec={() => updateQty(l.product.sku, -1)}
+                      onSet={(v) => setQty(l.product.sku, v)}
+                      onBlur={() => l.quantity <= 0 && removeLine(l.product.sku)}
+                    />
+                    <button
+                      type="button"
+                      aria-label="Quitar"
+                      onClick={() => removeLine(l.product.sku)}
+                      className="rounded-full p-1.5 text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 border-t pt-3" style={{ borderColor: BRAND.border }}>
+                <AmountRow label="Subtotal" value={formatMoney(totals.subtotal)} />
+                <AmountRow label="IVA" value={formatMoney(totals.taxes)} />
+                <AmountRow label="Total" value={formatMoney(totals.total)} bold />
+              </div>
+              {belowMinimum && (
+                <div
+                  className="mt-3 flex items-start gap-2 rounded-xl px-3 py-2.5 text-xs"
+                  style={{ backgroundColor: AMBER.bg, color: AMBER.text }}
+                >
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" style={{ color: AMBER.icon }} />
+                  <span>
+                    El pedido mínimo para esta compañía es {formatMoney(minOrderTotal)}. Te faltan{' '}
+                    <strong>{formatMoney(minOrderTotal - totals.subtotal)}</strong>.
                   </span>
                 </div>
-              </div>
+              )}
+            </TitledCard>
 
-              <div className="space-y-1.5">
-                <label className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                  <StickyNote className="h-4 w-4 text-muted-foreground" />
-                  Nota producto
-                </label>
-                <Input
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Ej: revisar fechas de vencimiento, fragilidad..."
-                />
-              </div>
+            <TitledCard title="Cliente" icon={UserCircle}>
+              <Field label="Nombre" value={customer.name} />
+              <Field label="NIT" value={customer.code} />
+              <Field label="Sucursal" value={customer.branchName || customer.branch} />
+              <Field label="Lista de precios" value={customer.priceListName || customer.priceList} />
+              <Field label="Condición de pago" value={customer.paymentTerm} />
+              <Field label="Vendedor" value={customer.sellerName} />
+              <Field
+                label="Dirección"
+                value={[customer.address, customer.neighborhood, customer.city].filter(Boolean).join(', ')}
+              />
+              <Field label="Teléfono" value={customer.phone} />
+            </TitledCard>
+          </div>
 
-              <div className="space-y-1.5">
-                <label className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                  <Truck className="h-4 w-4 text-muted-foreground" />
-                  Tipo de entrega
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setDeliveryType('despacho')}
-                    className={cn(
-                      'flex items-center justify-center gap-2 rounded-md border px-3 py-2.5 text-sm font-medium transition-colors',
-                      deliveryType === 'despacho'
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-border bg-background text-foreground hover:border-primary/50 hover:bg-accent',
-                    )}
-                  >
-                    <Truck className="h-4 w-4" />
-                    Despacho
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDeliveryType('recoge_en_planta')}
-                    className={cn(
-                      'flex items-center justify-center gap-2 rounded-md border px-3 py-2.5 text-sm font-medium transition-colors',
-                      deliveryType === 'recoge_en_planta'
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-border bg-background text-foreground hover:border-primary/50 hover:bg-accent',
-                    )}
-                  >
-                    <Building className="h-4 w-4" />
-                    Recoge en planta
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                  <Truck className="h-4 w-4 text-muted-foreground" />
-                  Nota logística
-                </label>
-                <Input
-                  value={logisticsNote}
-                  onChange={(e) => setLogisticsNote(e.target.value)}
-                  placeholder="Ej: instrucciones de entrega, transporte..."
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                  <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                  Fecha de entrega
-                  <span className="text-destructive">*</span>
-                </label>
-                <Input
+          <div className="space-y-3.5">
+            <TitledCard title="Entrega" icon={Truck}>
+              <Segmented
+                value={deliveryType}
+                onChange={setDeliveryType}
+                options={[
+                  { value: 'despacho' as DeliveryType, label: 'Despacho', icon: Truck },
+                  { value: 'recoge_en_planta' as DeliveryType, label: 'Recoge en planta', icon: Warehouse },
+                ]}
+              />
+              <label className="mt-3 block">
+                <span className="mb-1.5 flex items-center gap-1.5 text-xs font-bold" style={{ color: BRAND.textMuted }}>
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  Fecha de entrega <span className="text-red-600">*</span>
+                </span>
+                <BrandInput
                   type="date"
                   value={deliveryDate}
                   min={new Date().toISOString().slice(0, 10)}
-                  onChange={(e) => setDeliveryDate(e.target.value)}
+                  onChange={(e) => {
+                    setDeliveryDate(e.target.value);
+                    if (e.target.value) setSubmitError('');
+                  }}
                 />
+              </label>
+              <div className="mt-3">
+                <span className="mb-1.5 block text-xs font-bold" style={{ color: BRAND.textMuted }}>
+                  Horario de recibido
+                </span>
+                <DeliverySchedulePicker value={deliverySchedule} onChange={setDeliverySchedule} />
               </div>
+            </TitledCard>
 
-              <div className="space-y-1.5">
-                <label className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  Horario de recibido de pedidos
-                </label>
-                <p className="text-xs text-muted-foreground">
-                  Días y horas en que el cliente puede recibir la mercancía.
-                  Queda guardado para este cliente y se podrá modificar.
-                </p>
-                <DeliverySchedulePicker
-                  value={deliverySchedule}
-                  onChange={setDeliverySchedule}
+            <TitledCard title="Notas" icon={StickyNote}>
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-bold" style={{ color: BRAND.textMuted }}>
+                  Observaciones del pedido
+                </span>
+                <BrandTextarea
+                  rows={2}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Instrucciones para el pedido (opcional)"
                 />
-              </div>
+              </label>
+              <label className="mt-3 block">
+                <span className="mb-1.5 block text-xs font-bold" style={{ color: BRAND.textMuted }}>
+                  Nota para logística
+                </span>
+                <BrandTextarea
+                  rows={2}
+                  value={logisticsNote}
+                  onChange={(e) => setLogisticsNote(e.target.value)}
+                  placeholder="Indicaciones para la entrega (opcional)"
+                />
+              </label>
+            </TitledCard>
 
-              <Button
-                className="w-full"
-                size="lg"
-                disabled={
-                  !customer ||
-                  cart.length === 0 ||
-                  !deliveryDate ||
-                  !hoursOk ||
-                  createOrder.isPending
-                }
-                onClick={() => handleSubmit()}
+            {linkedOrderSummary && (
+              <div
+                className="flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-xs font-semibold"
+                style={{ backgroundColor: '#E8F5EC', color: BRAND.primaryDark }}
               >
-                {createOrder.isPending ? (
-                  'Guardando...'
-                ) : (
-                  <>
-                    <Check className="h-4 w-4" />
-                    Crear pedido
-                  </>
-                )}
-              </Button>
-              {linkedOrderSummary && (
-                <p className="flex items-center justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-primary">
-                  <span className="flex items-center gap-1.5">
-                    <Link2 className="h-3.5 w-3.5 shrink-0" />
-                    Se asociará al pedido #
-                    {orderNos(
-                      linkedOrderSummary.orderNumber,
-                      linkedOrderSummary.secondNumber,
-                    )}
-                  </span>
-                  <button
-                    type="button"
-                    className="shrink-0 font-medium underline"
-                    onClick={() => {
-                      setLinkedOrderId(undefined);
-                      setLinkedOrderSummary(null);
-                    }}
-                  >
-                    Quitar
-                  </button>
-                </p>
-              )}
-              {submitError ? (
-                <p className="flex items-start gap-1.5 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-center text-xs text-destructive">
-                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  <span>{submitError}</span>
-                </p>
-              ) : !hoursOk ? (
-                <p className="flex items-start gap-1.5 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-center text-xs text-destructive">
-                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  <span>
-                    La toma de pedidos está disponible {scheduleRangeText}.
-                    Fuera de ese horario no se pueden crear pedidos.
-                  </span>
-                </p>
-              ) : belowMinimum ? (
-                <p className="flex items-start gap-1.5 rounded-lg border border-[var(--warning)]/30 bg-[var(--warning)]/5 px-3 py-2 text-center text-xs text-[var(--warning)]">
-                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  <span>
-                    El pedido mínimo para esta compañía es{' '}
-                    {formatCurrency(minOrderTotal)}. Te faltan{' '}
-                    {formatCurrency(minOrderTotal - totals.subtotal)}.
-                  </span>
-                </p>
+                <span className="flex items-center gap-1.5">
+                  <Link2 className="h-3.5 w-3.5 shrink-0" />
+                  Se asociará al pedido #
+                  {orderNos(linkedOrderSummary.orderNumber, linkedOrderSummary.secondNumber)}
+                </span>
+                <button
+                  type="button"
+                  className="shrink-0 underline"
+                  onClick={() => {
+                    setLinkedOrderId(undefined);
+                    setLinkedOrderSummary(null);
+                  }}
+                >
+                  Quitar
+                </button>
+              </div>
+            )}
+            {submitError && (
+              <div className="flex items-start gap-2 rounded-xl bg-red-50 px-3 py-2.5 text-xs font-semibold text-red-700">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{submitError}</span>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Barra inferior fija (bottomNavigationBar en la app) */}
+      <div
+        className="fixed bottom-0 left-0 right-0 z-30 border-t bg-white/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur md:left-[272px]"
+        style={{ borderColor: BRAND.border }}
+      >
+        <div className="mx-auto flex max-w-7xl items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-semibold" style={{ color: BRAND.textSoft }}>
+              {cart.length === 0
+                ? 'Sin productos'
+                : `${cart.length} producto${cart.length === 1 ? '' : 's'} · ${formatInt(totalUnits)} und.`}
+            </p>
+            <p className="truncate text-lg font-extrabold leading-tight">{formatMoney(totals.total)}</p>
+          </div>
+          {step < 3 ? (
+            <BrandButton
+              className="min-w-[130px] sm:min-w-[150px]"
+              disabled={!canContinue}
+              onClick={() => setStep((s) => (s + 1) as Step)}
+            >
+              Continuar
+              <ArrowRight className="h-4 w-4" />
+            </BrandButton>
+          ) : (
+            <BrandButton className="min-w-[150px] sm:min-w-[170px]" disabled={submitDisabled} onClick={() => handleSubmit()}>
+              {createOrder.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Enviando…
+                </>
               ) : (
-                cart.length > 0 && (
-                  <p className="text-center text-xs text-muted-foreground">
-                    Al crear el pedido se generará el documento PDF, que podrás
-                    descargar desde Pedidos.
-                  </p>
-                )
+                <>
+                  <Check className="h-4 w-4" />
+                  Enviar pedido
+                </>
               )}
-            </CardContent>
-          </Card>
+            </BrandButton>
+          )}
         </div>
       </div>
 
       {/* Aviso: productos estrella no agregados al pedido */}
       {featuredWarning && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-background p-6 shadow-xl">
+        <Modal onClose={() => setFeaturedWarning(null)}>
+          <div className="p-6">
             <div className="flex flex-col items-center text-center">
-              <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100">
+              <span className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100">
                 <Star className="h-7 w-7 fill-amber-400 text-amber-500" />
-              </div>
-              <h3 className="text-lg font-semibold">
+              </span>
+              <h3 className="text-lg font-extrabold">
                 {featuredWarning.length === 1
                   ? 'Producto estrella no agregado'
                   : 'Productos estrella no agregados'}
               </h3>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="mt-1 text-sm" style={{ color: BRAND.textMuted }}>
                 ¡Hey vendedor!{' '}
                 {featuredWarning.length === 1
                   ? 'Este es el producto estrella/favorito del día y no lo agregaste al pedido.'
@@ -1467,85 +990,82 @@ export function NewOrderPage() {
               {featuredWarning.map((f) => (
                 <li
                   key={f.sku}
-                  className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm"
+                  className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm"
+                  style={{ backgroundColor: AMBER.bg, color: AMBER.text }}
                 >
                   <Star className="h-4 w-4 shrink-0 fill-amber-400 text-amber-500" />
-                  <span className="truncate font-medium text-amber-900">
-                    {f.name}
-                  </span>
-                  <span className="ml-auto shrink-0 font-mono text-xs text-amber-700">
-                    {f.sku}
-                  </span>
+                  <span className="truncate font-semibold">{f.name}</span>
+                  <span className="ml-auto shrink-0 text-xs">{f.sku}</span>
                 </li>
               ))}
             </ul>
             <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-              <Button
-                variant="outline"
+              <BrandButton
+                variant="outlined"
                 className="flex-1"
-                onClick={() => setFeaturedWarning(null)}
+                onClick={() => {
+                  setFeaturedWarning(null);
+                  setStep(2);
+                }}
               >
                 <Plus className="h-4 w-4" />
                 Agregar producto
-              </Button>
-              <Button className="flex-1" onClick={() => handleSubmit(true)}>
+              </BrandButton>
+              <BrandButton className="flex-1" onClick={() => handleSubmit(true)}>
                 <Check className="h-4 w-4" />
                 Crear pedido así
-              </Button>
+              </BrandButton>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
-      {/* Modal de confirmación del pedido creado */}
+      {/* Modal de confirmación del pedido creado (_ResultDialog en la app) */}
       {createdOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-background p-6 shadow-xl">
+        <Modal>
+          <div className="p-6">
             <div className="flex flex-col items-center text-center">
-              <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--success)]/10">
-                <CheckCircle2 className="h-9 w-9 text-[var(--success)]" />
-              </div>
-              <h3 className="text-lg font-semibold">¡Pedido creado!</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Pedido #{orderNos(createdOrder.orderNumber, createdOrder.secondNumber)} registrado correctamente.
-                Puedes descargar el documento aquí o desde Pedidos.
+              <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full" style={{ backgroundColor: '#E8F5EC' }}>
+                <CheckCircle2 className="h-9 w-9" style={{ color: BRAND.primary }} />
+              </span>
+              <h3 className="text-lg font-extrabold">¡Pedido creado!</h3>
+              <p className="mt-1 text-sm" style={{ color: BRAND.textMuted }}>
+                Pedido #{orderNos(createdOrder.orderNumber, createdOrder.secondNumber)} registrado
+                correctamente. Puedes descargar el documento aquí o desde Pedidos.
               </p>
-              <p className="mt-3 text-3xl font-bold tracking-tight">
-                {formatCurrency(Number(createdOrder.total))}
+              <p className="mt-3 text-3xl font-extrabold tracking-tight">
+                {formatMoney(Number(createdOrder.total))}
               </p>
             </div>
 
             {createdOrder.status === 'pending_approval' && (
-              <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300">
-                <p className="font-medium">Pendiente por aprobación en cartera</p>
+              <div
+                className="mt-4 rounded-xl px-4 py-3 text-sm"
+                style={{ backgroundColor: AMBER.bg, border: `1px solid ${AMBER.border}`, color: AMBER.text }}
+              >
+                <p className="font-bold">Pendiente por aprobación en cartera</p>
                 <p className="mt-1 text-xs">
-                  El cliente registra cartera pendiente, por lo que el pedido
-                  quedó retenido. Cartera tiene 2 horas para aprobarlo o será
-                  desaprobado automáticamente.
+                  El cliente registra cartera pendiente, por lo que el pedido quedó retenido. Cartera
+                  tiene 2 horas para aprobarlo o será desaprobado automáticamente.
                 </p>
               </div>
             )}
 
             <div className="mt-6 flex flex-col gap-2">
-              <Button
-                variant="outline"
-                onClick={() =>
-                  downloadOrderPdf(
-                    createdOrder.id,
-                    createdOrder.orderNumber,
-                  )
-                }
+              <BrandButton
+                variant="outlined"
+                onClick={() => downloadOrderPdf(createdOrder.id, createdOrder.orderNumber)}
               >
                 <Download className="h-4 w-4" />
                 Descargar documento
-              </Button>
-              <Button onClick={() => navigate('/pedidos')}>
+              </BrandButton>
+              <BrandButton onClick={() => navigate('/pedidos')}>
                 Ir a pedidos
                 <ArrowRight className="h-4 w-4" />
-              </Button>
+              </BrandButton>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Modal: ubicación del cliente digitada por el vendedor (una vez por cliente) */}
@@ -1562,23 +1082,22 @@ export function NewOrderPage() {
 
       {/* Asociar pedido: paso 1, preguntar si se desea asociar */}
       {associationStep === 'ask' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-background p-6 shadow-xl">
+        <Modal>
+          <div className="p-6">
             <div className="flex flex-col items-center text-center">
-              <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-                <Link2 className="h-7 w-7 text-primary" />
-              </div>
-              <h3 className="text-lg font-semibold">¿Asociar este pedido?</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Este cliente ya tiene un pedido creado hoy. Si este nuevo
-                pedido completa un producto que faltó por inventario, puedes
-                asociarlo al pedido anterior para identificarlo en
+              <span className="mb-3 flex h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: '#E8F5EC' }}>
+                <Link2 className="h-7 w-7" style={{ color: BRAND.primary }} />
+              </span>
+              <h3 className="text-lg font-extrabold">¿Asociar este pedido?</h3>
+              <p className="mt-1 text-sm" style={{ color: BRAND.textMuted }}>
+                Este cliente ya tiene un pedido creado hoy. Si este nuevo pedido completa un producto
+                que faltó por inventario, puedes asociarlo al pedido anterior para identificarlo en
                 alistamiento y despacho.
               </p>
             </div>
             <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-              <Button
-                variant="outline"
+              <BrandButton
+                variant="outlined"
                 className="flex-1"
                 onClick={() => {
                   setAssociationDecided(true);
@@ -1587,32 +1106,27 @@ export function NewOrderPage() {
                 }}
               >
                 No, es un pedido nuevo
-              </Button>
-              <Button
-                className="flex-1"
-                onClick={() => setAssociationStep('list')}
-              >
+              </BrandButton>
+              <BrandButton className="flex-1" onClick={() => setAssociationStep('list')}>
                 <Link2 className="h-4 w-4" />
                 Sí, asociarlo
-              </Button>
+              </BrandButton>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Asociar pedido: paso 2, elegir entre los pedidos de hoy del cliente */}
       {associationStep === 'list' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-background p-6 shadow-xl">
-            <h3 className="text-lg font-semibold">
-              Pedidos de hoy de {customer?.name}
-            </h3>
-            <p className="mt-1 text-sm text-muted-foreground">
+        <Modal>
+          <div className="p-6">
+            <h3 className="text-lg font-extrabold">Pedidos de hoy de {customer?.name}</h3>
+            <p className="mt-1 text-sm" style={{ color: BRAND.textMuted }}>
               Elige el pedido al que se asociará este nuevo pedido.
             </p>
             <ul className="mt-4 max-h-72 space-y-2 overflow-auto">
               {todayOrders.length === 0 ? (
-                <p className="px-1 py-4 text-center text-sm text-muted-foreground">
+                <p className="px-1 py-4 text-center text-sm" style={{ color: BRAND.textSoft }}>
                   No se encontraron pedidos de hoy para este cliente.
                 </p>
               ) : (
@@ -1624,71 +1138,57 @@ export function NewOrderPage() {
                         setAssociationDetailOrder(o);
                         setAssociationStep('detail');
                       }}
-                      className="flex w-full items-center justify-between gap-2 rounded-lg border border-border px-3 py-2.5 text-left text-sm transition-colors hover:border-primary/50 hover:bg-accent"
+                      className="flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left text-sm hover:bg-[#F4FAF6]"
+                      style={{ border: `1px solid ${BRAND.border}` }}
                     >
-                      <span className="font-semibold">
-                        #{orderNos(o.orderNumber, o.secondNumber)}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {formatCurrency(Number(o.total))}
-                      </span>
-                      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="font-extrabold">#{orderNos(o.orderNumber, o.secondNumber)}</span>
+                      <span style={{ color: BRAND.textMuted }}>{formatMoney(Number(o.total))}</span>
+                      <ChevronRight className="h-4 w-4 shrink-0" style={{ color: BRAND.textSoft }} />
                     </button>
                   </li>
                 ))
               )}
             </ul>
-            <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setAssociationStep('ask')}
-              >
+            <div className="mt-5">
+              <BrandButton variant="outlined" className="w-full" onClick={() => setAssociationStep('ask')}>
                 Volver
-              </Button>
+              </BrandButton>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Asociar pedido: paso 3, ver el detalle y confirmar la asociación */}
       {associationStep === 'detail' && associationDetailOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-border bg-background p-6 shadow-xl">
-            <h3 className="text-lg font-semibold">
-              Pedido #
-              {orderNos(
-                associationDetailOrder.orderNumber,
-                associationDetailOrder.secondNumber,
-              )}
+        <Modal className="max-w-lg">
+          <div className="p-6">
+            <h3 className="text-lg font-extrabold">
+              Pedido #{orderNos(associationDetailOrder.orderNumber, associationDetailOrder.secondNumber)}
             </h3>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm" style={{ color: BRAND.textMuted }}>
               {associationDetailOrder.items.length} producto
               {associationDetailOrder.items.length === 1 ? '' : 's'} · Total{' '}
-              {formatCurrency(Number(associationDetailOrder.total))}
+              {formatMoney(Number(associationDetailOrder.total))}
             </p>
             <ul className="mt-4 max-h-64 space-y-1 overflow-auto text-sm">
               {associationDetailOrder.items.map((it) => (
                 <li
                   key={it.sku}
-                  className="flex items-center justify-between gap-2 border-b border-border/60 py-1.5"
+                  className="flex items-center justify-between gap-2 border-b py-1.5"
+                  style={{ borderColor: `${BRAND.border}99` }}
                 >
                   <span className="truncate">{it.productName}</span>
-                  <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                  <span className="shrink-0 text-xs font-semibold" style={{ color: BRAND.textSoft }}>
                     {it.quantity} und.
                   </span>
                 </li>
               ))}
             </ul>
             <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setAssociationStep('list')}
-              >
+              <BrandButton variant="outlined" className="flex-1" onClick={() => setAssociationStep('list')}>
                 Volver
-              </Button>
-              <Button
+              </BrandButton>
+              <BrandButton
                 className="flex-1"
                 onClick={() => {
                   setLinkedOrderId(associationDetailOrder.id);
@@ -1701,11 +1201,11 @@ export function NewOrderPage() {
               >
                 <Link2 className="h-4 w-4" />
                 Asociar
-              </Button>
+              </BrandButton>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
-    </div>
+    </PageBackground>
   );
 }

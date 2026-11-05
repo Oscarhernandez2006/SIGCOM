@@ -49,9 +49,9 @@ import {
 } from '@/hooks/useAdminApi';
 import { COMPANIES } from '@/lib/companies';
 import { cn, formatCurrency } from '@/lib/utils';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { PageBackground, Hero, BrandButton, Modal } from '@/components/brand/PageShell';
+import { FadeIn } from '@/components/dashboard/primitives';
+import { BRAND } from '@/lib/brand';
 
 /** Fecha de hoy en formato YYYY-MM-DD (hora local del navegador). */
 function todayStr(): string {
@@ -59,6 +59,11 @@ function todayStr(): string {
   const off = d.getTimezoneOffset();
   return new Date(d.getTime() - off * 60000).toISOString().slice(0, 10);
 }
+
+const DATE_INPUT =
+  'brand-input h-10 w-full rounded-xl pl-9 pr-2 text-sm font-semibold outline-none disabled:opacity-60';
+const SELECT_INPUT = 'brand-input h-10 w-full rounded-xl px-3 text-sm font-semibold outline-none';
+const FIELD_STYLE = { backgroundColor: BRAND.field, color: BRAND.text } as const;
 
 /** Formatea una cantidad con separador de miles colombiano. */
 function num(value: number): string {
@@ -157,41 +162,51 @@ export function ReportsPage() {
   const [open, setOpen] = useState<ReportKey | null>(null);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Reportes</h2>
-        <p className="text-muted-foreground">
+    <PageBackground className="space-y-3.5">
+      <Hero>
+        <h2 className="text-xl font-extrabold leading-tight tracking-[-0.4px] sm:text-[22px]">Reportes</h2>
+        <p className="mt-1 text-sm font-semibold text-white/90">
           Selecciona un reporte para consultarlo y exportarlo a PDF o Excel.
         </p>
-      </div>
+        <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
+          <span className="rounded-full bg-white/[0.16] px-3 py-1">{REPORTS.length} reportes</span>
+          <span className="rounded-full bg-white/[0.16] px-3 py-1">PDF · Excel</span>
+        </div>
+      </Hero>
 
-      {/* Lista de reportes */}
-      <Card>
-        <CardContent className="divide-y divide-border p-0">
-          {REPORTS.map((r) => (
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {REPORTS.map((r, i) => (
+          <FadeIn key={r.key} index={i}>
             <button
-              key={r.key}
+              type="button"
               onClick={() =>
                 r.key === 'seller-sales'
                   ? navigate('/admin/reportes/ventas-por-vendedor')
                   : setOpen(r.key)
               }
-              className="flex w-full items-center gap-4 p-4 text-left transition-colors hover:bg-accent"
+              className="group flex h-full w-full items-start gap-3.5 rounded-2xl bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(30,155,80,0.12)]"
+              style={{ border: `1px solid ${BRAND.border}CC`, color: BRAND.text }}
             >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <r.icon className="h-5 w-5" />
+              <span
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white"
+                style={{ background: `linear-gradient(135deg, ${BRAND.primaryDark}, ${BRAND.primary})` }}
+              >
+                <r.icon className="h-[22px] w-[22px]" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block font-medium">{r.title}</span>
-                <span className="block truncate text-sm text-muted-foreground">
+                <span className="block text-[14.5px] font-extrabold leading-snug">{r.title}</span>
+                <span className="mt-1 block text-[12.5px] leading-snug" style={{ color: BRAND.textSoft }}>
                   {r.description}
                 </span>
               </span>
-              <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+              <ChevronRight
+                className="mt-3 h-5 w-5 shrink-0 transition-transform group-hover:translate-x-0.5"
+                style={{ color: BRAND.textSoft }}
+              />
             </button>
-          ))}
-        </CardContent>
-      </Card>
+          </FadeIn>
+        ))}
+      </div>
 
       {open === 'inventory' && (
         <ReportModalShell
@@ -272,7 +287,7 @@ export function ReportsPage() {
           <VendorProductSalesReportBody />
         </ReportModalShell>
       )}
-    </div>
+    </PageBackground>
   );
 }
 
@@ -301,33 +316,38 @@ function ReportModalShell({
   }, [onClose]);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={onClose}
-    >
+    <Modal onClose={onClose} className="max-w-5xl">
       <div
-        className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-border bg-background shadow-lg"
-        onClick={(e) => e.stopPropagation()}
+        className="flex items-center gap-3 px-5 py-4"
+        style={{ borderBottom: `1px solid ${BRAND.border}` }}
       >
-        <div className="flex items-center justify-between gap-4 border-b border-border p-5">
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Icon className="h-5 w-5" />
-            </span>
-            <h3 className="text-lg font-semibold">{title}</h3>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-muted-foreground transition-colors hover:text-foreground"
-            aria-label="Cerrar"
-          >
-            <X className="h-5 w-5" />
-          </button>
+        <span
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white"
+          style={{ background: `linear-gradient(135deg, ${BRAND.primaryDark}, ${BRAND.primary})` }}
+        >
+          <Icon className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-lg font-extrabold tracking-[-0.3px]">{title}</h3>
+          <p className="text-xs" style={{ color: BRAND.textSoft }}>
+            Configura los filtros, consulta y exporta
+          </p>
         </div>
-
-        <div className="flex-1 space-y-5 overflow-auto p-5">{children}</div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Cerrar"
+          className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-[#F4FAF6]"
+          style={{ color: BRAND.textMuted }}
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
-    </div>
+
+      <div className="flex-1 space-y-5 overflow-auto p-4 sm:p-5" style={{ backgroundColor: BRAND.background }}>
+        {children}
+      </div>
+    </Modal>
   );
 }
 
@@ -386,7 +406,7 @@ function InventoryReportBody() {
 
   return (
     <>
-      <p className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+      <p className="flex items-start gap-2 rounded-2xl border border-[#1E9B50]/20 bg-[#1E9B50]/[0.06] p-3 text-sm text-[#166534]">
         <Package className="mt-0.5 h-4 w-4 shrink-0" />
         <span>
           Por cada referencia muestra lo <strong>vendido</strong> en el día, el{' '}
@@ -396,17 +416,17 @@ function InventoryReportBody() {
 
       {/* Compañía */}
       <div className="space-y-2">
-        <label className="text-sm font-medium">Compañía</label>
+        <label className="text-[13px] font-bold">Compañía</label>
         <div className="flex flex-wrap gap-2">
           {COMPANIES.map((c) => (
             <button
               key={c.id}
               onClick={() => setCompanyId(c.id)}
               className={cn(
-                'flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors',
+                'flex h-9 items-center gap-1.5 rounded-full border px-4 text-[13px] font-bold transition-colors',
                 companyId === c.id
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border text-muted-foreground hover:bg-accent',
+                  ? 'border-[#1E9B50] bg-[#1E9B50] text-white'
+                  : 'border-[#E2E8F0] bg-white text-[#4B5563] hover:bg-[#F4FAF6]',
               )}
             >
               <Building2 className="h-4 w-4" />
@@ -419,21 +439,22 @@ function InventoryReportBody() {
 
       {/* Fecha */}
       <div className="space-y-2">
-        <label className="text-sm font-medium">Día del reporte</label>
+        <label className="text-[13px] font-bold">Día del reporte</label>
         <div className="relative max-w-xs">
-          <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
+          <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1E9B50]" />
+          <input
             type="date"
             value={date}
             max={todayStr()}
             onChange={(e) => setDate(e.target.value)}
-            className="pl-9"
+            className={DATE_INPUT}
+            style={FIELD_STYLE}
           />
         </div>
       </div>
 
       {error && (
-        <p className="flex items-center gap-1 text-sm text-destructive">
+        <p className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
           <AlertCircle className="h-4 w-4" />
           {error}
         </p>
@@ -441,7 +462,7 @@ function InventoryReportBody() {
 
       {/* Acciones */}
       <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={handleToggle} disabled={query.isFetching}>
+        <BrandButton className="h-10" onClick={handleToggle} disabled={query.isFetching}>
           {query.isFetching ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : showPreview ? (
@@ -450,8 +471,9 @@ function InventoryReportBody() {
             <Search className="h-4 w-4" />
           )}
           {showPreview ? 'Ocultar' : 'Consultar'}
-        </Button>
-        <Button
+        </BrandButton>
+        <BrandButton
+          className="h-10"
           variant="outline"
           onClick={() => handleExport('pdf')}
           disabled={exporting !== null}
@@ -460,8 +482,9 @@ function InventoryReportBody() {
             className={cn('h-4 w-4', exporting === 'pdf' && 'animate-pulse')}
           />
           Exportar PDF
-        </Button>
-        <Button
+        </BrandButton>
+        <BrandButton
+          className="h-10"
           variant="outline"
           onClick={() => handleExport('excel')}
           disabled={exporting !== null}
@@ -470,15 +493,15 @@ function InventoryReportBody() {
             className={cn('h-4 w-4', exporting === 'excel' && 'animate-pulse')}
           />
           Exportar Excel
-        </Button>
-        <span className="text-xs text-muted-foreground">
+        </BrandButton>
+        <span className="text-xs text-[#6B7280]">
           {company.name} · {date || 'hoy'}
         </span>
       </div>
 
       {/* Vista previa */}
       {showPreview && query.isError && (
-        <p className="flex items-center gap-1 text-sm text-destructive">
+        <p className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
           <AlertCircle className="h-4 w-4" />
           {errorMessage(query.error)}
         </p>
@@ -502,9 +525,9 @@ function InventoryReportBody() {
             <SummaryTile label="Stock total" value={num(data.summary.totalStock)} />
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <div className="overflow-x-auto rounded-2xl border border-[#E2E8F0] bg-white">
             <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
                 <tr>
                   <th className="px-4 py-2 font-medium">Referencia</th>
                   <th className="px-4 py-2 font-medium">Producto</th>
@@ -518,7 +541,7 @@ function InventoryReportBody() {
                   <tr>
                     <td
                       colSpan={5}
-                      className="px-4 py-8 text-center text-muted-foreground"
+                      className="px-4 py-8 text-center text-[#6B7280]"
                     >
                       Sin productos para esta compañía.
                     </td>
@@ -527,11 +550,11 @@ function InventoryReportBody() {
                   data.rows.map((r) => (
                     <tr
                       key={r.sku}
-                      className="border-t border-border/60 hover:bg-muted/40"
+                      className="border-t border-[#E2E8F0]/80 hover:bg-[#F4FAF6]"
                     >
                       <td className="px-4 py-2 font-mono text-xs">{r.sku}</td>
                       <td className="px-4 py-2">{r.name}</td>
-                      <td className="px-4 py-2 text-muted-foreground">
+                      <td className="px-4 py-2 text-[#6B7280]">
                         {r.unitOfMeasure ?? '—'}
                       </td>
                       <td className="px-4 py-2 text-right tabular-nums">
@@ -540,7 +563,7 @@ function InventoryReportBody() {
                       <td
                         className={cn(
                           'px-4 py-2 text-right font-medium tabular-nums',
-                          r.stock <= 0 && 'text-destructive',
+                          r.stock <= 0 && 'text-red-600',
                         )}
                       >
                         {num(r.stock)}
@@ -621,7 +644,7 @@ function ProductSalesReportBody() {
 
   return (
     <>
-      <p className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+      <p className="flex items-start gap-2 rounded-2xl border border-[#1E9B50]/20 bg-[#1E9B50]/[0.06] p-3 text-sm text-[#166534]">
         <Package className="mt-0.5 h-4 w-4 shrink-0" />
         <span>
           Por cada producto vendido en el rango muestra la{' '}
@@ -632,17 +655,17 @@ function ProductSalesReportBody() {
 
       {/* Compañía */}
       <div className="space-y-2">
-        <label className="text-sm font-medium">Compañía</label>
+        <label className="text-[13px] font-bold">Compañía</label>
         <div className="flex flex-wrap gap-2">
           {COMPANIES.map((c) => (
             <button
               key={c.id}
               onClick={() => setCompanyId(c.id)}
               className={cn(
-                'flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors',
+                'flex h-9 items-center gap-1.5 rounded-full border px-4 text-[13px] font-bold transition-colors',
                 companyId === c.id
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border text-muted-foreground hover:bg-accent',
+                  ? 'border-[#1E9B50] bg-[#1E9B50] text-white'
+                  : 'border-[#E2E8F0] bg-white text-[#4B5563] hover:bg-[#F4FAF6]',
               )}
             >
               <Building2 className="h-4 w-4" />
@@ -656,35 +679,37 @@ function ProductSalesReportBody() {
       {/* Rango de fechas */}
       <div className="grid max-w-md gap-3 sm:grid-cols-2">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Desde</label>
+          <label className="text-[13px] font-bold">Desde</label>
           <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1E9B50]" />
+            <input
               type="date"
               value={from}
               max={to || todayStr()}
               onChange={(e) => setFrom(e.target.value)}
-              className="pl-9"
+              className={DATE_INPUT}
+            style={FIELD_STYLE}
             />
           </div>
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium">Hasta</label>
+          <label className="text-[13px] font-bold">Hasta</label>
           <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1E9B50]" />
+            <input
               type="date"
               value={to}
               max={todayStr()}
               onChange={(e) => setTo(e.target.value)}
-              className="pl-9"
+              className={DATE_INPUT}
+            style={FIELD_STYLE}
             />
           </div>
         </div>
       </div>
 
       {error && (
-        <p className="flex items-center gap-1 text-sm text-destructive">
+        <p className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
           <AlertCircle className="h-4 w-4" />
           {error}
         </p>
@@ -692,7 +717,7 @@ function ProductSalesReportBody() {
 
       {/* Acciones */}
       <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={handleToggle} disabled={query.isFetching}>
+        <BrandButton className="h-10" onClick={handleToggle} disabled={query.isFetching}>
           {query.isFetching ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : showPreview ? (
@@ -701,8 +726,9 @@ function ProductSalesReportBody() {
             <Search className="h-4 w-4" />
           )}
           {showPreview ? 'Ocultar' : 'Consultar'}
-        </Button>
-        <Button
+        </BrandButton>
+        <BrandButton
+          className="h-10"
           variant="outline"
           onClick={() => handleExport('pdf')}
           disabled={exporting !== null}
@@ -711,8 +737,9 @@ function ProductSalesReportBody() {
             className={cn('h-4 w-4', exporting === 'pdf' && 'animate-pulse')}
           />
           Exportar PDF
-        </Button>
-        <Button
+        </BrandButton>
+        <BrandButton
+          className="h-10"
           variant="outline"
           onClick={() => handleExport('excel')}
           disabled={exporting !== null}
@@ -721,8 +748,8 @@ function ProductSalesReportBody() {
             className={cn('h-4 w-4', exporting === 'excel' && 'animate-pulse')}
           />
           Exportar Excel
-        </Button>
-        <span className="text-xs text-muted-foreground">
+        </BrandButton>
+        <span className="text-xs text-[#6B7280]">
           {COMPANIES.find((c) => c.id === companyId)?.name} ·{' '}
           {from === to ? from || 'hoy' : `${from} a ${to}`}
         </span>
@@ -730,7 +757,7 @@ function ProductSalesReportBody() {
 
       {/* Vista previa */}
       {showPreview && query.isError && (
-        <p className="flex items-center gap-1 text-sm text-destructive">
+        <p className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
           <AlertCircle className="h-4 w-4" />
           {errorMessage(query.error)}
         </p>
@@ -756,9 +783,9 @@ function ProductSalesReportBody() {
               />
             </div>
 
-            <div className="overflow-x-auto rounded-lg border border-border">
+            <div className="overflow-x-auto rounded-2xl border border-[#E2E8F0] bg-white">
               <table className="w-full text-sm">
-                <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
                   <tr>
                     <th className="px-4 py-2 font-medium">Referencia</th>
                     <th className="px-4 py-2 font-medium">Producto</th>
@@ -772,7 +799,7 @@ function ProductSalesReportBody() {
                     <tr>
                       <td
                         colSpan={5}
-                        className="px-4 py-8 text-center text-muted-foreground"
+                        className="px-4 py-8 text-center text-[#6B7280]"
                       >
                         Sin ventas en el rango seleccionado.
                       </td>
@@ -781,11 +808,11 @@ function ProductSalesReportBody() {
                     company.rows.map((r) => (
                       <tr
                         key={r.sku}
-                        className="border-t border-border/60 hover:bg-muted/40"
+                        className="border-t border-[#E2E8F0]/80 hover:bg-[#F4FAF6]"
                       >
                         <td className="px-4 py-2 font-mono text-xs">{r.sku}</td>
                         <td className="px-4 py-2">{r.name}</td>
-                        <td className="px-4 py-2 text-muted-foreground">
+                        <td className="px-4 py-2 text-[#6B7280]">
                           {r.unitOfMeasure ?? '—'}
                         </td>
                         <td className="px-4 py-2 text-right tabular-nums">
@@ -901,7 +928,7 @@ function SalesSummaryReportBody() {
 
   return (
     <>
-      <p className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+      <p className="flex items-start gap-2 rounded-2xl border border-[#1E9B50]/20 bg-[#1E9B50]/[0.06] p-3 text-sm text-[#166534]">
         <Users className="mt-0.5 h-4 w-4 shrink-0" />
         <span>
           Filtra un rango de fechas y consulta{' '}
@@ -913,7 +940,7 @@ function SalesSummaryReportBody() {
 
       {/* Agrupar por */}
       <div className="space-y-2">
-        <label className="text-sm font-medium">Ver ventas por</label>
+        <label className="text-[13px] font-bold">Ver ventas por</label>
         <div className="flex flex-wrap gap-2">
           {(
             [
@@ -925,10 +952,10 @@ function SalesSummaryReportBody() {
               key={opt.id}
               onClick={() => setGroupBy(opt.id)}
               className={cn(
-                'flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors',
+                'flex h-9 items-center gap-1.5 rounded-full border px-4 text-[13px] font-bold transition-colors',
                 groupBy === opt.id
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border text-muted-foreground hover:bg-accent',
+                  ? 'border-[#1E9B50] bg-[#1E9B50] text-white'
+                  : 'border-[#E2E8F0] bg-white text-[#4B5563] hover:bg-[#F4FAF6]',
               )}
             >
               <opt.icon className="h-4 w-4" />
@@ -940,17 +967,17 @@ function SalesSummaryReportBody() {
 
       {/* Compañía */}
       <div className="space-y-2">
-        <label className="text-sm font-medium">Compañía</label>
+        <label className="text-[13px] font-bold">Compañía</label>
         <div className="flex flex-wrap gap-2">
           {COMPANIES.map((c) => (
             <button
               key={c.id}
               onClick={() => setCompanyId(c.id)}
               className={cn(
-                'flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors',
+                'flex h-9 items-center gap-1.5 rounded-full border px-4 text-[13px] font-bold transition-colors',
                 companyId === c.id
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border text-muted-foreground hover:bg-accent',
+                  ? 'border-[#1E9B50] bg-[#1E9B50] text-white'
+                  : 'border-[#E2E8F0] bg-white text-[#4B5563] hover:bg-[#F4FAF6]',
               )}
             >
               <Building2 className="h-4 w-4" />
@@ -964,35 +991,37 @@ function SalesSummaryReportBody() {
       {/* Rango de fechas */}
       <div className="grid max-w-md gap-3 sm:grid-cols-2">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Desde</label>
+          <label className="text-[13px] font-bold">Desde</label>
           <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1E9B50]" />
+            <input
               type="date"
               value={from}
               max={to || todayStr()}
               onChange={(e) => setFrom(e.target.value)}
-              className="pl-9"
+              className={DATE_INPUT}
+            style={FIELD_STYLE}
             />
           </div>
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium">Hasta</label>
+          <label className="text-[13px] font-bold">Hasta</label>
           <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1E9B50]" />
+            <input
               type="date"
               value={to}
               max={todayStr()}
               onChange={(e) => setTo(e.target.value)}
-              className="pl-9"
+              className={DATE_INPUT}
+            style={FIELD_STYLE}
             />
           </div>
         </div>
       </div>
 
       {error && (
-        <p className="flex items-center gap-1 text-sm text-destructive">
+        <p className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
           <AlertCircle className="h-4 w-4" />
           {error}
         </p>
@@ -1000,7 +1029,7 @@ function SalesSummaryReportBody() {
 
       {/* Acciones */}
       <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={handleToggle} disabled={query.isFetching}>
+        <BrandButton className="h-10" onClick={handleToggle} disabled={query.isFetching}>
           {query.isFetching ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : showPreview ? (
@@ -1009,8 +1038,9 @@ function SalesSummaryReportBody() {
             <Search className="h-4 w-4" />
           )}
           {showPreview ? 'Ocultar' : 'Consultar'}
-        </Button>
-        <Button
+        </BrandButton>
+        <BrandButton
+          className="h-10"
           variant="outline"
           onClick={() => handleExport('pdf')}
           disabled={exporting !== null}
@@ -1019,8 +1049,9 @@ function SalesSummaryReportBody() {
             className={cn('h-4 w-4', exporting === 'pdf' && 'animate-pulse')}
           />
           Exportar PDF
-        </Button>
-        <Button
+        </BrandButton>
+        <BrandButton
+          className="h-10"
           variant="outline"
           onClick={() => handleExport('excel')}
           disabled={exporting !== null}
@@ -1029,8 +1060,8 @@ function SalesSummaryReportBody() {
             className={cn('h-4 w-4', exporting === 'excel' && 'animate-pulse')}
           />
           Exportar Excel
-        </Button>
-        <span className="text-xs text-muted-foreground">
+        </BrandButton>
+        <span className="text-xs text-[#6B7280]">
           {COMPANIES.find((c) => c.id === companyId)?.name} ·{' '}
           {byCustomer ? 'por cliente' : 'por producto'} ·{' '}
           {from === to ? from || 'hoy' : `${from} a ${to}`}
@@ -1039,7 +1070,7 @@ function SalesSummaryReportBody() {
 
       {/* Vista previa */}
       {showPreview && query.isError && (
-        <p className="flex items-center gap-1 text-sm text-destructive">
+        <p className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
           <AlertCircle className="h-4 w-4" />
           {errorMessage(query.error)}
         </p>
@@ -1066,20 +1097,21 @@ function SalesSummaryReportBody() {
 
           {/* Búsqueda local */}
           <div className="relative max-w-xs">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
+            <input
               placeholder={
                 byCustomer ? 'Buscar cliente…' : 'Buscar producto…'
               }
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
+              className={DATE_INPUT}
+            style={FIELD_STYLE}
             />
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <div className="overflow-x-auto rounded-2xl border border-[#E2E8F0] bg-white">
             <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
                 <tr>
                   <th className="px-4 py-2 font-medium">
                     {byCustomer ? 'Código' : 'Referencia'}
@@ -1101,7 +1133,7 @@ function SalesSummaryReportBody() {
                   <tr>
                     <td
                       colSpan={5}
-                      className="px-4 py-8 text-center text-muted-foreground"
+                      className="px-4 py-8 text-center text-[#6B7280]"
                     >
                       {term
                         ? 'Sin resultados para la búsqueda.'
@@ -1112,13 +1144,13 @@ function SalesSummaryReportBody() {
                   rows.map((r) => (
                     <tr
                       key={r.reference}
-                      className="border-t border-border/60 hover:bg-muted/40"
+                      className="border-t border-[#E2E8F0]/80 hover:bg-[#F4FAF6]"
                     >
                       <td className="px-4 py-2 font-mono text-xs">
                         {r.reference}
                       </td>
                       <td className="px-4 py-2">{r.name}</td>
-                      <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">
+                      <td className="px-4 py-2 text-right tabular-nums text-[#6B7280]">
                         {byCustomer ? num(r.orders ?? 0) : r.unitOfMeasure ?? '—'}
                       </td>
                       <td className="px-4 py-2 text-right tabular-nums">
@@ -1211,7 +1243,7 @@ function SellerRankingReportBody() {
 
   return (
     <>
-      <p className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+      <p className="flex items-start gap-2 rounded-2xl border border-[#1E9B50]/20 bg-[#1E9B50]/[0.06] p-3 text-sm text-[#166534]">
         <Trophy className="mt-0.5 h-4 w-4 shrink-0" />
         <span>
           Lista los vendedores ordenados del{' '}
@@ -1222,17 +1254,17 @@ function SellerRankingReportBody() {
 
       {/* Compañía */}
       <div className="space-y-2">
-        <label className="text-sm font-medium">Compañía</label>
+        <label className="text-[13px] font-bold">Compañía</label>
         <div className="flex flex-wrap gap-2">
           {COMPANIES.map((c) => (
             <button
               key={c.id}
               onClick={() => setCompanyId(c.id)}
               className={cn(
-                'flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors',
+                'flex h-9 items-center gap-1.5 rounded-full border px-4 text-[13px] font-bold transition-colors',
                 companyId === c.id
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border text-muted-foreground hover:bg-accent',
+                  ? 'border-[#1E9B50] bg-[#1E9B50] text-white'
+                  : 'border-[#E2E8F0] bg-white text-[#4B5563] hover:bg-[#F4FAF6]',
               )}
             >
               <Building2 className="h-4 w-4" />
@@ -1246,35 +1278,37 @@ function SellerRankingReportBody() {
       {/* Rango de fechas */}
       <div className="grid max-w-md gap-3 sm:grid-cols-2">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Desde</label>
+          <label className="text-[13px] font-bold">Desde</label>
           <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1E9B50]" />
+            <input
               type="date"
               value={from}
               max={to || todayStr()}
               onChange={(e) => setFrom(e.target.value)}
-              className="pl-9"
+              className={DATE_INPUT}
+            style={FIELD_STYLE}
             />
           </div>
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium">Hasta</label>
+          <label className="text-[13px] font-bold">Hasta</label>
           <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1E9B50]" />
+            <input
               type="date"
               value={to}
               max={todayStr()}
               onChange={(e) => setTo(e.target.value)}
-              className="pl-9"
+              className={DATE_INPUT}
+            style={FIELD_STYLE}
             />
           </div>
         </div>
       </div>
 
       {error && (
-        <p className="flex items-center gap-1 text-sm text-destructive">
+        <p className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
           <AlertCircle className="h-4 w-4" />
           {error}
         </p>
@@ -1282,7 +1316,7 @@ function SellerRankingReportBody() {
 
       {/* Acciones */}
       <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={handleToggle} disabled={query.isFetching}>
+        <BrandButton className="h-10" onClick={handleToggle} disabled={query.isFetching}>
           {query.isFetching ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : showPreview ? (
@@ -1291,8 +1325,9 @@ function SellerRankingReportBody() {
             <Search className="h-4 w-4" />
           )}
           {showPreview ? 'Ocultar' : 'Consultar'}
-        </Button>
-        <Button
+        </BrandButton>
+        <BrandButton
+          className="h-10"
           variant="outline"
           onClick={() => handleExport('pdf')}
           disabled={exporting !== null}
@@ -1301,8 +1336,9 @@ function SellerRankingReportBody() {
             className={cn('h-4 w-4', exporting === 'pdf' && 'animate-pulse')}
           />
           Exportar PDF
-        </Button>
-        <Button
+        </BrandButton>
+        <BrandButton
+          className="h-10"
           variant="outline"
           onClick={() => handleExport('excel')}
           disabled={exporting !== null}
@@ -1311,8 +1347,8 @@ function SellerRankingReportBody() {
             className={cn('h-4 w-4', exporting === 'excel' && 'animate-pulse')}
           />
           Exportar Excel
-        </Button>
-        <span className="text-xs text-muted-foreground">
+        </BrandButton>
+        <span className="text-xs text-[#6B7280]">
           {COMPANIES.find((c) => c.id === companyId)?.name} ·{' '}
           {from === to ? from || 'hoy' : `${from} a ${to}`}
         </span>
@@ -1320,7 +1356,7 @@ function SellerRankingReportBody() {
 
       {/* Vista previa */}
       {showPreview && query.isError && (
-        <p className="flex items-center gap-1 text-sm text-destructive">
+        <p className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
           <AlertCircle className="h-4 w-4" />
           {errorMessage(query.error)}
         </p>
@@ -1345,9 +1381,9 @@ function SellerRankingReportBody() {
             />
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <div className="overflow-x-auto rounded-2xl border border-[#E2E8F0] bg-white">
             <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
                 <tr>
                   <th className="px-4 py-2 font-medium">#</th>
                   <th className="px-4 py-2 font-medium">Vendedor</th>
@@ -1363,7 +1399,7 @@ function SellerRankingReportBody() {
                   <tr>
                     <td
                       colSpan={7}
-                      className="px-4 py-8 text-center text-muted-foreground"
+                      className="px-4 py-8 text-center text-[#6B7280]"
                     >
                       Sin ventas en el rango seleccionado.
                     </td>
@@ -1372,7 +1408,7 @@ function SellerRankingReportBody() {
                   data.rows.map((r) => (
                     <tr
                       key={`${r.position}-${r.name}`}
-                      className="border-t border-border/60 hover:bg-muted/40"
+                      className="border-t border-[#E2E8F0]/80 hover:bg-[#F4FAF6]"
                     >
                       <td className="px-4 py-2 font-semibold tabular-nums">
                         {r.position <= 3 ? (
@@ -1392,10 +1428,10 @@ function SellerRankingReportBody() {
                         )}
                       </td>
                       <td className="px-4 py-2">{r.name}</td>
-                      <td className="px-4 py-2 font-mono text-xs text-muted-foreground">
+                      <td className="px-4 py-2 font-mono text-xs text-[#6B7280]">
                         {r.documentId ?? '—'}
                       </td>
-                      <td className="px-4 py-2 text-muted-foreground">
+                      <td className="px-4 py-2 text-[#6B7280]">
                         {r.sellerCode ?? '—'}
                       </td>
                       <td className="px-4 py-2 text-right tabular-nums">
@@ -1505,7 +1541,7 @@ function SellerProductReportBody() {
 
   return (
     <>
-      <p className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+      <p className="flex items-start gap-2 rounded-2xl border border-[#1E9B50]/20 bg-[#1E9B50]/[0.06] p-3 text-sm text-[#166534]">
         <UserSearch className="mt-0.5 h-4 w-4 shrink-0" />
         <span>
           Consulta <strong>cuánto vendió un vendedor de un producto</strong> en
@@ -1516,7 +1552,7 @@ function SellerProductReportBody() {
 
       {/* Compañía */}
       <div className="space-y-2">
-        <label className="text-sm font-medium">Compañía</label>
+        <label className="text-[13px] font-bold">Compañía</label>
         <div className="flex flex-wrap gap-2">
           {COMPANIES.map((c) => (
             <button
@@ -1527,10 +1563,10 @@ function SellerProductReportBody() {
                 setSku('');
               }}
               className={cn(
-                'flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors',
+                'flex h-9 items-center gap-1.5 rounded-full border px-4 text-[13px] font-bold transition-colors',
                 companyId === c.id
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border text-muted-foreground hover:bg-accent',
+                  ? 'border-[#1E9B50] bg-[#1E9B50] text-white'
+                  : 'border-[#E2E8F0] bg-white text-[#4B5563] hover:bg-[#F4FAF6]',
               )}
             >
               <Building2 className="h-4 w-4" />
@@ -1544,28 +1580,30 @@ function SellerProductReportBody() {
       {/* Rango de fechas */}
       <div className="grid max-w-md gap-3 sm:grid-cols-2">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Desde</label>
+          <label className="text-[13px] font-bold">Desde</label>
           <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1E9B50]" />
+            <input
               type="date"
               value={from}
               max={to || todayStr()}
               onChange={(e) => setFrom(e.target.value)}
-              className="pl-9"
+              className={DATE_INPUT}
+            style={FIELD_STYLE}
             />
           </div>
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium">Hasta</label>
+          <label className="text-[13px] font-bold">Hasta</label>
           <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1E9B50]" />
+            <input
               type="date"
               value={to}
               max={todayStr()}
               onChange={(e) => setTo(e.target.value)}
-              className="pl-9"
+              className={DATE_INPUT}
+            style={FIELD_STYLE}
             />
           </div>
         </div>
@@ -1574,11 +1612,12 @@ function SellerProductReportBody() {
       {/* Filtros vendedor / producto */}
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Vendedor</label>
+          <label className="text-[13px] font-bold">Vendedor</label>
           <select
             value={sellerId}
             onChange={(e) => setSellerId(e.target.value)}
-            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            className={SELECT_INPUT}
+            style={FIELD_STYLE}
           >
             <option value="">Todos los vendedores</option>
             {sellers.map((s) => (
@@ -1588,17 +1627,18 @@ function SellerProductReportBody() {
             ))}
           </select>
           {sellers.length === 0 && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-[#6B7280]">
               Consulta una vez para cargar la lista de vendedores con ventas.
             </p>
           )}
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium">Producto</label>
+          <label className="text-[13px] font-bold">Producto</label>
           <select
             value={sku}
             onChange={(e) => setSku(e.target.value)}
-            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            className={SELECT_INPUT}
+            style={FIELD_STYLE}
           >
             <option value="">Todos los productos</option>
             {products.map((p) => (
@@ -1608,7 +1648,7 @@ function SellerProductReportBody() {
             ))}
           </select>
           {products.length === 0 && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-[#6B7280]">
               Consulta una vez para cargar la lista de productos con ventas.
             </p>
           )}
@@ -1616,7 +1656,7 @@ function SellerProductReportBody() {
       </div>
 
       {error && (
-        <p className="flex items-center gap-1 text-sm text-destructive">
+        <p className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
           <AlertCircle className="h-4 w-4" />
           {error}
         </p>
@@ -1624,7 +1664,7 @@ function SellerProductReportBody() {
 
       {/* Acciones */}
       <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={handleToggle} disabled={query.isFetching}>
+        <BrandButton className="h-10" onClick={handleToggle} disabled={query.isFetching}>
           {query.isFetching ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : showPreview ? (
@@ -1633,8 +1673,9 @@ function SellerProductReportBody() {
             <Search className="h-4 w-4" />
           )}
           {showPreview ? 'Ocultar' : 'Consultar'}
-        </Button>
-        <Button
+        </BrandButton>
+        <BrandButton
+          className="h-10"
           variant="outline"
           onClick={() => handleExport('pdf')}
           disabled={exporting !== null}
@@ -1643,8 +1684,9 @@ function SellerProductReportBody() {
             className={cn('h-4 w-4', exporting === 'pdf' && 'animate-pulse')}
           />
           Exportar PDF
-        </Button>
-        <Button
+        </BrandButton>
+        <BrandButton
+          className="h-10"
           variant="outline"
           onClick={() => handleExport('excel')}
           disabled={exporting !== null}
@@ -1653,8 +1695,8 @@ function SellerProductReportBody() {
             className={cn('h-4 w-4', exporting === 'excel' && 'animate-pulse')}
           />
           Exportar Excel
-        </Button>
-        <span className="text-xs text-muted-foreground">
+        </BrandButton>
+        <span className="text-xs text-[#6B7280]">
           {COMPANIES.find((c) => c.id === companyId)?.name} ·{' '}
           {from === to ? from || 'hoy' : `${from} a ${to}`}
         </span>
@@ -1662,7 +1704,7 @@ function SellerProductReportBody() {
 
       {/* Vista previa */}
       {showPreview && query.isError && (
-        <p className="flex items-center gap-1 text-sm text-destructive">
+        <p className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
           <AlertCircle className="h-4 w-4" />
           {errorMessage(query.error)}
         </p>
@@ -1683,9 +1725,9 @@ function SellerProductReportBody() {
             />
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <div className="overflow-x-auto rounded-2xl border border-[#E2E8F0] bg-white">
             <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
                 <tr>
                   <th className="px-4 py-2 font-medium">Vendedor</th>
                   <th className="px-4 py-2 font-medium">Referencia</th>
@@ -1699,7 +1741,7 @@ function SellerProductReportBody() {
                   <tr>
                     <td
                       colSpan={5}
-                      className="px-4 py-8 text-center text-muted-foreground"
+                      className="px-4 py-8 text-center text-[#6B7280]"
                     >
                       Sin ventas con los filtros seleccionados.
                     </td>
@@ -1708,7 +1750,7 @@ function SellerProductReportBody() {
                   data.rows.map((r) => (
                     <tr
                       key={`${r.sellerId}-${r.sku}`}
-                      className="border-t border-border/60 hover:bg-muted/40"
+                      className="border-t border-[#E2E8F0]/80 hover:bg-[#F4FAF6]"
                     >
                       <td className="px-4 py-2">{r.sellerName}</td>
                       <td className="px-4 py-2 font-mono text-xs">{r.sku}</td>
@@ -1716,7 +1758,7 @@ function SellerProductReportBody() {
                       <td className="px-4 py-2 text-right tabular-nums">
                         {num(r.quantity)}
                         {r.unitOfMeasure ? (
-                          <span className="ml-1 text-xs text-muted-foreground">
+                          <span className="ml-1 text-xs text-[#6B7280]">
                             {r.unitOfMeasure}
                           </span>
                         ) : null}
@@ -1815,7 +1857,7 @@ function ProductSellerReportBody() {
 
   return (
     <>
-      <p className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+      <p className="flex items-start gap-2 rounded-2xl border border-[#1E9B50]/20 bg-[#1E9B50]/[0.06] p-3 text-sm text-[#166534]">
         <Crown className="mt-0.5 h-4 w-4 shrink-0" />
         <span>
           Por cada producto verás el <strong>ranking de vendedores</strong>{' '}
@@ -1826,7 +1868,7 @@ function ProductSellerReportBody() {
 
       {/* Compañía */}
       <div className="space-y-2">
-        <label className="text-sm font-medium">Compañía</label>
+        <label className="text-[13px] font-bold">Compañía</label>
         <div className="flex flex-wrap gap-2">
           {COMPANIES.map((c) => (
             <button
@@ -1836,10 +1878,10 @@ function ProductSellerReportBody() {
                 setSku('');
               }}
               className={cn(
-                'flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors',
+                'flex h-9 items-center gap-1.5 rounded-full border px-4 text-[13px] font-bold transition-colors',
                 companyId === c.id
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border text-muted-foreground hover:bg-accent',
+                  ? 'border-[#1E9B50] bg-[#1E9B50] text-white'
+                  : 'border-[#E2E8F0] bg-white text-[#4B5563] hover:bg-[#F4FAF6]',
               )}
             >
               <Building2 className="h-4 w-4" />
@@ -1853,28 +1895,30 @@ function ProductSellerReportBody() {
       {/* Rango de fechas */}
       <div className="grid max-w-md gap-3 sm:grid-cols-2">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Desde</label>
+          <label className="text-[13px] font-bold">Desde</label>
           <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1E9B50]" />
+            <input
               type="date"
               value={from}
               max={to || todayStr()}
               onChange={(e) => setFrom(e.target.value)}
-              className="pl-9"
+              className={DATE_INPUT}
+            style={FIELD_STYLE}
             />
           </div>
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium">Hasta</label>
+          <label className="text-[13px] font-bold">Hasta</label>
           <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1E9B50]" />
+            <input
               type="date"
               value={to}
               max={todayStr()}
               onChange={(e) => setTo(e.target.value)}
-              className="pl-9"
+              className={DATE_INPUT}
+            style={FIELD_STYLE}
             />
           </div>
         </div>
@@ -1883,11 +1927,12 @@ function ProductSellerReportBody() {
       {/* Filtro de producto */}
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Producto</label>
+          <label className="text-[13px] font-bold">Producto</label>
           <select
             value={sku}
             onChange={(e) => setSku(e.target.value)}
-            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            className={SELECT_INPUT}
+            style={FIELD_STYLE}
           >
             <option value="">Todos los productos</option>
             {products.map((p) => (
@@ -1897,7 +1942,7 @@ function ProductSellerReportBody() {
             ))}
           </select>
           {products.length === 0 && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-[#6B7280]">
               Consulta una vez para cargar la lista de productos con ventas.
             </p>
           )}
@@ -1905,7 +1950,7 @@ function ProductSellerReportBody() {
       </div>
 
       {error && (
-        <p className="flex items-center gap-1 text-sm text-destructive">
+        <p className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
           <AlertCircle className="h-4 w-4" />
           {error}
         </p>
@@ -1913,7 +1958,7 @@ function ProductSellerReportBody() {
 
       {/* Acciones */}
       <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={handleToggle} disabled={query.isFetching}>
+        <BrandButton className="h-10" onClick={handleToggle} disabled={query.isFetching}>
           {query.isFetching ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : showPreview ? (
@@ -1922,8 +1967,9 @@ function ProductSellerReportBody() {
             <Search className="h-4 w-4" />
           )}
           {showPreview ? 'Ocultar' : 'Consultar'}
-        </Button>
-        <Button
+        </BrandButton>
+        <BrandButton
+          className="h-10"
           variant="outline"
           onClick={() => handleExport('pdf')}
           disabled={exporting !== null}
@@ -1932,8 +1978,9 @@ function ProductSellerReportBody() {
             className={cn('h-4 w-4', exporting === 'pdf' && 'animate-pulse')}
           />
           Exportar PDF
-        </Button>
-        <Button
+        </BrandButton>
+        <BrandButton
+          className="h-10"
           variant="outline"
           onClick={() => handleExport('excel')}
           disabled={exporting !== null}
@@ -1942,8 +1989,8 @@ function ProductSellerReportBody() {
             className={cn('h-4 w-4', exporting === 'excel' && 'animate-pulse')}
           />
           Exportar Excel
-        </Button>
-        <span className="text-xs text-muted-foreground">
+        </BrandButton>
+        <span className="text-xs text-[#6B7280]">
           {COMPANIES.find((c) => c.id === companyId)?.name} ·{' '}
           {from === to ? from || 'hoy' : `${from} a ${to}`}
         </span>
@@ -1951,7 +1998,7 @@ function ProductSellerReportBody() {
 
       {/* Vista previa */}
       {showPreview && query.isError && (
-        <p className="flex items-center gap-1 text-sm text-destructive">
+        <p className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
           <AlertCircle className="h-4 w-4" />
           {errorMessage(query.error)}
         </p>
@@ -1975,9 +2022,9 @@ function ProductSellerReportBody() {
             />
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <div className="overflow-x-auto rounded-2xl border border-[#E2E8F0] bg-white">
             <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
                 <tr>
                   <th className="px-4 py-2 font-medium">Producto</th>
                   <th className="px-4 py-2 text-right font-medium">#</th>
@@ -1991,7 +2038,7 @@ function ProductSellerReportBody() {
                   <tr>
                     <td
                       colSpan={5}
-                      className="px-4 py-8 text-center text-muted-foreground"
+                      className="px-4 py-8 text-center text-[#6B7280]"
                     >
                       Sin ventas con los filtros seleccionados.
                     </td>
@@ -2004,8 +2051,8 @@ function ProductSellerReportBody() {
                       <tr
                         key={`${r.sku}-${r.sellerId}`}
                         className={cn(
-                          'border-t border-border/60 hover:bg-muted/40',
-                          firstOfProduct && 'border-t-2 border-border',
+                          'border-t border-[#E2E8F0]/80 hover:bg-[#F4FAF6]',
+                          firstOfProduct && 'border-t-2 border-[#E2E8F0]',
                         )}
                       >
                         <td className="px-4 py-2">
@@ -2014,7 +2061,7 @@ function ProductSellerReportBody() {
                               <span className="font-medium">
                                 {r.productName}
                               </span>{' '}
-                              <span className="font-mono text-xs text-muted-foreground">
+                              <span className="font-mono text-xs text-[#6B7280]">
                                 {r.sku}
                               </span>
                             </span>
@@ -2022,12 +2069,12 @@ function ProductSellerReportBody() {
                         </td>
                         <td className="px-4 py-2 text-right tabular-nums">
                           {r.isTop ? (
-                            <span className="inline-flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400">
+                            <span className="inline-flex items-center gap-1 font-semibold text-amber-600">
                               <Crown className="h-3.5 w-3.5" />
                               {r.position}
                             </span>
                           ) : (
-                            <span className="text-muted-foreground">
+                            <span className="text-[#6B7280]">
                               {r.position}
                             </span>
                           )}
@@ -2043,7 +2090,7 @@ function ProductSellerReportBody() {
                         <td className="px-4 py-2 text-right tabular-nums">
                           {num(r.quantity)}
                           {r.unitOfMeasure ? (
-                            <span className="ml-1 text-xs text-muted-foreground">
+                            <span className="ml-1 text-xs text-[#6B7280]">
                               {r.unitOfMeasure}
                             </span>
                           ) : null}
@@ -2075,17 +2122,24 @@ function SummaryTile({
   tone?: 'ok' | 'warn';
 }) {
   return (
-    <div className="rounded-lg border border-border bg-background/60 p-3">
+    <div
+      className="rounded-2xl bg-white p-3.5"
+      style={{
+        border: `1px solid ${tone === 'ok' ? '#86EFAC' : tone === 'warn' ? '#FCD34D' : BRAND.border}`,
+      }}
+    >
+      <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: BRAND.textSoft }}>
+        {label}
+      </p>
       <p
         className={cn(
-          'text-base font-bold tracking-tight',
-          tone === 'ok' && 'text-emerald-600 dark:text-emerald-400',
-          tone === 'warn' && 'text-amber-600 dark:text-amber-400',
+          'mt-0.5 truncate text-lg font-extrabold tracking-[-0.3px] tabular-nums',
+          tone === 'ok' && 'text-emerald-600',
+          tone === 'warn' && 'text-amber-600',
         )}
       >
         {value}
       </p>
-      <p className="text-[11px] text-muted-foreground">{label}</p>
     </div>
   );
 }
@@ -2162,7 +2216,7 @@ function SellerSalesReportBody() {
 
   return (
     <>
-      <p className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+      <p className="flex items-start gap-2 rounded-2xl border border-[#1E9B50]/20 bg-[#1E9B50]/[0.06] p-3 text-sm text-[#166534]">
         <BarChart3 className="mt-0.5 h-4 w-4 shrink-0" />
         <span>
           Por cada vendedor: <strong>presupuesto vs. ventas y kilos</strong>,
@@ -2173,17 +2227,17 @@ function SellerSalesReportBody() {
 
       {/* Compañía */}
       <div className="space-y-2">
-        <label className="text-sm font-medium">Compañía</label>
+        <label className="text-[13px] font-bold">Compañía</label>
         <div className="flex flex-wrap gap-2">
           {COMPANIES.map((c) => (
             <button
               key={c.id}
               onClick={() => setCompanyId(c.id)}
               className={cn(
-                'flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors',
+                'flex h-9 items-center gap-1.5 rounded-full border px-4 text-[13px] font-bold transition-colors',
                 companyId === c.id
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border text-muted-foreground hover:bg-accent',
+                  ? 'border-[#1E9B50] bg-[#1E9B50] text-white'
+                  : 'border-[#E2E8F0] bg-white text-[#4B5563] hover:bg-[#F4FAF6]',
               )}
             >
               <Building2 className="h-4 w-4" />
@@ -2196,21 +2250,22 @@ function SellerSalesReportBody() {
 
       {/* Mes */}
       <div className="max-w-xs space-y-2">
-        <label className="text-sm font-medium">Mes</label>
+        <label className="text-[13px] font-bold">Mes</label>
         <div className="relative">
-          <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
+          <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1E9B50]" />
+          <input
             type="month"
             value={monthStr}
             max={currentMonthStr()}
             onChange={(e) => setMonthStr(e.target.value || currentMonthStr())}
-            className="pl-9"
+            className={DATE_INPUT}
+            style={FIELD_STYLE}
           />
         </div>
       </div>
 
       {error && (
-        <p className="flex items-center gap-1 text-sm text-destructive">
+        <p className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
           <AlertCircle className="h-4 w-4" />
           {error}
         </p>
@@ -2218,7 +2273,7 @@ function SellerSalesReportBody() {
 
       {/* Acciones */}
       <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={handleToggle} disabled={query.isFetching}>
+        <BrandButton className="h-10" onClick={handleToggle} disabled={query.isFetching}>
           {query.isFetching ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : showPreview ? (
@@ -2227,8 +2282,9 @@ function SellerSalesReportBody() {
             <Search className="h-4 w-4" />
           )}
           {showPreview ? 'Ocultar' : 'Consultar'}
-        </Button>
-        <Button
+        </BrandButton>
+        <BrandButton
+          className="h-10"
           variant="outline"
           onClick={() => handleExport('pdf')}
           disabled={exporting !== null}
@@ -2237,8 +2293,9 @@ function SellerSalesReportBody() {
             className={cn('h-4 w-4', exporting === 'pdf' && 'animate-pulse')}
           />
           Exportar PDF
-        </Button>
-        <Button
+        </BrandButton>
+        <BrandButton
+          className="h-10"
           variant="outline"
           onClick={() => handleExport('excel')}
           disabled={exporting !== null}
@@ -2247,7 +2304,7 @@ function SellerSalesReportBody() {
             className={cn('h-4 w-4', exporting === 'excel' && 'animate-pulse')}
           />
           Exportar Excel
-        </Button>
+        </BrandButton>
       </div>
 
       {showPreview && data && (
@@ -2272,9 +2329,9 @@ function SellerSalesReportBody() {
             />
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <div className="overflow-x-auto rounded-2xl border border-[#E2E8F0] bg-white">
             <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
                 <tr>
                   <th className="px-3 py-2 font-medium">Vendedor</th>
                   <th className="px-3 py-2 text-right font-medium">
@@ -2302,14 +2359,14 @@ function SellerSalesReportBody() {
                   <tr>
                     <td
                       colSpan={9}
-                      className="px-3 py-8 text-center text-muted-foreground"
+                      className="px-3 py-8 text-center text-[#6B7280]"
                     >
                       No hay vendedores con datos para este mes.
                     </td>
                   </tr>
                 ) : (
                   data.rows.map((r) => (
-                    <tr key={r.sellerCode + r.name} className="border-t border-border">
+                    <tr key={r.sellerCode + r.name} className="border-t border-[#E2E8F0]">
                       <td className="px-3 py-2">{r.name}</td>
                       <td className="px-3 py-2 text-right tabular-nums">
                         {formatCurrency(r.avgKiloPrev)}
@@ -2341,7 +2398,7 @@ function SellerSalesReportBody() {
               </tbody>
               {data.rows.length > 0 && (
                 <tfoot>
-                  <tr className="border-t-2 border-border bg-muted/40 font-semibold">
+                  <tr className="border-t-2 border-[#E2E8F0] bg-[#F4FAF6] font-semibold">
                     <td className="px-3 py-2">TOTAL</td>
                     <td className="px-3 py-2 text-right tabular-nums">
                       {formatCurrency(data.totals.avgKiloPrev)}
@@ -2445,7 +2502,7 @@ function VendorProductSalesReportBody() {
 
   return (
     <>
-      <p className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+      <p className="flex items-start gap-2 rounded-2xl border border-[#1E9B50]/20 bg-[#1E9B50]/[0.06] p-3 text-sm text-[#166534]">
         <UserSearch className="mt-0.5 h-4 w-4 shrink-0" />
         <span>
           Ventas del mes tomadas del ERP (cortes, subproductos y canales).
@@ -2457,42 +2514,44 @@ function VendorProductSalesReportBody() {
       {/* Mes y día */}
       <div className="flex flex-wrap items-end gap-4">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Mes (período)</label>
+          <label className="text-[13px] font-bold">Mes (período)</label>
           <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1E9B50]" />
+            <input
               type="month"
               value={monthStr}
               max={currentMonthStr()}
               disabled={!!dayStr}
               onChange={(e) => setMonthStr(e.target.value || currentMonthStr())}
-              className="pl-9"
+              className={DATE_INPUT}
+            style={FIELD_STYLE}
             />
           </div>
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium">Día (opcional)</label>
+          <label className="text-[13px] font-bold">Día (opcional)</label>
           <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1E9B50]" />
+            <input
               type="date"
               value={dayStr}
               max={todayStr()}
               onChange={(e) => setDayStr(e.target.value)}
-              className="pl-9"
+              className={DATE_INPUT}
+            style={FIELD_STYLE}
             />
           </div>
         </div>
         {dayStr && (
-          <Button variant="outline" onClick={() => setDayStr('')}>
+          <BrandButton variant="outlined" className="h-10" onClick={() => setDayStr('')}>
             <X className="h-4 w-4" />
             Ver mes completo
-          </Button>
+          </BrandButton>
         )}
       </div>
 
       {error && (
-        <p className="flex items-center gap-1 text-sm text-destructive">
+        <p className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
           <AlertCircle className="h-4 w-4" />
           {error}
         </p>
@@ -2500,7 +2559,7 @@ function VendorProductSalesReportBody() {
 
       {/* Acciones */}
       <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={handleToggle} disabled={query.isFetching}>
+        <BrandButton className="h-10" onClick={handleToggle} disabled={query.isFetching}>
           {query.isFetching ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : showPreview ? (
@@ -2509,8 +2568,9 @@ function VendorProductSalesReportBody() {
             <Search className="h-4 w-4" />
           )}
           {showPreview ? 'Ocultar' : 'Consultar'}
-        </Button>
-        <Button
+        </BrandButton>
+        <BrandButton
+          className="h-10"
           variant="outline"
           onClick={() => handleExport('pdf')}
           disabled={exporting !== null}
@@ -2519,8 +2579,9 @@ function VendorProductSalesReportBody() {
             className={cn('h-4 w-4', exporting === 'pdf' && 'animate-pulse')}
           />
           Exportar PDF
-        </Button>
-        <Button
+        </BrandButton>
+        <BrandButton
+          className="h-10"
           variant="outline"
           onClick={() => handleExport('excel')}
           disabled={exporting !== null}
@@ -2529,7 +2590,7 @@ function VendorProductSalesReportBody() {
             className={cn('h-4 w-4', exporting === 'excel' && 'animate-pulse')}
           />
           Exportar Excel
-        </Button>
+        </BrandButton>
       </div>
 
       {showPreview && data && (
@@ -2548,7 +2609,7 @@ function VendorProductSalesReportBody() {
           </div>
 
           {data.sellers.length === 0 ? (
-            <p className="rounded-lg border border-border px-3 py-8 text-center text-muted-foreground">
+            <p className="rounded-lg border border-[#E2E8F0] px-3 py-8 text-center text-[#6B7280]">
               No hay ventas registradas para este período.
             </p>
           ) : (
@@ -2558,15 +2619,15 @@ function VendorProductSalesReportBody() {
                 return (
                   <div
                     key={seller.nit}
-                    className="overflow-hidden rounded-lg border border-border"
+                    className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white"
                   >
                     <button
                       onClick={() => toggleSeller(seller.nit)}
-                      className="flex w-full items-center gap-3 bg-muted/40 px-3 py-2 text-left transition-colors hover:bg-muted/60"
+                      className="flex w-full items-center gap-3 bg-[#F4FAF6] px-3 py-2 text-left transition-colors hover:bg-[#EEF2F7]/60"
                     >
                       <ChevronRight
                         className={cn(
-                          'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
+                          'h-4 w-4 shrink-0 text-[#6B7280] transition-transform',
                           isOpen && 'rotate-90',
                         )}
                       />
@@ -2574,7 +2635,7 @@ function VendorProductSalesReportBody() {
                         <span className="block truncate font-medium">
                           {seller.name}
                         </span>
-                        <span className="block text-xs text-muted-foreground">
+                        <span className="block text-xs text-[#6B7280]">
                           NIT {seller.nit} · {seller.products.length} productos ·{' '}
                           {num(seller.totalQuantity)} und
                         </span>
@@ -2587,7 +2648,7 @@ function VendorProductSalesReportBody() {
                     {isOpen && (
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
-                          <thead className="bg-muted/20 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                          <thead className="bg-[#EEF2F7]/20 text-left text-xs uppercase tracking-wide text-[#6B7280]">
                             <tr>
                               <th className="px-3 py-2 font-medium">Ref.</th>
                               <th className="px-3 py-2 font-medium">Producto</th>
@@ -2603,9 +2664,9 @@ function VendorProductSalesReportBody() {
                             {seller.products.map((p) => (
                               <tr
                                 key={p.referencia}
-                                className="border-t border-border"
+                                className="border-t border-[#E2E8F0]"
                               >
-                                <td className="px-3 py-2 text-muted-foreground">
+                                <td className="px-3 py-2 text-[#6B7280]">
                                   {p.referencia}
                                 </td>
                                 <td className="px-3 py-2">{p.descripcion}</td>

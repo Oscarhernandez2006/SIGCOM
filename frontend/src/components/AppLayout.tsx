@@ -21,8 +21,6 @@ import {
   Target,
   Coins,
   ClipboardCheck,
-  Truck,
-  FileSpreadsheet,
   BookOpen,
   Globe,
   Sparkles,
@@ -34,6 +32,7 @@ import { useAuth } from '@/auth/useAuth';
 import { useCompany } from '@/company/useCompany';
 import { useTheme } from '@/hooks/useTheme';
 import { cn } from '@/lib/utils';
+import { BRAND } from '@/lib/brand';
 import { Button } from '@/components/ui/button';
 import { CarteraNotifications } from '@/components/CarteraNotifications';
 import { CanalCarteraNotifications } from '@/components/CanalCarteraNotifications';
@@ -92,26 +91,6 @@ const adminSections: { label: string; items: typeof sellerNav }[] = [
         to: '/admin/descargar-pedidos-subproductos-res',
         label: 'Descargar subproductos · Res',
         icon: FileDown,
-      },
-      {
-        to: '/admin/despacho-drivin-tat',
-        label: 'Despacho · Drivin TAT Facturas',
-        icon: Truck,
-      },
-      {
-        to: '/admin/canales-despacho',
-        label: 'Despacho · Canales',
-        icon: Truck,
-      },
-      {
-        to: '/admin/informe-bajas',
-        label: 'Informe de bajas',
-        icon: FileSpreadsheet,
-      },
-      {
-        to: '/admin/informe-devoluciones',
-        label: 'Informe de devoluciones',
-        icon: FileSpreadsheet,
       },
     ],
   },
@@ -213,17 +192,17 @@ export function AppLayout() {
   // deslizable de móvil. `mobile` muestra el botón de cierre.
   const renderSidebar = (mobile = false) => (
     <>
-      <div className="flex h-16 items-center gap-2 border-b border-border px-6">
+      {/* Logo */}
+      <div className="flex h-[72px] items-center gap-2 px-4">
         <img
-          src="/SIGCOM.png"
-          alt="SIGCOM"
-          className="h-10 w-10 object-contain"
+          src="/sigcom-logo.png"
+          alt="SIGCOM · Sistema de Gestión Comercial"
+          className="h-11 w-auto max-w-[190px] object-contain dark:rounded-lg dark:bg-white dark:px-2 dark:py-1"
         />
-        <span className="text-lg font-semibold tracking-tight">SIGCOM</span>
         {mobile && (
           <button
             onClick={() => setMobileOpen(false)}
-            className="ml-auto rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="ml-auto rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             aria-label="Cerrar menú"
           >
             <X className="h-5 w-5" />
@@ -231,93 +210,134 @@ export function AppLayout() {
         )}
       </div>
 
+      {/* Compañía activa (tarjeta con degradado, como el hero de la app) */}
       {company && (
         <button
           onClick={handleChangeCompany}
-          className="group mx-3 mt-3 flex items-center gap-3 rounded-lg border border-border bg-accent/40 px-3 py-2 text-left transition-colors hover:bg-accent"
+          className="group relative mx-3 overflow-hidden rounded-2xl p-3 text-left text-white transition-transform hover:scale-[1.01] active:scale-[0.99]"
+          style={{
+            background: `linear-gradient(135deg, #0F6B35 0%, ${BRAND.primary} 60%, #34B868 100%)`,
+            boxShadow: `0 8px 18px ${BRAND.primaryDark}40`,
+          }}
           title="Cambiar de compañía"
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Building2 className="h-4 w-4" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs text-muted-foreground">
-              Compañía {company.id}
-            </p>
-            <p className="truncate text-sm font-semibold">{company.name}</p>
-          </div>
-          <RefreshCw className="h-3.5 w-3.5 text-muted-foreground transition-transform group-hover:rotate-90" />
+          <span className="pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full bg-white/10" />
+          <span className="pointer-events-none absolute -bottom-10 right-8 h-20 w-20 rounded-full bg-white/[0.07]" />
+          <span className="relative flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20">
+              <Building2 className="h-5 w-5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[10.5px] font-bold uppercase tracking-[0.5px] text-white/75">
+                Compañía {company.id}
+              </span>
+              <span className="block truncate text-sm font-extrabold">{company.name}</span>
+            </span>
+            <RefreshCw className="h-4 w-4 shrink-0 text-white/80 transition-transform duration-300 group-hover:rotate-180" />
+          </span>
         </button>
       )}
 
-      <nav className="flex-1 space-y-4 overflow-y-auto p-3">
+      <nav className="flex-1 space-y-3 overflow-y-auto px-3 pb-3 pt-4">
         {navGroups.map((group) => {
           const open = openGroups[group.label] ?? true;
+          const groupActive = pathInGroup(group.items);
           return (
-            <div key={group.label} className="space-y-1">
+            <div key={group.label}>
               <button
                 type="button"
                 onClick={() => toggleGroup(group.label)}
-                className="flex w-full items-center justify-between rounded-lg px-3 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-foreground"
+                className={cn(
+                  'flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.8px] transition-colors hover:text-foreground',
+                  groupActive && !open ? 'text-primary' : 'text-muted-foreground/70',
+                )}
               >
-                {group.label}
+                <span className="flex items-center gap-2">
+                  {group.label}
+                  {groupActive && !open && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                  )}
+                </span>
                 <ChevronDown
                   className={cn(
-                    'h-3.5 w-3.5 transition-transform',
+                    'h-3.5 w-3.5 transition-transform duration-200',
                     open ? 'rotate-0' : '-rotate-90',
                   )}
                 />
               </button>
-              {open &&
-                group.items.map((item) => {
-                  // Coincidencia por prefijo, pero si un ítem hermano matchea
-                  // con un `to` más específico (p. ej. "/pedidos/canales"
-                  // dentro de "/pedidos"), solo se marca activo el más
-                  // específico para no resaltar dos ítems a la vez.
-                  const matches = (to: string, end?: boolean) =>
-                    end
-                      ? location.pathname === to
-                      : location.pathname === to ||
-                        location.pathname.startsWith(`${to}/`);
-                  const active =
-                    matches(item.to, item.end) &&
-                    !group.items.some(
-                      (other) =>
-                        other.to !== item.to &&
-                        other.to.length > item.to.length &&
-                        matches(other.to, other.end),
+              {open && (
+                <div className="mt-1 space-y-0.5">
+                  {group.items.map((item) => {
+                    // Coincidencia por prefijo, pero si un ítem hermano matchea
+                    // con un `to` más específico (p. ej. "/pedidos/canales"
+                    // dentro de "/pedidos"), solo se marca activo el más
+                    // específico para no resaltar dos ítems a la vez.
+                    const matches = (to: string, end?: boolean) =>
+                      end
+                        ? location.pathname === to
+                        : location.pathname === to ||
+                          location.pathname.startsWith(`${to}/`);
+                    const active =
+                      matches(item.to, item.end) &&
+                      !group.items.some(
+                        (other) =>
+                          other.to !== item.to &&
+                          other.to.length > item.to.length &&
+                          matches(other.to, other.end),
+                      );
+                    return (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        end={item.end}
+                        onClick={() => setMobileOpen(false)}
+                        className={cn(
+                          'group/item relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] font-semibold transition-all',
+                          active
+                            ? 'bg-primary/10 text-primary'
+                            : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                        )}
+                      >
+                        {/* Indicador lateral del ítem activo */}
+                        <span
+                          className={cn(
+                            'absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary transition-opacity',
+                            active ? 'opacity-100' : 'opacity-0',
+                          )}
+                        />
+                        <span
+                          className={cn(
+                            'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors',
+                            active
+                              ? 'bg-primary text-primary-foreground shadow-sm'
+                              : 'bg-accent/60 text-muted-foreground group-hover/item:bg-accent group-hover/item:text-foreground',
+                          )}
+                        >
+                          <item.icon className="h-4 w-4" />
+                        </span>
+                        <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                      </NavLink>
                     );
-                  return (
-                    <NavLink
-                      key={item.to}
-                      to={item.to}
-                      end={item.end}
-                      onClick={() => setMobileOpen(false)}
-                      className={cn(
-                        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                        active
-                          ? 'bg-primary/10 text-primary'
-                          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                      )}
-                    >
-                      <item.icon className="h-4 w-4 shrink-0" />
-                      {item.label}
-                    </NavLink>
-                  );
-                })}
+                  })}
+                </div>
+              )}
             </div>
           );
         })}
       </nav>
 
-      <div className="space-y-2 border-t border-border p-3">
-        <div className="flex items-center gap-3 rounded-lg px-3 py-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-sm font-semibold">
+      {/* Usuario y acciones */}
+      <div className="border-t border-border p-3">
+        <div className="flex items-center gap-3 rounded-2xl bg-accent/50 p-2.5">
+          <div
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-extrabold text-white"
+            style={{ background: `linear-gradient(135deg, ${BRAND.primaryDark}, ${BRAND.primary})` }}
+          >
             {user?.name?.charAt(0).toUpperCase() ?? '?'}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{user?.name}</p>
-            <p className="truncate text-xs text-muted-foreground">
+            <p className="truncate text-sm font-bold">{user?.name}</p>
+            <p className="truncate text-[11.5px] font-medium text-muted-foreground">
               {user?.role === 'admin'
                 ? 'Administrador'
                 : user?.role === 'cartera'
@@ -327,6 +347,15 @@ export function AppLayout() {
                     : 'Vendedor'}
             </p>
           </div>
+          <button
+            type="button"
+            onClick={handleExit}
+            title="Cerrar sesión"
+            aria-label="Cerrar sesión"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
         </div>
       </div>
     </>
@@ -335,7 +364,7 @@ export function AppLayout() {
   return (
     <div className="flex min-h-screen bg-background">
       {/* Barra lateral fija en escritorio */}
-      <aside className="hidden w-64 flex-col border-r border-border bg-card md:flex">
+      <aside className="hidden w-[272px] flex-col border-r border-border bg-card md:flex">
         {renderSidebar()}
       </aside>
 
@@ -351,7 +380,7 @@ export function AppLayout() {
       {/* Menú deslizable en móvil */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex w-64 max-w-[85vw] flex-col border-r border-border bg-card transition-transform duration-200 ease-in-out md:hidden',
+          'fixed inset-y-0 left-0 z-50 flex w-[272px] max-w-[85vw] flex-col border-r border-border bg-card shadow-2xl transition-transform duration-200 ease-in-out md:hidden',
           mobileOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
@@ -370,7 +399,12 @@ export function AppLayout() {
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <h1 className="hidden truncate text-sm font-medium text-muted-foreground sm:block">
+            <img
+              src="/sigcom-logo.png"
+              alt="SIGCOM"
+              className="h-8 w-auto object-contain md:hidden dark:rounded-md dark:bg-white dark:px-1.5 dark:py-0.5"
+            />
+            <h1 className="hidden truncate text-sm font-semibold text-muted-foreground md:block">
               {isAdminArea
                 ? 'Panel de administración'
                 : isCarteraArea

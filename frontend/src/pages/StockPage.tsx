@@ -1,19 +1,39 @@
-import { useEffect, useState } from 'react';
-import { Search, Boxes, Download, PackageOpen, X, FileText } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Search,
+  Download,
+  PackageOpen,
+  X,
+  FileText,
+  Tag,
+  ChevronDown,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+} from 'lucide-react';
 import {
   useProductsInStock,
   useCompanyPriceLists,
   fetchStockPdf,
   saveStockPdf,
 } from '@/hooks/useApi';
-import { formatCurrency } from '@/lib/utils';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { formatMoney, formatQuantity } from '@/lib/format';
+import { BRAND } from '@/lib/brand';
+import {
+  PageBackground,
+  Hero,
+  EmptyMessage,
+  Modal,
+  BrandButton,
+  Segmented,
+} from '@/components/brand/PageShell';
+import { FadeIn } from '@/components/dashboard/primitives';
+import type { Product } from '@/types';
 
-const SELECT_CLASS =
-  'h-9 w-full rounded-md border border-input bg-background px-3 text-sm';
+type PriceListRef = { listCode: string; listName: string };
+type Species = 'all' | 'beef' | 'pork';
+
+const isPork = (p: Product) => p.category?.toUpperCase() === 'CERDO';
 
 /**
  * Disponibilidad de stock para el vendedor: muestra los productos con
@@ -23,121 +43,287 @@ const SELECT_CLASS =
 export function StockPage() {
   const [search, setSearch] = useState('');
   const [priceList, setPriceList] = useState('');
+  const [species, setSpecies] = useState<Species>('all');
   const [pdfOpen, setPdfOpen] = useState(false);
-  const { data: products = [], isLoading } = useProductsInStock(
-    search,
-    priceList || undefined,
-  );
+  const [listOpen, setListOpen] = useState(false);
+  const { data: products = [], isLoading, isFetching, isError, error, refetch } =
+    useProductsInStock(search, priceList || undefined);
   const { data: priceLists = [] } = useCompanyPriceLists();
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Disponibilidad</h2>
-          <p className="text-muted-foreground">
-            Productos con existencias para vender hoy. Descarga el PDF para
-            compartirlo con tus clientes.
-          </p>
-        </div>
-        <Button onClick={() => setPdfOpen(true)}>
-          <Download className="h-4 w-4" />
-          Descargar PDF
-        </Button>
-      </div>
+  const selectedList = priceLists.find((l) => l.listCode === priceList) ?? null;
+  const porkCount = useMemo(() => products.filter(isPork).length, [products]);
+  const visible = useMemo(
+    () =>
+      products.filter((p) =>
+        species === 'all' ? true : species === 'pork' ? isPork(p) : !isPork(p),
+      ),
+    [products, species],
+  );
+  const count = products.length;
 
-      <div className="flex flex-wrap gap-3">
-        <div className="relative w-full max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
+  return (
+    <PageBackground className="space-y-3.5">
+      <Hero>
+        <div className="flex items-center gap-2">
+          <h2 className="flex-1 text-xl font-extrabold leading-tight tracking-[-0.4px] sm:text-[22px]">
+            Disponibilidad
+          </h2>
+          {isFetching && <Loader2 className="h-[18px] w-[18px] animate-spin text-white" />}
+          <button
+            type="button"
+            onClick={() => setPdfOpen(true)}
+            className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-white/[0.16] px-3.5 text-[13px] font-bold transition-colors hover:bg-white/25"
+          >
+            <FileText className="h-4 w-4" />
+            <span className="hidden sm:inline">PDF</span>
+          </button>
+        </div>
+        <p className="mt-1 text-sm font-semibold text-white/90">
+          {isLoading
+            ? 'Productos con existencias para vender hoy'
+            : `${count} referencia${count === 1 ? '' : 's'} disponible${count === 1 ? '' : 's'} hoy`}
+        </p>
+        <button
+          type="button"
+          onClick={() => setListOpen(true)}
+          className="mt-3.5 flex h-12 w-full items-center gap-2 rounded-[14px] bg-white px-3 text-left text-[13.5px] font-bold transition-colors hover:bg-[#F4FAF6]"
+          style={{ color: BRAND.text }}
+        >
+          <Tag className="h-[18px] w-[18px] shrink-0" style={{ color: BRAND.primary }} />
+          <span className="flex-1 truncate">
+            {selectedList
+              ? `Precios: ${selectedList.listName} (${selectedList.listCode})`
+              : 'Sin precios (solo disponibilidad)'}
+          </span>
+          <ChevronDown className="h-5 w-5 shrink-0" style={{ color: BRAND.textSoft }} />
+        </button>
+        <div className="relative mt-2.5">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2"
+            style={{ color: BRAND.textSoft }}
+          />
+          <input
+            type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nombre o SKU..."
-            className="pl-9"
+            placeholder="Buscar por nombre o referencia"
+            className="h-11 w-full rounded-[14px] bg-white pl-10 pr-3 text-sm font-medium outline-none"
+            style={{ color: BRAND.text }}
           />
         </div>
-        <div className="w-full max-w-xs">
-          <select
-            value={priceList}
-            onChange={(e) => setPriceList(e.target.value)}
-            className={SELECT_CLASS}
-            aria-label="Lista de precios"
-          >
-            <option value="">Sin lista de precios</option>
-            {priceLists.map((l) => (
-              <option key={l.listCode} value={l.listCode}>
-                {l.listName} ({l.listCode})
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      </Hero>
 
-      {isLoading ? (
-        <p className="text-sm text-muted-foreground">Cargando...</p>
-      ) : products.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
-            <PackageOpen className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              {search
-                ? 'No hay productos disponibles con esa búsqueda.'
-                : priceList
-                  ? 'No hay productos con existencias en esta lista de precios.'
-                  : 'No hay productos con existencias en este momento.'}
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          <p className="text-sm text-muted-foreground">
-            {products.length} referencia{products.length === 1 ? '' : 's'}{' '}
-            disponible{products.length === 1 ? '' : 's'}.
-          </p>
-          <div className="divide-y rounded-lg border">
-            {products.map((product) => (
-              <div
-                key={product.id}
-                className="flex items-center justify-between gap-3 px-4 py-3"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium leading-tight">
-                    {product.name}
-                  </p>
-                  <div className="mt-1 flex items-center gap-2">
-                    <Badge variant="outline">{product.sku}</Badge>
-                    {product.unitOfMeasure ? (
-                      <span className="rounded bg-secondary px-1.5 py-0.5 text-xs font-semibold text-secondary-foreground">
-                        {product.unitOfMeasure}
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-3">
-                  {priceList && product.price != null ? (
-                    <span className="text-sm font-semibold">
-                      {formatCurrency(Number(product.price))}
-                    </span>
-                  ) : null}
-                  <span className="inline-flex items-center gap-1 rounded-full bg-[var(--success)]/10 px-2 py-0.5 text-xs font-semibold text-[var(--success)]">
-                    <Boxes className="h-3 w-3" />
-                    {Number(product.stock)} disp.
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
+      {count > 0 && (
+        <Segmented<Species>
+          value={species}
+          onChange={setSpecies}
+          options={[
+            { value: 'all', label: `Todos (${count})` },
+            { value: 'beef', label: `Res (${count - porkCount})` },
+            { value: 'pork', label: `Cerdo (${porkCount})` },
+          ]}
+        />
       )}
 
-      {pdfOpen ? (
+      {isError ? (
+        <EmptyMessage
+          icon={AlertCircle}
+          text={error instanceof Error ? error.message : 'No se pudo cargar la disponibilidad.'}
+          onRetry={() => refetch()}
+        />
+      ) : isLoading ? (
+        <div className="space-y-2">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="h-[72px] animate-pulse rounded-2xl bg-white"
+              style={{ border: `1px solid ${BRAND.border}CC` }}
+            />
+          ))}
+        </div>
+      ) : visible.length === 0 ? (
+        <EmptyMessage
+          icon={PackageOpen}
+          text={
+            search
+              ? 'No hay productos disponibles con esa búsqueda.'
+              : species !== 'all'
+                ? 'No hay productos de este tipo con existencias.'
+                : priceList
+                  ? 'No hay productos con existencias en esta lista de precios.'
+                  : 'No hay productos con existencias en este momento.'
+          }
+        />
+      ) : (
+        <div className="grid gap-2 xl:grid-cols-2">
+          {visible.map((p, i) => (
+            <FadeIn key={p.id} index={Math.min(i, 12)}>
+              <ProductTile product={p} showPrice={!!priceList} />
+            </FadeIn>
+          ))}
+        </div>
+      )}
+
+      {listOpen && (
+        <PriceListModal
+          priceLists={priceLists}
+          selected={priceList}
+          onSelect={(code) => {
+            setPriceList(code);
+            setListOpen(false);
+          }}
+          onClose={() => setListOpen(false)}
+        />
+      )}
+
+      {pdfOpen && (
         <StockPdfModal
           initialList={priceList}
           priceLists={priceLists}
           onClose={() => setPdfOpen(false)}
         />
-      ) : null}
+      )}
+    </PageBackground>
+  );
+}
+
+function ProductTile({ product, showPrice }: { product: Product; showPrice: boolean }) {
+  const sub = [`Ref. ${product.sku}`, product.unitOfMeasure].filter(Boolean).join(' · ');
+  return (
+    <div
+      className="flex items-center gap-3 rounded-2xl bg-white p-3.5"
+      style={{ border: `1px solid ${BRAND.border}CC`, color: BRAND.text }}
+    >
+      <div className="min-w-0 flex-1">
+        <p className="text-[14.5px] font-bold leading-snug">{product.name}</p>
+        <p className="mt-0.5 truncate text-xs" style={{ color: BRAND.textSoft }}>
+          {sub}
+        </p>
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        {showPrice && product.price != null && (
+          <p className="font-extrabold">{formatMoney(Number(product.price))}</p>
+        )}
+        <span
+          className="rounded-full px-2 py-[3px] text-xs font-extrabold"
+          style={{ backgroundColor: `${BRAND.primary}1A`, color: BRAND.primary }}
+        >
+          {formatQuantity(Number(product.stock))} disp.
+        </span>
+      </div>
     </div>
+  );
+}
+
+function ListRow({
+  code,
+  name,
+  sub,
+  icon: Icon,
+  selected,
+  onSelect,
+}: {
+  code: string;
+  name: string;
+  sub: string;
+  icon: typeof Tag;
+  selected: boolean;
+  onSelect: (code: string) => void;
+}) {
+  const on = selected;
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(code)}
+      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-[#F4FAF6]"
+      style={{ backgroundColor: on ? `${BRAND.primary}14` : undefined }}
+    >
+      <Icon className="h-5 w-5 shrink-0" style={{ color: on ? BRAND.primary : BRAND.textMuted }} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-bold">{name}</p>
+        <p className="text-xs" style={{ color: BRAND.textSoft }}>
+          {sub}
+        </p>
+      </div>
+      {on && <CheckCircle2 className="h-5 w-5 shrink-0" style={{ color: BRAND.primary }} />}
+    </button>
+  );
+}
+
+/** Hoja para elegir la lista de precios (como _PriceListSheet en la app). */
+function PriceListModal({
+  priceLists,
+  selected,
+  onSelect,
+  onClose,
+}: {
+  priceLists: PriceListRef[];
+  selected: string;
+  onSelect: (code: string) => void;
+  onClose: () => void;
+}) {
+  const [q, setQ] = useState('');
+  const term = q.trim().toLowerCase();
+  const filtered = priceLists.filter(
+    (l) =>
+      !term ||
+      l.listName.toLowerCase().includes(term) ||
+      l.listCode.toLowerCase().includes(term),
+  );
+
+  return (
+    <Modal onClose={onClose} className="max-w-md">
+      <div className="flex items-center gap-3 px-5 pt-4 pb-2">
+        <h3 className="flex-1 text-xl font-extrabold">Lista de precios</h3>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Cerrar"
+          className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-[#F4FAF6]"
+          style={{ color: BRAND.textMuted }}
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+      <div className="px-5 pb-2">
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2"
+            style={{ color: BRAND.textSoft }}
+          />
+          <input
+            type="search"
+            autoFocus
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Buscar lista"
+            className="brand-input h-11 w-full rounded-[14px] pl-9 pr-3 text-sm font-medium outline-none"
+            style={{ backgroundColor: BRAND.field, color: BRAND.text }}
+          />
+        </div>
+      </div>
+      <div className="max-h-[60vh] flex-1 overflow-auto px-2 pb-3">
+        {!term && (
+          <ListRow code="" name="Sin precios" sub="Solo disponibilidad" icon={PackageOpen} selected={selected === ''} onSelect={onSelect} />
+        )}
+        {filtered.map((l) => (
+          <ListRow
+            key={l.listCode}
+            code={l.listCode}
+            name={l.listName}
+            sub={`Lista ${l.listCode}`}
+            icon={Tag}
+            selected={selected === l.listCode}
+            onSelect={onSelect}
+          />
+        ))}
+        {filtered.length === 0 && (
+          <p className="py-6 text-center text-sm" style={{ color: BRAND.textSoft }}>
+            Sin listas que coincidan.
+          </p>
+        )}
+      </div>
+    </Modal>
   );
 }
 
@@ -148,7 +334,7 @@ function StockPdfModal({
   onClose,
 }: {
   initialList: string;
-  priceLists: { listCode: string; listName: string }[];
+  priceLists: PriceListRef[];
   onClose: () => void;
 }) {
   const [list, setList] = useState(initialList);
@@ -180,32 +366,37 @@ function StockPdfModal({
   }, [list]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-border bg-background shadow-lg">
-        <div className="flex items-start justify-between gap-4 border-b border-border p-5">
-          <div>
-            <h3 className="flex items-center gap-2 text-lg font-semibold">
-              <FileText className="h-4 w-4 text-primary" />
-              PDF de disponibilidad
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              Elige la lista de precios y revisa cómo quedará el PDF antes de
-              descargarlo.
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-muted-foreground transition-colors hover:text-foreground"
-            aria-label="Cerrar"
-          >
-            <X className="h-5 w-5" />
-          </button>
+    <Modal onClose={onClose} className="max-w-4xl sm:h-[90vh]">
+      <div className="flex items-start gap-3 px-5 py-4" style={{ borderBottom: `1px solid ${BRAND.border}` }}>
+        <div className="min-w-0 flex-1">
+          <h3 className="flex items-center gap-2 text-lg font-extrabold">
+            <FileText className="h-5 w-5" style={{ color: BRAND.primary }} />
+            PDF de disponibilidad
+          </h3>
+          <p className="text-xs" style={{ color: BRAND.textSoft }}>
+            Elige la lista de precios y revisa cómo quedará el PDF antes de descargarlo.
+          </p>
         </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Cerrar"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:bg-[#F4FAF6]"
+          style={{ color: BRAND.textMuted }}
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
 
-        <div className="border-b border-border p-4">
-          <label className="mb-1 block text-xs font-medium text-muted-foreground">
-            Lista de precios
-          </label>
+      <div className="px-4 py-3" style={{ borderBottom: `1px solid ${BRAND.border}` }}>
+        <label className="mb-1 block text-xs font-bold" style={{ color: BRAND.textMuted }}>
+          Lista de precios
+        </label>
+        <div className="relative max-w-md">
+          <Tag
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2"
+            style={{ color: BRAND.primary }}
+          />
           <select
             value={list}
             onChange={(e) => {
@@ -213,7 +404,8 @@ function StockPdfModal({
               setError(false);
               setList(e.target.value);
             }}
-            className={`${SELECT_CLASS} max-w-md`}
+            className="brand-input h-11 w-full appearance-none rounded-[14px] pl-9 pr-9 text-sm font-semibold outline-none"
+            style={{ backgroundColor: BRAND.field, color: BRAND.text }}
           >
             <option value="">Sin precios (solo disponibilidad)</option>
             {priceLists.map((l) => (
@@ -222,39 +414,41 @@ function StockPdfModal({
               </option>
             ))}
           </select>
-        </div>
-
-        <div className="relative flex-1 bg-muted">
-          {loading ? (
-            <p className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
-              Generando vista previa...
-            </p>
-          ) : error ? (
-            <p className="absolute inset-0 flex items-center justify-center text-sm text-destructive">
-              No se pudo generar el PDF. Intenta de nuevo.
-            </p>
-          ) : previewUrl ? (
-            <iframe
-              src={previewUrl}
-              title="Vista previa del PDF"
-              className="h-full w-full"
-            />
-          ) : null}
-        </div>
-
-        <div className="flex justify-end gap-2 border-t border-border p-4">
-          <Button variant="outline" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button
-            onClick={() => blob && saveStockPdf(blob)}
-            disabled={loading || error || !blob}
-          >
-            <Download className="h-4 w-4" />
-            Descargar PDF
-          </Button>
+          <ChevronDown
+            className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2"
+            style={{ color: BRAND.textSoft }}
+          />
         </div>
       </div>
-    </div>
+
+      <div className="relative min-h-[50vh] flex-1" style={{ backgroundColor: BRAND.background }}>
+        {loading ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-sm" style={{ color: BRAND.textSoft }}>
+            <Loader2 className="h-6 w-6 animate-spin" style={{ color: BRAND.primary }} />
+            Generando vista previa...
+          </div>
+        ) : error ? (
+          <p className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-red-700">
+            No se pudo generar el PDF. Intenta de nuevo.
+          </p>
+        ) : previewUrl ? (
+          <iframe src={previewUrl} title="Vista previa del PDF" className="h-full w-full" />
+        ) : null}
+      </div>
+
+      <div className="flex justify-end gap-2 px-4 py-3" style={{ borderTop: `1px solid ${BRAND.border}` }}>
+        <BrandButton variant="outlined" className="h-10" onClick={onClose}>
+          Cancelar
+        </BrandButton>
+        <BrandButton
+          className="h-10"
+          onClick={() => blob && saveStockPdf(blob)}
+          disabled={loading || error || !blob}
+        >
+          <Download className="h-4 w-4" />
+          Descargar PDF
+        </BrandButton>
+      </div>
+    </Modal>
   );
 }

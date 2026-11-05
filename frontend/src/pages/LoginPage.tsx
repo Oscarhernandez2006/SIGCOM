@@ -1,15 +1,31 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { IdCard, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
+import {
+  IdCard,
+  Lock,
+  Eye,
+  EyeOff,
+  LogIn,
+  Loader2,
+  AlertCircle,
+} from 'lucide-react';
 import { useAuth } from '@/auth/useAuth';
-import { Button } from '@/components/ui/button';
+import { BrandBackground } from '@/components/BrandBackground';
+import { BRAND as COLORS } from '@/lib/brand';
+
+const REMEMBER_KEY = 'sigcom.login.document';
 
 export function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(
+    () => localStorage.getItem(REMEMBER_KEY) ?? '',
+  );
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(
+    () => localStorage.getItem(REMEMBER_KEY) !== null,
+  );
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -18,7 +34,9 @@ export function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      await login(username, password);
+      await login(username.trim(), password);
+      if (remember) localStorage.setItem(REMEMBER_KEY, username.trim());
+      else localStorage.removeItem(REMEMBER_KEY);
       // Todos entran al área operativa y eligen compañía; ahí ven en una sola
       // barra los módulos habilitados (el admin ve todos). Divididos por compañía.
       navigate('/');
@@ -29,165 +47,227 @@ export function LoginPage() {
     }
   };
 
-  return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-background to-accent/30 p-4">
-      {/* Marca de agua */}
-      <img
-        src="/LOGOCARNESSANTACRUZ.png"
-        alt=""
-        aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-1/2 -z-10 w-[560px] max-w-[85vw] -translate-x-1/2 -translate-y-1/2 opacity-[0.04]"
-      />
+  const inputClass =
+    'h-[54px] w-full rounded-[14px] border bg-[#F1F5F9] pl-12 pr-3 text-[15px] font-medium text-[#111827] outline-none transition-colors placeholder:text-[#9CA3AF] focus:border-[#1E9B50] focus:bg-white focus:ring-2 focus:ring-[#1E9B50]/20 disabled:opacity-60';
 
-      <div className="flex w-full max-w-6xl items-center justify-center gap-8">
-        {/* Logo Agropecuaria — mural izquierdo (solo en pantallas grandes) */}
-        <div className="hidden h-96 w-72 shrink-0 items-center justify-center lg:flex">
-          <img
-            src="/AGROPECUARIA.png"
-            alt="Agropecuaria Santacruz"
-            className="max-h-full max-w-full object-contain drop-shadow-xl"
-          />
-        </div>
-
-        {/* Card del login (centro) */}
-        <div className="w-full max-w-md">
-          <div className="rounded-3xl border border-border bg-card p-8 shadow-xl shadow-black/5 sm:p-10">
-            {/* Mural de logos para pantallas pequeñas */}
-            <div className="mb-6 grid grid-cols-2 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-border lg:hidden">
-              <div className="flex h-24 items-center justify-center p-3">
-                <img
-                  src="/AGROPECUARIA.png"
-                  alt="Agropecuaria Santacruz"
-                  className="max-h-full max-w-full object-contain"
-                />
-              </div>
-              <div className="flex h-24 items-center justify-center border-l border-border/70 p-3">
-                <img
-                  src="/CARNESFRIASLETRASNEGRAS.png"
-                  alt="Carnes Frías Santacruz"
-                  className="max-h-full max-w-full object-contain"
-                />
-              </div>
-            </div>
-
-          <div className="mb-8 text-center">
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">
-              Bienvenido
-            </h1>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              Ingresa tus credenciales para acceder al sistema.
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-1.5">
-              <label
-                htmlFor="username"
-                className="text-sm font-semibold text-foreground"
-              >
-                Cédula
-              </label>
-              <div className="relative">
-                <IdCard className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  id="username"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Número de cédula"
-                  required
-                  className="h-12 w-full rounded-xl border border-input bg-secondary/60 pl-11 pr-3 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:border-primary focus-visible:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label
-                htmlFor="password"
-                className="text-sm font-semibold text-foreground"
-              >
-                Contraseña
-              </label>
-              <div className="relative">
-                <Lock className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  className="h-12 w-full rounded-xl border border-input bg-secondary/60 pl-11 pr-11 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:border-primary focus-visible:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  aria-label={
-                    showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'
-                  }
-                  className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5" />
-                  ) : (
-                    <Eye className="h-5 w-5" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {error && (
-              <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                {error}
-              </p>
-            )}
-
-            <Button
-              type="submit"
-              className="h-12 w-full rounded-xl text-base font-semibold"
-              disabled={loading}
-            >
-              {loading ? (
-                'Ingresando...'
-              ) : (
-                <>
-                  <LogIn className="h-5 w-5" />
-                  Ingresar
-                </>
-              )}
-            </Button>
-          </form>
-
-          <p className="mt-6 text-center text-xs text-muted-foreground">
-            ¿Problemas para acceder? Contacta al administrador del sistema.
-          </p>
-          </div>
-
-          <p className="mt-4 text-center text-xs font-semibold tracking-wide text-muted-foreground"
-            style={{ fontFamily: "'Poppins', sans-serif" }}
-          >
-            SIGCOM · Sistema de Gestión Comercial
-          </p>
-          <p className="mx-auto mt-2 max-w-xs text-center text-xs italic text-muted-foreground/80">
-            «Encomienda a Jehová tus obras, y tus pensamientos serán afirmados.»
-            <span className="mt-0.5 block not-italic font-medium">
-              Proverbios 16:3
-            </span>
-          </p>
-        </div>
-
-        {/* Logo Carnes Frías — mural derecho (solo en pantallas grandes) */}
-        <div className="hidden h-96 w-72 shrink-0 items-center justify-center lg:flex">
-          <img
-            src="/CARNESFRIASLETRASNEGRAS.png"
-            alt="Carnes Frías Santacruz"
-            className="max-h-full max-w-full object-contain drop-shadow-xl"
-          />
-        </div>
+  const card = (
+    <div
+      className="rounded-[28px] bg-white px-6 pb-6 pt-8 sm:px-7"
+      style={{
+        border: `1px solid ${COLORS.border}B3`,
+        boxShadow: `0 16px 40px ${COLORS.primaryDark}14`,
+      }}
+    >
+      <div className="text-center">
+        <h1
+          className="text-[28px] font-extrabold tracking-tight"
+          style={{ color: COLORS.text }}
+        >
+          Bienvenido
+        </h1>
+        <p
+          className="mt-1.5 text-sm font-medium"
+          style={{ color: COLORS.textMuted }}
+        >
+          Ingresa tus credenciales para acceder al sistema.
+        </p>
       </div>
+
+      <form onSubmit={handleSubmit} className="mt-7" noValidate>
+        <label
+          htmlFor="username"
+          className="mb-2 block pl-0.5 text-[15px] font-bold"
+          style={{ color: COLORS.text }}
+        >
+          Cédula
+        </label>
+        <div className="relative">
+          <IdCard
+            className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2"
+            style={{ color: COLORS.textSoft }}
+          />
+          <input
+            id="username"
+            type="text"
+            inputMode="numeric"
+            autoComplete="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Número de cédula"
+            required
+            disabled={loading}
+            className={inputClass}
+            style={{ borderColor: COLORS.border }}
+          />
+        </div>
+
+        <label
+          htmlFor="password"
+          className="mb-2 mt-5 block pl-0.5 text-[15px] font-bold"
+          style={{ color: COLORS.text }}
+        >
+          Contraseña
+        </label>
+        <div className="relative">
+          <Lock
+            className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2"
+            style={{ color: COLORS.textSoft }}
+          />
+          <input
+            id="password"
+            type={showPassword ? 'text' : 'password'}
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            required
+            disabled={loading}
+            className={`${inputClass} pr-12`}
+            style={{ borderColor: COLORS.border }}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full transition-colors hover:bg-black/5"
+            style={{ color: COLORS.textSoft }}
+          >
+            {showPassword ? (
+              <EyeOff className="h-5 w-5" />
+            ) : (
+              <Eye className="h-5 w-5" />
+            )}
+          </button>
+        </div>
+
+        <label
+          className="mt-1.5 flex cursor-pointer select-none items-center gap-2.5 rounded-[10px] py-1.5"
+          style={{ color: COLORS.textMuted }}
+        >
+          <input
+            type="checkbox"
+            checked={remember}
+            disabled={loading}
+            onChange={(e) => setRemember(e.target.checked)}
+            className="h-[18px] w-[18px] cursor-pointer rounded-[6px] accent-[#1E9B50]"
+            style={{ borderColor: COLORS.textSoft }}
+          />
+          <span className="text-sm font-semibold">Recordar contraseña</span>
+        </label>
+
+        {error && (
+          <div
+            role="alert"
+            className="mt-4 flex items-center gap-2.5 rounded-xl px-3.5 py-3 text-sm font-semibold"
+            style={{
+              color: '#B3261E',
+              backgroundColor: '#B3261E14',
+              border: '1px solid #B3261E40',
+            }}
+          >
+            <AlertCircle className="h-5 w-5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="mt-4 flex h-[54px] w-full items-center justify-center gap-2.5 rounded-[14px] text-[17px] font-bold text-white transition-colors hover:brightness-95 disabled:opacity-70"
+          style={{ backgroundColor: COLORS.primary }}
+        >
+          {loading ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Ingresando...
+            </>
+          ) : (
+            <>
+              <LogIn className="h-[22px] w-[22px]" />
+              Ingresar
+            </>
+          )}
+        </button>
+      </form>
+
+      <p
+        className="mt-5 text-center text-xs font-medium leading-relaxed"
+        style={{ color: COLORS.textMuted }}
+      >
+        ¿Problemas para acceder? Contacta al administrador del sistema.
+      </p>
     </div>
+  );
+
+  const footer = (
+    <div className="text-center">
+      <p
+        className="text-xs font-semibold tracking-wide"
+        style={{ color: COLORS.textMuted }}
+      >
+        SIGCOM · Sistema de Gestión Comercial
+      </p>
+      <p
+        className="mx-auto mt-2.5 max-w-xs text-xs italic leading-relaxed"
+        style={{ color: COLORS.textSoft }}
+      >
+        «Encomienda a Jehová tus obras, y tus pensamientos serán afirmados.»
+      </p>
+      <p
+        className="mt-0.5 text-xs font-semibold"
+        style={{ color: COLORS.textSoft }}
+      >
+        Proverbios 16:3
+      </p>
+    </div>
+  );
+
+  return (
+    <BrandBackground className="flex min-h-screen items-center justify-center px-5 py-6">
+      <div className="login-fade-in flex w-full items-center justify-center gap-14">
+        {/* Logo Santacruz — lado izquierdo en pantallas anchas */}
+        <img
+          src="/logo-santacruz.png"
+          alt="Frigorífico Agropecuaria Santacruz"
+          className="hidden w-60 shrink-0 object-contain lg:block"
+        />
+
+        <div className="flex w-full max-w-[440px] flex-col items-center">
+          <img
+            src="/sigcom-logo.png"
+            alt="SIGCOM · Sistema de Gestión Comercial"
+            className="h-24 object-contain"
+          />
+          <div className="mt-6 w-full">{card}</div>
+
+          {/* Logos para pantallas pequeñas */}
+          <div className="mt-6 flex items-center justify-center lg:hidden">
+            <img
+              src="/logo-santacruz.png"
+              alt="Frigorífico Agropecuaria Santacruz"
+              className="h-14 object-contain"
+            />
+            <div
+              className="mx-5 h-10 w-px"
+              style={{ backgroundColor: COLORS.border }}
+            />
+            <img
+              src="/logo-carnesfrias.png"
+              alt="Carnes Frías Santacruz"
+              className="h-14 object-contain"
+            />
+          </div>
+
+          <div className="mt-6">{footer}</div>
+        </div>
+
+        {/* Logo Carnes Frías — lado derecho en pantallas anchas */}
+        <img
+          src="/logo-carnesfrias.png"
+          alt="Carnes Frías Santacruz"
+          className="hidden w-[170px] shrink-0 object-contain lg:block"
+        />
+      </div>
+    </BrandBackground>
   );
 }

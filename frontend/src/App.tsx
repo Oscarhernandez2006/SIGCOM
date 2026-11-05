@@ -10,7 +10,6 @@ import { NewOrderPage } from '@/pages/NewOrderPage';
 import { OrdersPage } from '@/pages/OrdersPage';
 import { CanalOrdersPage } from '@/pages/CanalOrdersPage';
 import { CanalControlPage } from '@/pages/CanalControlPage';
-import { CanalDispatchPage } from '@/pages/CanalDispatchPage';
 import { NewQuotePage } from '@/pages/NewQuotePage';
 import { QuotesPage } from '@/pages/QuotesPage';
 import { StockPage } from '@/pages/StockPage';
@@ -31,10 +30,7 @@ import { BudgetsPage } from '@/pages/BudgetsPage';
 import { RentabilidadPage } from '@/pages/RentabilidadPage';
 import { ControladorSubproductosPage } from '@/pages/ControladorSubproductosPage';
 import { VentasPorVendedorPage } from '@/pages/VentasPorVendedorPage';
-import { DispatchTatInvoicesPage } from '@/pages/DispatchTatInvoicesPage';
 import { FeaturedProductsPage } from '@/pages/FeaturedProductsPage';
-import { InformeBajasPage } from '@/pages/InformeBajasPage';
-import { InformeDevolucionesPage } from '@/pages/InformeDevolucionesPage';
 import { ApiDocsPage } from '@/pages/ApiDocsPage';
 
 function App() {
@@ -80,10 +76,6 @@ function App() {
           path="descargar-pedidos-subproductos-res"
           element={<DownloadOrdersPage orderType="subproducto" category="RES" />}
         />
-        <Route
-          path="despacho-drivin-tat"
-          element={<DispatchTatInvoicesPage />}
-        />
         <Route path="listas-precios" element={<PriceListsPage />} />
         <Route path="productos-estrella" element={<FeaturedProductsPage />} />
         <Route path="clientes" element={<ClientsPage />} />
@@ -91,9 +83,6 @@ function App() {
         <Route path="rentabilidad" element={<RentabilidadPage />} />
         <Route path="cartera" element={<CarteraPage />} />
         <Route path="canales-control" element={<CanalControlPage />} />
-        <Route path="canales-despacho" element={<CanalDispatchPage />} />
-        <Route path="informe-bajas" element={<InformeBajasPage />} />
-        <Route path="informe-devoluciones" element={<InformeDevolucionesPage />} />
         <Route
           path="controlador-subproductos"
           element={<ControladorSubproductosPage />}

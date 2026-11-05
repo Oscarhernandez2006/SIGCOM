@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import {
-  FileDown,
   Building2,
   Download,
   AlertCircle,
@@ -20,14 +19,12 @@ import {
 } from '@/hooks/useAdminApi';
 import { COMPANIES } from '@/lib/companies';
 import { cn, orderNos } from '@/lib/utils';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { BRAND } from '@/lib/brand';
+import { PageBackground, Hero, BrandButton, StatusPill } from '@/components/brand/PageShell';
+import { Panel, PanelBody } from '@/components/brand/Panel';
+
+const FIELD_STYLE = { backgroundColor: BRAND.field, color: BRAND.text } as const;
+const INPUT_CLASS = 'brand-input h-10 rounded-xl pl-9 pr-3 text-sm font-semibold outline-none';
 
 /** Formatea un valor numérico como moneda colombiana. */
 function money(value: number): string {
@@ -174,195 +171,197 @@ export function DownloadOrdersPage({
     }
   }
 
+  const title =
+    orderType === 'subproducto'
+      ? `Subproductos · ${category === 'RES' ? 'Res' : 'Cerdo'}`
+      : 'Cortes';
+  const pendingCount = list.filter((o) => !o.picked).length;
+  const downloadedCount = list.filter((o) => o.downloadedAt).length;
+
+  const chip = (on: boolean) =>
+    ({
+      backgroundColor: on ? BRAND.primary : '#fff',
+      color: on ? '#fff' : BRAND.textMuted,
+      border: `1px solid ${on ? BRAND.primary : BRAND.border}`,
+    }) as const;
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">
-          Descargar pedidos{' '}
-          {orderType === 'subproducto'
-            ? `· Subproductos · ${category === 'RES' ? 'Res' : 'Cerdo'}`
-            : '· Cortes'}
-        </h2>
-        <p className="text-muted-foreground">
+    <PageBackground className="space-y-3.5">
+      <Hero>
+        <div className="flex items-center gap-2">
+          <h2 className="flex-1 text-xl font-extrabold leading-tight tracking-[-0.4px] sm:text-[22px]">
+            Descargar pedidos · {title}
+          </h2>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            aria-label="Actualizar"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/[0.16] transition-colors hover:bg-white/25"
+          >
+            <RefreshCw className={cn('h-[18px] w-[18px]', isFetching && 'animate-spin')} />
+          </button>
+        </div>
+        <p className="mt-1 text-sm font-semibold text-white/90">
           Descarga masiva en PDF de los pedidos subidos a Siesa.
         </p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <FileDown className="h-5 w-5" />
-            </span>
-            Pedidos disponibles para descargar
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <p className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
-            <PackageCheck className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>
-              Aparecen los pedidos <strong>subidos a Siesa</strong> que no están
-              rebotados ni anulados. Selecciona los que quieras y se generará un
-              <strong> único PDF</strong> con todos. Al descargar quedan marcados
-              como <strong>descargados</strong> (puedes volver a descargarlos).
-            </span>
-          </p>
-
-          {/* Compañía */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Compañía</label>
-            <div className="flex flex-wrap gap-2">
-              {availableCompanies.map((c) => (
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <HeroStat label="Pedidos" value={String(list.length)} />
+          <HeroStat label="Por alistar" value={String(pendingCount)} />
+          <HeroStat label="Descargados" value={String(downloadedCount)} />
+        </div>
+        {availableCompanies.length > 1 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {availableCompanies.map((c) => {
+              const on = companyId === c.id;
+              return (
                 <button
                   key={c.id}
+                  type="button"
                   onClick={() => changeCompany(c.id)}
-                  className={cn(
-                    'flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors',
-                    companyId === c.id
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border text-muted-foreground hover:bg-accent',
-                  )}
+                  className="flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-bold transition-colors"
+                  style={{
+                    backgroundColor: on ? '#fff' : 'rgba(255,255,255,0.16)',
+                    color: on ? BRAND.primaryDark : '#fff',
+                  }}
                 >
                   <Building2 className="h-4 w-4" />
                   {c.name}
-                  <span className="text-xs opacity-70">#{c.id}</span>
                 </button>
-              ))}
+              );
+            })}
+          </div>
+        )}
+      </Hero>
+
+      <p className="flex items-start gap-2 rounded-2xl border border-[#1E9B50]/20 bg-[#1E9B50]/[0.06] p-3 text-sm text-[#166534]">
+        <PackageCheck className="mt-0.5 h-4 w-4 shrink-0" />
+        <span>
+          Aparecen los pedidos <strong>subidos a Siesa</strong> que no están rebotados ni anulados.
+          Selecciona los que quieras y se generará un <strong>único PDF</strong> con todos. Al
+          descargar quedan marcados como <strong>descargados</strong> (puedes volver a descargarlos).
+        </span>
+      </p>
+
+      <Panel>
+        <PanelBody className="space-y-3 pt-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative w-full sm:w-72">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2"
+                style={{ color: BRAND.textSoft }}
+              />
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Pedido, cliente o vendedor"
+                className={cn(INPUT_CLASS, 'w-full')}
+                style={FIELD_STYLE}
+              />
             </div>
+            <div className="relative">
+              <Calendar
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2"
+                style={{ color: BRAND.primary }}
+              />
+              <input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className={INPUT_CLASS}
+                style={FIELD_STYLE}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setDateFilter(bogotaDateStr())}
+              className="h-9 rounded-full px-3.5 text-[13px] font-bold transition-colors"
+              style={chip(dateFilter === bogotaDateStr())}
+            >
+              Hoy
+            </button>
+            <button
+              type="button"
+              onClick={() => setDateFilter('')}
+              className="h-9 rounded-full px-3.5 text-[13px] font-bold transition-colors"
+              style={chip(!dateFilter)}
+            >
+              Todos los días
+            </button>
+            <span className="mx-1 hidden h-6 w-px sm:block" style={{ backgroundColor: BRAND.border }} />
+            {(
+              [
+                { v: 'all', label: 'Todos' },
+                { v: 'unpicked', label: 'Pendientes' },
+                { v: 'picked', label: 'Alistados' },
+              ] as { v: PickedFilter; label: string }[]
+            ).map((opt) => (
+              <button
+                key={opt.v}
+                type="button"
+                onClick={() => setPickedFilter(opt.v)}
+                className="h-9 rounded-full px-3.5 text-[13px] font-bold transition-colors"
+                style={chip(pickedFilter === opt.v)}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
 
-          {/* Filtros: día y estado de alistado */}
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Buscar</label>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Pedido, cliente o vendedor"
-                  className="h-9 w-64 rounded-lg border border-border bg-background py-1 pl-8 pr-2 text-sm"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Día</label>
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <Calendar className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    type="date"
-                    value={dateFilter}
-                    onChange={(e) => setDateFilter(e.target.value)}
-                    className="h-9 rounded-lg border border-border bg-background py-1 pl-8 pr-2 text-sm"
-                  />
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDateFilter(bogotaDateStr())}
-                >
-                  Hoy
-                </Button>
-                {dateFilter && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setDateFilter('')}
-                  >
-                    Todos
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Alistado</label>
-              <div className="flex flex-wrap gap-1.5">
-                {(
-                  [
-                    { v: 'all', label: 'Todos' },
-                    { v: 'unpicked', label: 'Pendientes' },
-                    { v: 'picked', label: 'Alistados' },
-                  ] as { v: PickedFilter; label: string }[]
-                ).map((opt) => (
-                  <button
-                    key={opt.v}
-                    onClick={() => setPickedFilter(opt.v)}
-                    className={cn(
-                      'rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors',
-                      pickedFilter === opt.v
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border text-muted-foreground hover:bg-accent',
-                    )}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Acciones */}
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
+          <div className="flex flex-wrap items-center gap-2">
+            <BrandButton
+              className="h-10"
               onClick={handleDownload}
               disabled={selectedCount === 0 || download.isPending}
             >
-              <Download
-                className={cn('h-4 w-4', download.isPending && 'animate-pulse')}
-              />
-              {download.isPending
-                ? 'Generando...'
-                : `Descargar PDF (${selectedCount})`}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => refetch()}
-              disabled={isFetching}
+              <Download className={cn('h-4 w-4', download.isPending && 'animate-pulse')} />
+              {download.isPending ? 'Generando...' : `Descargar PDF (${selectedCount})`}
+            </BrandButton>
+            <BrandButton
+              variant="outlined"
+              className="h-10"
+              onClick={toggleAll}
+              disabled={list.length === 0}
             >
-              <RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin')} />
-              Actualizar
-            </Button>
-            <span className="text-xs text-muted-foreground">
+              {allSelected ? 'Quitar selección' : 'Seleccionar todos'}
+            </BrandButton>
+            <span className="text-xs font-semibold" style={{ color: BRAND.textSoft }}>
               {company.name} · {list.length} pedido(s)
             </span>
           </div>
 
           {error && (
-            <p className="flex items-center gap-1 text-sm text-destructive">
-              <AlertCircle className="h-4 w-4" />
+            <p className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+              <AlertCircle className="h-4 w-4 shrink-0" />
               {error}
             </p>
           )}
 
-          {/* Tabla */}
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <div className="overflow-x-auto rounded-2xl border border-[#E2E8F0]">
             <table className="w-full text-sm">
-              <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
+              <thead className="bg-[#F4FAF6] text-left text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">
                 <tr>
-                  <th className="w-10 px-3 py-2">
+                  <th className="w-10 px-3 py-2.5">
                     <input
                       type="checkbox"
-                      className="h-4 w-4 cursor-pointer accent-[var(--primary)]"
+                      className="h-4 w-4 cursor-pointer accent-[#1E9B50]"
                       checked={allSelected}
                       onChange={toggleAll}
                       aria-label="Seleccionar todos"
                     />
                   </th>
-                  <th className="px-3 py-2">Pedido</th>
-                  <th className="px-3 py-2">Cliente</th>
-                  <th className="px-3 py-2">Vendedor</th>
-                  <th className="px-3 py-2">Estado Siesa</th>
-                  <th className="px-3 py-2 text-right">Total</th>
-                  <th className="px-3 py-2">Descarga</th>
-                  <th className="px-3 py-2 text-center">
+                  <th className="px-3 py-2.5">Pedido</th>
+                  <th className="px-3 py-2.5">Cliente</th>
+                  <th className="px-3 py-2.5">Vendedor</th>
+                  <th className="px-3 py-2.5">Estado Siesa</th>
+                  <th className="px-3 py-2.5 text-right">Total</th>
+                  <th className="px-3 py-2.5">Descarga</th>
+                  <th className="px-3 py-2.5 text-center">
                     <div className="flex items-center justify-center gap-1.5">
                       <input
                         type="checkbox"
-                        className="h-4 w-4 cursor-pointer accent-[var(--success)]"
+                        className="h-4 w-4 cursor-pointer accent-[#1E9B50]"
                         checked={allPicked}
                         disabled={list.length === 0 || setPickedBulk.isPending}
                         onChange={(e) => toggleAllPicked(e.target.checked)}
@@ -377,28 +376,19 @@ export function DownloadOrdersPage({
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td
-                      colSpan={8}
-                      className="px-3 py-8 text-center text-muted-foreground"
-                    >
+                    <td colSpan={8} className="px-3 py-10 text-center" style={{ color: BRAND.textSoft }}>
                       Cargando pedidos...
                     </td>
                   </tr>
                 ) : isError ? (
                   <tr>
-                    <td
-                      colSpan={8}
-                      className="px-3 py-8 text-center text-destructive"
-                    >
+                    <td colSpan={8} className="px-3 py-10 text-center font-semibold text-red-600">
                       No se pudieron cargar los pedidos.
                     </td>
                   </tr>
                 ) : list.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={8}
-                      className="px-3 py-8 text-center text-muted-foreground"
-                    >
+                    <td colSpan={8} className="px-3 py-10 text-center" style={{ color: BRAND.textSoft }}>
                       No hay pedidos disponibles para descargar.
                     </td>
                   </tr>
@@ -409,66 +399,69 @@ export function DownloadOrdersPage({
                       <tr
                         key={o.id}
                         className={cn(
-                          'border-t border-border transition-colors hover:bg-accent/40',
-                          isChecked && 'bg-primary/5',
+                          'cursor-pointer border-t border-[#E2E8F0]/80 transition-colors hover:bg-[#F4FAF6]',
+                          isChecked && 'bg-[#1E9B50]/[0.07]',
                         )}
                         onClick={() => toggle(o.id)}
                       >
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2.5">
                           <input
                             type="checkbox"
-                            className="h-4 w-4 cursor-pointer accent-[var(--primary)]"
+                            className="h-4 w-4 cursor-pointer accent-[#1E9B50]"
                             checked={isChecked}
                             onChange={() => toggle(o.id)}
                             onClick={(e) => e.stopPropagation()}
                             aria-label={`Seleccionar pedido ${o.orderNumber}`}
                           />
                         </td>
-                        <td className="px-3 py-2 font-medium">
+                        <td className="px-3 py-2.5 font-extrabold">
                           #{orderNos(o.orderNumber, o.secondNumber)}
                           {o.linkedOrderNumber && (
-                            <div className="mt-0.5 flex items-center gap-1 text-xs font-normal text-primary">
+                            <div
+                              className="mt-0.5 flex items-center gap-1 text-xs font-semibold"
+                              style={{ color: BRAND.primary }}
+                            >
                               <Link2 className="h-3 w-3 shrink-0" />
-                              Asociado a #
-                              {orderNos(o.linkedOrderNumber, o.linkedSecondNumber)}
+                              Asociado a #{orderNos(o.linkedOrderNumber, o.linkedSecondNumber)}
                             </div>
                           )}
                         </td>
-                        <td className="px-3 py-2">
-                          <div className="font-medium">{o.customerName}</div>
-                          <div className="text-xs text-muted-foreground">
+                        <td className="px-3 py-2.5">
+                          <div className="font-semibold">{o.customerName}</div>
+                          <div className="text-xs" style={{ color: BRAND.textSoft }}>
                             {o.customerCode}
                           </div>
                         </td>
-                        <td className="px-3 py-2">{o.sellerName}</td>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2.5">{o.sellerName}</td>
+                        <td className="px-3 py-2.5">
                           {o.siesaEstado ? (
-                            <Badge variant="secondary">{o.siesaEstado}</Badge>
+                            <StatusPill label={o.siesaEstado} color={BRAND.textMuted} />
                           ) : (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs" style={{ color: BRAND.textSoft }}>
                               —
                             </span>
                           )}
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums">
-                          {money(o.total)}
-                        </td>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2.5 text-right font-bold tabular-nums">{money(o.total)}</td>
+                        <td className="px-3 py-2.5">
                           {o.downloadedAt ? (
-                            <span className="flex items-center gap-1 text-xs text-[var(--success)]">
+                            <span
+                              className="flex items-center gap-1 text-xs font-bold"
+                              style={{ color: BRAND.primary }}
+                            >
                               <CheckCircle2 className="h-3.5 w-3.5" />
                               Descargado
                             </span>
                           ) : (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs" style={{ color: BRAND.textSoft }}>
                               Sin descargar
                             </span>
                           )}
                         </td>
-                        <td className="px-3 py-2 text-center">
+                        <td className="px-3 py-2.5 text-center">
                           <input
                             type="checkbox"
-                            className="h-5 w-5 cursor-pointer accent-[var(--success)]"
+                            className="h-5 w-5 cursor-pointer accent-[#1E9B50]"
                             checked={o.picked}
                             disabled={setPicked.isPending}
                             onClick={(e) => e.stopPropagation()}
@@ -482,11 +475,7 @@ export function DownloadOrdersPage({
                                 category,
                               });
                             }}
-                            title={
-                              o.pickedBy
-                                ? `Alistado por ${o.pickedBy}`
-                                : 'Marcar como alistado'
-                            }
+                            title={o.pickedBy ? `Alistado por ${o.pickedBy}` : 'Marcar como alistado'}
                             aria-label={`Marcar pedido ${o.orderNumber} como alistado`}
                           />
                         </td>
@@ -497,8 +486,17 @@ export function DownloadOrdersPage({
               </tbody>
             </table>
           </div>
-        </CardContent>
-      </Card>
+        </PanelBody>
+      </Panel>
+    </PageBackground>
+  );
+}
+
+function HeroStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-xs text-white/75">{label}</p>
+      <p className="truncate text-lg font-extrabold">{value}</p>
     </div>
   );
 }

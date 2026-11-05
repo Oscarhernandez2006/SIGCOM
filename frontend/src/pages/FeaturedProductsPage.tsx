@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Search, Star, X, Sparkles } from 'lucide-react';
+import { Search, Star, X } from 'lucide-react';
 import {
   useProducts,
   useFeaturedProducts,
@@ -8,8 +8,11 @@ import {
 } from '@/hooks/useApi';
 import { useCompany } from '@/company/useCompany';
 import { cn } from '@/lib/utils';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
+import { BRAND } from '@/lib/brand';
+import { PageBackground, Hero } from '@/components/brand/PageShell';
+import { Panel, PanelBody } from '@/components/brand/Panel';
+
+const FIELD_STYLE = { backgroundColor: BRAND.field, color: BRAND.text } as const;
 
 export function FeaturedProductsPage() {
   const { company } = useCompany();
@@ -33,31 +36,28 @@ export function FeaturedProductsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <PageBackground className="space-y-3.5">
       {/* Encabezado */}
       <div>
-        <h2 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-          <Sparkles className="h-6 w-6 text-amber-500" />
-          Productos estrella
-        </h2>
-        <p className="text-muted-foreground">
-          Marca uno o varios productos como estrella/favorito del día para{' '}
-          <span className="font-medium text-foreground">
+        <Hero>
+        <h2 className="text-xl font-extrabold leading-tight tracking-[-0.4px] sm:text-[22px]">Productos estrella</h2>
+        <p className="mt-1 text-sm font-semibold text-white/90">Marca uno o varios productos como estrella/favorito del día para{' '}
+          <span className="font-extrabold text-white">
             {company?.name ?? 'la compañía'}
           </span>
           . Los vendedores los verán de primero y recibirán un aviso si crean un
-          pedido sin incluirlos.
-        </p>
+          pedido sin incluirlos.</p>
+      </Hero>
       </div>
 
       {/* Productos estrella actuales */}
-      <Card>
-        <CardContent className="space-y-3 p-5">
+      <Panel>
+        <PanelBody className="space-y-3 p-5">
           <h3 className="text-sm font-semibold">
             Marcados actualmente ({featured.length})
           </h3>
           {featured.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-[#6B7280]">
               Aún no hay productos marcados como estrella.
             </p>
           ) : (
@@ -80,29 +80,28 @@ export function FeaturedProductsPage() {
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </PanelBody>
+      </Panel>
 
       {/* Buscador y catálogo */}
-      <Card>
-        <CardContent className="space-y-4 p-5">
+      <Panel>
+        <PanelBody className="space-y-4 p-5">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
+            <input className="brand-input h-10 rounded-xl pl-9 pr-3 text-sm font-semibold outline-none" style={FIELD_STYLE}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar producto por nombre o SKU..."
-              className="pl-9"
             />
           </div>
 
           <div className="max-h-[30rem] space-y-1.5 overflow-auto pr-0.5">
             {isLoading ? (
-              <p className="px-3 py-2 text-sm text-muted-foreground">
+              <p className="px-3 py-2 text-sm text-[#6B7280]">
                 Cargando productos...
               </p>
             ) : products.length === 0 ? (
-              <p className="px-3 py-2 text-sm text-muted-foreground">
+              <p className="px-3 py-2 text-sm text-[#6B7280]">
                 No se encontraron productos.
               </p>
             ) : (
@@ -116,12 +115,12 @@ export function FeaturedProductsPage() {
                       'flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left text-sm transition-all',
                       isFeatured
                         ? 'border-amber-300 bg-amber-50'
-                        : 'border-border hover:border-amber-300/60 hover:bg-accent',
+                        : 'border-[#E2E8F0] hover:border-amber-300/60 hover:bg-[#F4FAF6]',
                     )}
                   >
                     <div className="min-w-0">
                       <p className="truncate font-medium">{p.name}</p>
-                      <span className="font-mono text-xs text-muted-foreground">
+                      <span className="font-mono text-xs text-[#6B7280]">
                         {p.sku}
                       </span>
                     </div>
@@ -130,7 +129,7 @@ export function FeaturedProductsPage() {
                         'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors',
                         isFeatured
                           ? 'bg-amber-400 text-amber-950'
-                          : 'bg-muted text-muted-foreground',
+                          : 'bg-[#EEF2F7] text-[#6B7280]',
                       )}
                     >
                       <Star
@@ -146,8 +145,8 @@ export function FeaturedProductsPage() {
               })
             )}
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </PanelBody>
+      </Panel>
+    </PageBackground>
   );
 }
