@@ -82,8 +82,15 @@ export function firstOfMonthISO(): string {
   return `${todayISO().slice(0, 8)}01`;
 }
 
-/** "05/11/2026". */
+/**
+ * "05/11/2026". Las cadenas "solo fecha" (YYYY-MM-DD) se formatean tal cual,
+ * sin pasar por Date, para que no se corran un día por la zona horaria.
+ */
 export function formatDate(value: string | Date): string {
+  if (typeof value === 'string') {
+    const m = /^(\d{4})-(\d{2})-(\d{2})(?:$|T00:00(?::00)?(?:\.0+)?$)/.exec(value);
+    if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  }
   const d = typeof value === 'string' ? new Date(value) : value;
   return d.toLocaleDateString(LOCALE, { day: '2-digit', month: '2-digit', year: 'numeric' });
 }

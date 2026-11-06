@@ -49,7 +49,8 @@ function getErrorMessage(error: unknown): string {
 /** Días de mora de un documento (0 si no está vencido). */
 function daysOverdue(doc: PortfolioDocument, now = Date.now()): number {
   if (!doc.dueDate) return 0;
-  const due = new Date(doc.dueDate).getTime();
+  // Fecha "solo día" interpretada en hora local (no UTC) para no correr un día.
+  const due = new Date(`${doc.dueDate.slice(0, 10)}T00:00:00`).getTime();
   if (Number.isNaN(due) || due >= now) return 0;
   return Math.floor((now - due) / 86_400_000);
 }

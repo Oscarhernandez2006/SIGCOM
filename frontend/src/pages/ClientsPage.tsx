@@ -406,7 +406,7 @@ function PortfolioModal({
                 <tbody className="divide-y divide-[#E2E8F0]">
                   {data.documents.map((d, i) => {
                     const overdue =
-                      !!d.dueDate && new Date(d.dueDate).getTime() < now;
+                      !!d.dueDate && new Date(`${d.dueDate.slice(0, 10)}T00:00:00`).getTime() < now;
                     return (
                       <tr key={i} className="hover:bg-[#F4FAF6]/60">
                         <td className="px-4 py-3 font-mono text-xs font-bold text-[#111827]">
