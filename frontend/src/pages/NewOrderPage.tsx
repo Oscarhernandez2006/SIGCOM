@@ -24,6 +24,7 @@ import {
   Truck,
   UserCircle,
   Warehouse,
+  MapPin,
 } from 'lucide-react';
 import { isAxiosError } from 'axios';
 import {
@@ -608,7 +609,7 @@ export function NewOrderPage() {
                     key={c.id}
                     type="button"
                     onClick={() => selectCustomer(c)}
-                    className="flex items-center gap-3 rounded-[18px] bg-white p-3.5 text-left transition-colors hover:bg-[#F4FAF6]"
+                    className="flex items-start gap-3 rounded-[18px] bg-white p-3.5 text-left transition-colors hover:bg-[#F4FAF6]"
                     style={{
                       border: `1.5px solid ${selected ? BRAND.primary : `${BRAND.border}CC`}`,
                     }}
@@ -620,14 +621,40 @@ export function NewOrderPage() {
                       {initials(c.name) || '?'}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[15px] font-extrabold">{c.name}</span>
-                      <span className="block truncate text-xs" style={{ color: BRAND.textSoft }}>
-                        NIT {c.code}
-                        {c.branchName || c.branch ? ` · ${c.branchName || c.branch}` : ''}
-                        {c.city ? ` · ${c.city}` : ''}
+                      <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="text-[15px] font-extrabold leading-tight break-words">{c.name}</span>
+                        {(c.branchName || c.branch) && (
+                          <span
+                            className="rounded-full px-2 py-0.5 text-[11px] font-bold"
+                            style={{ backgroundColor: '#E8F5EC', color: BRAND.primaryDark }}
+                          >
+                            Sucursal {c.branch}
+                            {c.branchName && c.branchName !== c.branch ? ` · ${c.branchName}` : ''}
+                          </span>
+                        )}
                       </span>
+                      <span className="mt-0.5 block text-xs font-semibold" style={{ color: BRAND.textMuted }}>
+                        NIT {c.code}
+                      </span>
+                      {(c.address || c.neighborhood || c.city || c.department) && (
+                        <span className="mt-1 flex items-start gap-1 text-xs break-words" style={{ color: BRAND.textSoft }}>
+                          <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                          <span>
+                            {[c.address, c.neighborhood, c.city, c.department].filter(Boolean).join(' · ')}
+                          </span>
+                        </span>
+                      )}
+                      {(c.phone || c.priceListName || c.priceList || c.paymentTerm) && (
+                        <span className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs" style={{ color: BRAND.textSoft }}>
+                          {c.phone && <span>Tel. {c.phone}</span>}
+                          {(c.priceListName || c.priceList) && (
+                            <span>Lista {c.priceListName || c.priceList}</span>
+                          )}
+                          {c.paymentTerm && <span>{c.paymentTerm}</span>}
+                        </span>
+                      )}
                     </span>
-                    <ChevronRight className="h-5 w-5 shrink-0" style={{ color: BRAND.textSoft }} />
+                    <ChevronRight className="mt-3 h-5 w-5 shrink-0" style={{ color: BRAND.textSoft }} />
                   </button>
                 );
               })}
