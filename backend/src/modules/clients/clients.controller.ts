@@ -33,8 +33,9 @@ export class ClientsController {
   /**
    * Clientes de la compañía, con búsqueda opcional.
    *
-   * Un vendedor solo ve los clientes asociados a su código de vendedor;
-   * un administrador ve todos.
+   * Un vendedor solo ve los clientes asociados a su código de vendedor; un
+   * administrador ve todos. El código "000" solo habilita la compañía (no es
+   * de ningún vendedor), así que no filtra: ve todos los clientes.
    */
   @Get()
   async findAll(
@@ -70,6 +71,11 @@ export class ClientsController {
 
     // Sin código de vendedor (o vacío) no puede ver clientes (cartera vacía).
     if (!sellerCode) return [];
+
+    // "000" solo habilita la compañía: no filtra por vendedor.
+    if (/^0+$/.test(sellerCode)) {
+      return this.clientsService.findAll(companyId, search);
+    }
 
     return this.clientsService.findAll(companyId, search, sellerCode);
   }
