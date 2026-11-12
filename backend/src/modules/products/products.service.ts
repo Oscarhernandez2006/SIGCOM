@@ -6,12 +6,18 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, ILike, Repository } from 'typeorm';
+import { DataSource, ILike, In, Not, Repository } from 'typeorm';
 import { Product } from './entities/product.entity';
 import { SiesaService } from '../siesa/siesa.service';
 import { InventoryRow } from './inventory.parser';
 import { PriceListsService } from '../price-lists/price-lists.service';
-import { baseCompanyId } from '../../common/companies';
+import {
+  baseCompanyId,
+  isNamNamCompany,
+  NAMNAM_TYPE,
+} from '../../common/companies';
+
+type InventoryType = 'corte' | 'subproducto' | 'namnam';
 
 /**
  * Producto vendible para un cliente: proviene de su lista de precios (siempre
@@ -44,8 +50,27 @@ export class ProductsService {
 
   private static readonly AGRO_COMPANY_ID = '3';
 
-  private normalizeInventoryType(type?: string): 'corte' | 'subproducto' {
-    return type === 'subproducto' ? 'subproducto' : 'corte';
+  /** Tipos de inventario: cortes, subproductos y Ñam Ñam (mascotas). */
+  private static readonly INVENTORY_TYPES = [
+    'corte',
+    'subproducto',
+    'namnam',
+  ] as const;
+
+  private normalizeInventoryType(type?: string): InventoryType {
+    return ProductsService.INVENTORY_TYPES.find((x) => x === type) ?? 'corte';
+  }
+
+  /** Ñam Ñam solo existe en las compañías habilitadas. */
+  private assertInventoryTypeAllowed(
+    companyId: string,
+    type: InventoryType,
+  ): void {
+    if (type === NAMNAM_TYPE && !isNamNamCompany(companyId)) {
+      throw new BadRequestException(
+        'El inventario de Ñam Ñam no está habilitado para esta compañía.',
+      );
+    }
   }
 
   constructor(
@@ -154,9 +179,11 @@ export class ProductsService {
       taxRate: taxBySku.get(item.reference.trim()) ?? 0,
     }));
 
-    // Subproductos: solo se muestran los que existen en el inventario propio de
-    // subproductos (no todo el catálogo de la lista de precios).
-    if (type === 'subproducto') {
+    // Subproductos y Ñam Ñam: solo se muestran los que existen en su
+    // inventario propio (no todo el catálogo de la lista de precios).
+    if (type === NAMNAM_TYPE) {
+      sellable = sellable.filter((s) => stockBySku.has(s.sku));
+    } else if (type === 'subproducto') {
       sellable = sellable.filter((s) => stockBySku.has(s.sku));
       // Enriquecer con la categoría (CERDO / RES) desde el ERP para dividir el
       // catálogo por especie en la toma de subproductos.
@@ -245,6 +272,7 @@ export class ProductsService {
     species?: string,
   ): Promise<{ total: number; created: number; updated: number; removed: number }> {
     const inventoryType = this.normalizeInventoryType(type);
+    this.assertInventoryTypeAllowed(companyId, inventoryType);
     await this.validateInventoryImport(companyId, rows, inventoryType);
 
     // Subproductos por especie: el cargue de Bovino/Porcino reemplaza SOLO su
@@ -355,7 +383,7 @@ export class ProductsService {
 
   /** Normaliza la especie de subproducto seleccionada al cargar (RES/CERDO). */
   private normalizeSpecies(
-    inventoryType: 'corte' | 'subproducto',
+    inventoryType: InventoryType,
     species?: string,
   ): 'RES' | 'CERDO' | null {
     if (inventoryType !== 'subproducto' || !species) return null;
@@ -375,13 +403,13 @@ export class ProductsService {
   }
 
   /**
-   * Validación de cargue para evitar cruces entre inventarios de cortes y
-   * subproductos en AGROPECUARIA.
+   * Validación de cargue para evitar cruces entre inventarios (cortes,
+   * subproductos y Ñam Ñam) en AGROPECUARIA.
    */
   private async validateInventoryImport(
     companyId: string,
     rows: InventoryRow[],
-    type: 'corte' | 'subproducto',
+    type: InventoryType,
   ): Promise<void> {
     const mismatchedByColumn = rows.filter(
       (r) => r.inventoryType && r.inventoryType !== type,
@@ -391,43 +419,48 @@ export class ProductsService {
         (r) => `${r.reference} (fila ${r.rowNumber})`,
       );
       throw new BadRequestException(
-        `El archivo contiene filas del tipo opuesto al seleccionado (${type}). ` +
+        `El archivo contiene filas de otro tipo de inventario distinto al seleccionado (${type}). ` +
           `Revisa: ${this.firstSamples(examples)}.`,
       );
     }
 
     // Esta validación aplica al caso crítico reportado (Agropecuaria), donde se
-    // administran cortes y subproductos en paralelo.
+    // administran varios inventarios en paralelo.
     if (baseCompanyId(companyId) !== ProductsService.AGRO_COMPANY_ID) {
       return;
     }
 
-    const oppositeType = type === 'corte' ? 'subproducto' : 'corte';
-    const [selectedTypeProducts, oppositeTypeProducts] = await Promise.all([
+    const otherTypes = ProductsService.INVENTORY_TYPES.filter(
+      (t) => t !== type,
+    );
+    const [selectedTypeProducts, otherTypeProducts] = await Promise.all([
       this.productsRepository.find({
         where: { companyId, type },
         select: { sku: true },
       }),
       this.productsRepository.find({
-        where: { companyId, type: oppositeType },
-        select: { sku: true },
+        where: { companyId, type: In([...otherTypes]) },
+        select: { sku: true, type: true },
       }),
     ]);
 
     const selectedSkus = new Set(
       selectedTypeProducts.map((p) => this.normalizeSku(p.sku)),
     );
-    const oppositeSkus = new Set(
-      oppositeTypeProducts.map((p) => this.normalizeSku(p.sku)),
+    const otherTypeBySku = new Map(
+      otherTypeProducts.map((p) => [this.normalizeSku(p.sku), p.type]),
     );
 
     const crossTypeRefs = rows
-      .filter((r) => oppositeSkus.has(this.normalizeSku(r.reference)))
-      .map((r) => `${r.reference} (fila ${r.rowNumber})`);
+      .filter((r) => otherTypeBySku.has(this.normalizeSku(r.reference)))
+      .map(
+        (r) =>
+          `${r.reference} (fila ${r.rowNumber}, ya está en ${otherTypeBySku.get(this.normalizeSku(r.reference))})`,
+      );
 
     if (crossTypeRefs.length > 0) {
       throw new BadRequestException(
-        `Se detectaron referencias del inventario ${oppositeType} en un cargue ${type}. ` +
+        `Se detectaron referencias de otro inventario en un cargue ${type}. ` +
           `Revisa: ${this.firstSamples(crossTypeRefs)}.`,
       );
     }
@@ -468,6 +501,7 @@ export class ProductsService {
     type = 'corte',
   ): Promise<Product> {
     const inventoryType = this.normalizeInventoryType(type);
+    this.assertInventoryTypeAllowed(companyId, inventoryType);
     const sku = (input.sku ?? '').trim();
     const name = (input.name ?? '').trim();
     const stock = Number(input.stock ?? 0);
@@ -500,13 +534,12 @@ export class ProductsService {
       return this.productsRepository.save(existingByType);
     }
 
-    const oppositeType = inventoryType === 'corte' ? 'subproducto' : 'corte';
     const existingOpposite = await this.productsRepository.findOne({
-      where: { companyId, sku, type: oppositeType },
+      where: { companyId, sku, type: Not(inventoryType) },
     });
     if (existingOpposite) {
       throw new BadRequestException(
-        `La referencia ${sku} ya existe en ${oppositeType}. No se puede duplicar entre inventarios.`,
+        `La referencia ${sku} ya existe en ${existingOpposite.type}. No se puede duplicar entre inventarios.`,
       );
     }
 

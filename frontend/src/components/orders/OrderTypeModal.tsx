@@ -1,8 +1,9 @@
-import { Beef, ChevronRight, Layers, PackageOpen, X } from 'lucide-react';
+import { Beef, ChevronRight, Layers, PackageOpen, PawPrint, X } from 'lucide-react';
 import { BRAND } from '@/lib/brand';
 import { Modal } from '@/components/brand/PageShell';
+import { NAMNAM_COMPANIES } from '@/lib/companies';
 
-export type OrderKind = 'cortes' | 'canales' | 'subproductos';
+export type OrderKind = 'cortes' | 'canales' | 'subproductos' | 'namnam';
 
 /** Tipos de pedido disponibles en el modal selector. */
 const ORDER_TYPES: {
@@ -12,6 +13,8 @@ const ORDER_TYPES: {
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   color: string;
   permission?: string;
+  /** Solo se ofrece en estas compañías. */
+  companies?: string[];
 }[] = [
   {
     tipo: 'cortes',
@@ -36,22 +39,35 @@ const ORDER_TYPES: {
     color: '#F59E0B',
     permission: '/pedidos/subproductos',
   },
+  {
+    tipo: 'namnam',
+    label: 'Ñam Ñam',
+    description: 'Toma de pedido de comida para mascotas.',
+    icon: PawPrint,
+    color: '#DB2777',
+    permission: '/pedidos/namnam',
+    companies: NAMNAM_COMPANIES,
+  },
 ];
 
 /** Modal que permite elegir el tipo de pedido antes de la toma. */
 export function OrderTypeModal({
   isAdmin,
   permissions,
+  companyId,
   onClose,
   onSelect,
 }: {
   isAdmin: boolean;
   permissions: string[];
+  companyId?: string;
   onClose: () => void;
   onSelect: (tipo: OrderKind) => void;
 }) {
   const options = ORDER_TYPES.filter(
-    (o) => !o.permission || isAdmin || permissions.includes(o.permission),
+    (o) =>
+      (!o.companies || (!!companyId && o.companies.includes(companyId))) &&
+      (!o.permission || isAdmin || permissions.includes(o.permission)),
   );
 
   return (
@@ -103,7 +119,7 @@ export function OrderTypeModal({
           ))}
           {options.length === 1 && (
             <p className="px-1 pt-1 text-xs" style={{ color: BRAND.textSoft }}>
-              Canales y Subproductos requieren permiso del administrador.
+              Los demás tipos de pedido requieren permiso del administrador.
             </p>
           )}
         </div>

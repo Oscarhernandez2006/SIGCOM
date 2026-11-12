@@ -32,6 +32,7 @@ import { ControladorSubproductosPage } from '@/pages/ControladorSubproductosPage
 import { VentasPorVendedorPage } from '@/pages/VentasPorVendedorPage';
 import { FeaturedProductsPage } from '@/pages/FeaturedProductsPage';
 import { ApiDocsPage } from '@/pages/ApiDocsPage';
+import { CommercialCertificatesPage } from '@/pages/CommercialCertificatesPage';
 
 function App() {
   return (
@@ -76,12 +77,17 @@ function App() {
           path="descargar-pedidos-subproductos-res"
           element={<DownloadOrdersPage orderType="subproducto" category="RES" />}
         />
+        <Route
+          path="descargar-pedidos-namnam"
+          element={<DownloadOrdersPage orderType="namnam" />}
+        />
         <Route path="listas-precios" element={<PriceListsPage />} />
         <Route path="productos-estrella" element={<FeaturedProductsPage />} />
         <Route path="clientes" element={<ClientsPage />} />
         <Route path="presupuestos" element={<BudgetsPage />} />
         <Route path="rentabilidad" element={<RentabilidadPage />} />
         <Route path="cartera" element={<CarteraPage />} />
+        <Route path="certificados-referencia" element={<CommercialCertificatesPage />} />
         <Route path="canales-control" element={<CanalControlPage />} />
         <Route
           path="controlador-subproductos"

@@ -6,9 +6,14 @@ import { join } from 'path';
  * Membretes por compañía: imagen de página completa (tamaño carta) que se
  * dibuja de fondo en cada página. `top`/`bottom` son la fracción de la altura
  * de página que ocupan el logo y el pie, para que el contenido no los pise.
+ * Van en PNG: pdfkit 0.19 marca los JPEG a color como escala de grises y el
+ * membrete sale deformado.
  */
 const LETTERHEADS: Record<string, { file: string; top: number; bottom: number }> = {
-  '8': { file: '8.jpg', top: 0.215, bottom: 0.14 },
+  '3': { file: '3.png', top: 0.215, bottom: 0.14 },
+  '8': { file: '8.png', top: 0.215, bottom: 0.14 },
+  // MONTERIA TAT es Agropecuaria en Siesa: usa su membrete.
+  MTAT: { file: '3.png', top: 0.215, bottom: 0.14 },
 };
 
 const LETTERHEADS_DIR = join(__dirname, '..', 'assets', 'letterheads');
@@ -18,13 +23,16 @@ const docCompany = new WeakMap<PDFKit.PDFDocument, string | undefined>();
 
 /**
  * Crea un documento PDF con el membrete de la compañía (si tiene uno) en el
- * fondo de todas las páginas y márgenes que respetan el logo y el pie.
+ * fondo de todas las páginas y márgenes que respetan el logo y el pie. Los
+ * membretes están diseñados en tamaño carta: con membrete la hoja es carta
+ * (en A4, más angosta, se recortaba el borde derecho del pie).
  */
 export function createPdfDocument(
   companyId: string | undefined,
   options: PDFKit.PDFDocumentOptions,
 ): PDFKit.PDFDocument {
-  const doc = new PDFDocument({ ...options, autoFirstPage: false });
+  const size = hasLetterhead(companyId) ? 'LETTER' : options.size;
+  const doc = new PDFDocument({ ...options, size, autoFirstPage: false });
   docCompany.set(doc, companyId);
   doc.on('pageAdded', () => applyLetterhead(doc));
   doc.addPage();
@@ -56,6 +64,12 @@ function applyLetterhead(doc: PDFKit.PDFDocument): void {
   doc.image(imagePath, 0, 0, { height });
   doc.x = doc.page.margins.left;
   doc.y = doc.page.margins.top;
+}
+
+/** Indica si la compañía tiene membrete configurado (imagen disponible). */
+export function hasLetterhead(companyId: string | undefined): boolean {
+  const letterhead = companyId ? LETTERHEADS[companyId] : undefined;
+  return !!letterhead && existsSync(join(LETTERHEADS_DIR, letterhead.file));
 }
 
 /** Última coordenada Y utilizable de la página actual (antes del margen inferior). */

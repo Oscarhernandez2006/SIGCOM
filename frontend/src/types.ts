@@ -124,6 +124,7 @@ export interface Devolucion {
 
 export interface PortfolioDocument {
   branch: string;
+  branchName?: string;
   costCenter?: string;
   docType?: string;
   description?: string;
@@ -134,11 +135,33 @@ export interface PortfolioDocument {
   balance: number;
 }
 
+/** Cupo de crédito de una sucursal del cliente según Siesa. */
+export interface PortfolioBranchCredit {
+  branch: string;
+  branchName?: string;
+  creditLimit: number;
+  /** Saldo total de la sucursal en cartera. */
+  balance: number;
+  /** Cupo disponible (cupo - saldo); puede ser negativo. */
+  available: number;
+  /** Siesa bloquea pedidos que superen el cupo. */
+  blocked: boolean;
+  tolerancePct: number;
+  graceDays: number;
+  creditDate?: string;
+  /** `stored`: sin documentos abiertos, se usa el último cupo guardado. */
+  source: 'erp' | 'stored';
+}
+
 export interface ClientPortfolio {
   nit: string;
   name?: string;
   count: number;
   totalBalance: number;
+  overdueBalance: number;
+  hasOverdue: boolean;
+  creditLimit: number;
+  branches: PortfolioBranchCredit[];
   documents: PortfolioDocument[];
 }
 
@@ -211,8 +234,8 @@ export interface OrderItem {
 export interface Order {
   id: string;
   orderNumber: string;
-  /** Tipo de pedido: 'corte' (por defecto) o 'subproducto'. */
-  type?: 'corte' | 'subproducto';
+  /** Tipo de pedido: 'corte' (por defecto), 'subproducto' o 'namnam' (Ñam Ñam). */
+  type?: 'corte' | 'subproducto' | 'namnam';
   /** Segundo consecutivo (subproductos divididos en dos documentos Siesa). */
   secondNumber?: string | null;
   customer: Client;
@@ -507,6 +530,10 @@ export interface CanalCupoInfo {
   available: number;
   exceeds: boolean;
   hasOverdue: boolean;
+  /** Siesa bloquea pedidos que superen el cupo. */
+  blocked: boolean;
+  /** Porcentaje de tolerancia sobre el cupo. */
+  tolerancePct: number;
 }
 
 /** Pedido de canales (flujo: vendedor → control → cartera → despacho → Siesa). */
@@ -894,4 +921,100 @@ export interface AdminUser {
   createdAt: string;
   companies: UserCompanyAccess[];
   permissions: string[];
+}
+
+/* -------------------- Certificados de referencia comercial -------------------- */
+
+export interface CertificateClientOption {
+  code: string;
+  name: string;
+  branches: number;
+  city?: string;
+}
+
+export interface CertificateBranch {
+  branch: string;
+  name?: string;
+  status?: string;
+  since?: string;
+  paymentTermCode?: string;
+  paymentTerm?: string;
+  paymentTermDays?: number;
+  creditLimit: number;
+  blocked: boolean;
+  tolerancePct: number;
+  graceDays: number;
+  creditDate?: string;
+}
+
+export interface CertificateDocument {
+  branch: string;
+  docType?: string;
+  number: number;
+  invoiceDate?: string;
+  dueDate?: string;
+  amount: number;
+  paid: number;
+  balance: number;
+  paidDate?: string;
+  lastPaymentDate?: string;
+  paymentDoc?: string;
+  paymentDays?: number;
+  daysLate?: number;
+}
+
+/** Datos verificados en Siesa con los que se emite el certificado. */
+export interface CertificateData {
+  company: { id: string; name: string };
+  client: {
+    code: string;
+    name: string;
+    status?: string;
+    since?: string;
+    sinceSource?: 'ingreso' | 'primera_factura';
+    firstInvoice?: string;
+    relationshipMonths?: number;
+    branches: CertificateBranch[];
+    totalCreditLimit: number;
+  };
+  period: { from: string; to: string };
+  behavior: {
+    invoices: number;
+    invoicedAmount: number;
+    paidInvoices: number;
+    paidOnTime: number;
+    paidLate: number;
+    onTimePct: number;
+    avgPaymentDays: number;
+    avgDaysLate: number;
+    maxDaysLate: number;
+    openInvoices: number;
+    openAmount: number;
+    lastPaymentDate?: string;
+  };
+  current: {
+    totalBalance: number;
+    overdueBalance: number;
+    maxDaysOverdue: number;
+    openDocuments: number;
+    creditAvailable: number;
+  };
+  documents: CertificateDocument[];
+  verifiedAt: string;
+}
+
+/** Certificado emitido (el PDF se descarga aparte). */
+export interface CommercialCertificate {
+  id: string;
+  createdAt: string;
+  companyId: string;
+  number: number;
+  clientCode: string;
+  clientName: string;
+  dateFrom: string;
+  dateTo: string;
+  addressedTo: string;
+  notes?: string | null;
+  issuedByName: string;
+  data: CertificateData;
 }

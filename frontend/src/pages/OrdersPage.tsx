@@ -248,7 +248,7 @@ export function OrdersPage() {
             <FadeIn key={order.id} index={Math.min(i, 12)}>
               <OrderCard
                 order={order}
-                siesa={siesaStates[order.orderNumber]}
+                siesa={siesaStates[order.id]}
                 showSeller={!isSeller}
                 dimmed={isFetching}
                 onOpen={() => setDetailTarget(order)}
@@ -304,7 +304,7 @@ export function OrdersPage() {
       {detailTarget && (
         <OrderDetailModal
           order={detailTarget}
-          siesa={siesaStates[detailTarget.orderNumber]}
+          siesa={siesaStates[detailTarget.id]}
           onClose={() => setDetailTarget(null)}
           downloading={downloadingId === detailTarget.id}
           onDownload={() => handleDownload(detailTarget)}
@@ -337,6 +337,7 @@ export function OrdersPage() {
         <OrderTypeModal
           isAdmin={user?.role === 'admin'}
           permissions={company?.permissions ?? []}
+          companyId={company?.id}
           onClose={() => setShowTypeModal(false)}
           onSelect={(tipo) => {
             setShowTypeModal(false);

@@ -24,6 +24,8 @@ import {
   BookOpen,
   Globe,
   Sparkles,
+  Award,
+  PawPrint,
   ChevronDown,
   Menu,
   X,
@@ -67,6 +69,11 @@ const adminSections: { label: string; items: typeof sellerNav }[] = [
       { to: '/admin/pedidos', label: 'Administración de pedidos', icon: ClipboardList },
       { to: '/admin/cartera', label: 'Aprobación de cartera', icon: Wallet },
       {
+        to: '/admin/certificados-referencia',
+        label: 'Certificados de Referencia Comercial',
+        icon: Award,
+      },
+      {
         to: '/admin/canales-control',
         label: 'Canales · Control',
         icon: ClipboardCheck,
@@ -91,6 +98,11 @@ const adminSections: { label: string; items: typeof sellerNav }[] = [
         to: '/admin/descargar-pedidos-subproductos-res',
         label: 'Descargar subproductos · Res',
         icon: FileDown,
+      },
+      {
+        to: '/admin/descargar-pedidos-namnam',
+        label: 'Descargar pedidos · Ñam Ñam',
+        icon: PawPrint,
       },
     ],
   },

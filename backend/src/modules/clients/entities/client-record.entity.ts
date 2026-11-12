@@ -1,5 +1,12 @@
-import { Column, Entity, Index, Unique } from 'typeorm';
+import { Column, Entity, Index, Unique, ValueTransformer } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
+
+/** Postgres devuelve `numeric` como texto; se convierte a número. */
+const numericTransformer: ValueTransformer = {
+  to: (value?: number | null) => value,
+  from: (value?: string | null) =>
+    value === null || value === undefined ? null : Number(value),
+};
 
 /**
  * Horario de recibido de mercancía configurado para un cliente.
@@ -92,6 +99,73 @@ export class ClientRecord extends BaseEntity {
    */
   @Column({ name: 'delivery_schedule', type: 'jsonb', nullable: true })
   deliverySchedule?: DeliverySchedule;
+
+  /*
+   * Cupo de crédito de la sucursal según Siesa. Llega en la consulta de
+   * cartera (`/cartera`), no en la sincronización de clientes, y se actualiza
+   * cada vez que se consulta la cartera del cliente. Sirve de respaldo cuando
+   * el cliente no tiene documentos abiertos (la consulta no devuelve filas).
+   */
+
+  /** Cupo de crédito asignado (CUPO_CREDITO). */
+  @Column({
+    name: 'credit_limit',
+    type: 'numeric',
+    precision: 16,
+    scale: 2,
+    nullable: true,
+    transformer: numericTransformer,
+  })
+  creditLimit?: number | null;
+
+  /** Saldo total de la sucursal en cartera (SALDO_TOTAL_SUCURSAL). */
+  @Column({
+    name: 'credit_balance',
+    type: 'numeric',
+    precision: 16,
+    scale: 2,
+    nullable: true,
+    transformer: numericTransformer,
+  })
+  creditBalance?: number | null;
+
+  /** Cupo disponible = cupo - saldo; puede ser negativo (CUPO_DISPONIBLE). */
+  @Column({
+    name: 'credit_available',
+    type: 'numeric',
+    precision: 16,
+    scale: 2,
+    nullable: true,
+    transformer: numericTransformer,
+  })
+  creditAvailable?: number | null;
+
+  /** Siesa bloquea pedidos que superen el cupo (BLOQUEO_CUPO = "SI"). */
+  @Column({ name: 'credit_blocked', type: 'boolean', nullable: true })
+  creditBlocked?: boolean | null;
+
+  /** Porcentaje de tolerancia sobre el cupo (PORC_TOLERANCIA). */
+  @Column({
+    name: 'credit_tolerance_pct',
+    type: 'numeric',
+    precision: 7,
+    scale: 2,
+    nullable: true,
+    transformer: numericTransformer,
+  })
+  creditTolerancePct?: number | null;
+
+  /** Días de gracia antes de considerar un documento en mora (DIAS_GRACIA). */
+  @Column({ name: 'credit_grace_days', type: 'int', nullable: true })
+  creditGraceDays?: number | null;
+
+  /** Fecha del cupo (FECHA_CUPO, YYYY-MM-DD). */
+  @Column({ name: 'credit_date', type: 'date', nullable: true })
+  creditDate?: string | null;
+
+  /** Última vez que se actualizó el cupo desde la consulta de cartera. */
+  @Column({ name: 'credit_updated_at', type: 'timestamptz', nullable: true })
+  creditUpdatedAt?: Date | null;
 
   /**
    * Nombre de la lista de precios (DESC_LISTA), resuelto desde

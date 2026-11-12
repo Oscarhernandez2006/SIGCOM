@@ -39,3 +39,13 @@ export function isDashboardExcludedSellerDoc(documentId?: string): boolean {
   const doc = (documentId ?? '').trim();
   return doc !== '' && DASHBOARD_EXCLUDED_SELLER_DOCS.some((d) => d.trim() === doc);
 }
+
+/** Compañías que venden Ñam Ñam, comida para mascotas (mismo criterio que el backend). */
+export const NAMNAM_COMPANIES = ['3'];
+
+/** Mínimo de unidades (suma de cantidades) de un pedido de Ñam Ñam. */
+export const NAMNAM_MIN_UNITS = 20;
+
+export function isNamNamCompany(companyId?: string): boolean {
+  return !!companyId && NAMNAM_COMPANIES.includes(companyId);
+}

@@ -23,6 +23,9 @@ const DOWNLOAD_SUBPRODUCTOS_CERDO_PERMISSION =
   '/admin/descargar-pedidos-subproductos-cerdo';
 const DOWNLOAD_SUBPRODUCTOS_RES_PERMISSION =
   '/admin/descargar-pedidos-subproductos-res';
+const DOWNLOAD_NAMNAM_PERMISSION = '/admin/descargar-pedidos-namnam';
+
+type OrderType = 'corte' | 'subproducto' | 'namnam';
 
 /** Normaliza la categoría de subproducto ('CERDO' por defecto). */
 function normalizeCategory(category?: string): 'CERDO' | 'RES' {
@@ -30,8 +33,8 @@ function normalizeCategory(category?: string): 'CERDO' | 'RES' {
 }
 
 /** Normaliza el tipo de pedido recibido ('corte' por defecto). */
-function normalizeOrderType(type?: string): 'corte' | 'subproducto' {
-  return type === 'subproducto' ? 'subproducto' : 'corte';
+function normalizeOrderType(type?: string): OrderType {
+  return type === 'subproducto' || type === 'namnam' ? type : 'corte';
 }
 
 /** Resumen de un pedido descargable (para la tabla del administrador). */
@@ -75,7 +78,7 @@ export interface AdminOrderDetail {
   secondNumber?: string | null;
   companyId: string;
   status: OrderStatus;
-  /** Tipo de pedido: 'corte' o 'subproducto'. */
+  /** Tipo de pedido: 'corte', 'subproducto' o 'namnam'. */
   type: string;
   // Quién y cuándo lo generó.
   sellerName: string;
@@ -125,7 +128,7 @@ export interface AdminOrdersFilter {
   to?: string;
   status?: string;
   search?: string;
-  /** Tipo de pedido: 'corte' | 'subproducto' (vacío = todos). */
+  /** Tipo de pedido: 'corte' | 'subproducto' | 'namnam' (vacío = todos). */
   type?: string;
 }
 
@@ -182,17 +185,19 @@ export class AdminOrdersService {
   async assertCanDownloadType(
     user: User,
     companyId: string,
-    type: 'corte' | 'subproducto',
+    type: OrderType,
     category?: 'CERDO' | 'RES',
   ): Promise<void> {
     if (user.role === UserRole.ADMIN) return;
     // Los subproductos tienen un permiso por categoría (Cerdo / Res).
     const permission =
-      type === 'subproducto'
-        ? normalizeCategory(category) === 'RES'
-          ? DOWNLOAD_SUBPRODUCTOS_RES_PERMISSION
-          : DOWNLOAD_SUBPRODUCTOS_CERDO_PERMISSION
-        : DOWNLOAD_CORTES_PERMISSION;
+      type === 'namnam'
+        ? DOWNLOAD_NAMNAM_PERMISSION
+        : type === 'subproducto'
+          ? normalizeCategory(category) === 'RES'
+            ? DOWNLOAD_SUBPRODUCTOS_RES_PERMISSION
+            : DOWNLOAD_SUBPRODUCTOS_CERDO_PERMISSION
+          : DOWNLOAD_CORTES_PERMISSION;
     const allowed = await this.usersService.hasPermissionInCompany(
       user.id,
       companyId,
@@ -200,7 +205,7 @@ export class AdminOrdersService {
     );
     if (allowed) return;
     // Compatibilidad: los alistadores mantienen el acceso a cortes.
-    if (type !== 'subproducto' && user.role === UserRole.ALISTADOR) return;
+    if (type === 'corte' && user.role === UserRole.ALISTADOR) return;
     throw new ForbiddenException(
       'No tienes permiso para descargar estos pedidos.',
     );

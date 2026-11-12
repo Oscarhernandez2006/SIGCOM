@@ -25,6 +25,7 @@ import { DispatchModule } from './modules/dispatch/dispatch.module';
 import { FeaturedProductsModule } from './modules/featured-products/featured-products.module';
 import { BajasModule } from './modules/bajas/bajas.module';
 import { DevolucionesModule } from './modules/devoluciones/devoluciones.module';
+import { CertificatesModule } from './modules/certificates/certificates.module';
 import { SeederService } from './database/seeder.service';
 import { AppController } from './app.controller';
 
@@ -58,6 +59,7 @@ import { AppController } from './app.controller';
     FeaturedProductsModule,
     BajasModule,
     DevolucionesModule,
+    CertificatesModule,
   ],
   controllers: [AppController],
   providers: [SeederService],

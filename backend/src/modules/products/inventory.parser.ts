@@ -6,7 +6,7 @@ export interface InventoryRow {
   description: string;
   stock: number;
   /** Tipo de inventario declarado en el Excel (si la columna existe). */
-  inventoryType?: 'corte' | 'subproducto';
+  inventoryType?: 'corte' | 'subproducto' | 'namnam';
   /** Número de fila del Excel (1-based) para mensajes de validación. */
   rowNumber: number;
 }
@@ -26,11 +26,14 @@ const DESCRIPTION_KEYS = ['descripcion', 'nombre', 'producto', 'articulo'];
 const STOCK_KEYS = ['stock', 'existencia', 'cantidad', 'saldo'];
 const TYPE_KEYS = ['tipo', 'tipo inventario', 'inventario', 'tipo producto'];
 
-function parseInventoryType(value: unknown): 'corte' | 'subproducto' | undefined {
+function parseInventoryType(
+  value: unknown,
+): 'corte' | 'subproducto' | 'namnam' | undefined {
   const raw = normalize(String(value ?? ''));
   if (!raw) return undefined;
   if (raw === 'corte' || raw === 'cortes') return 'corte';
   if (raw === 'subproducto' || raw === 'subproductos') return 'subproducto';
+  if (raw.replace(/[^a-z]/g, '') === 'namnam') return 'namnam';
   return undefined;
 }
 

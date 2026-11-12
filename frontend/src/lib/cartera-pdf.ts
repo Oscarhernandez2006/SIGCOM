@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { applyLetterhead, type LetterheadMargins } from '@/lib/pdf-letterhead';
+import { applyLetterhead, pdfPageFormat, type LetterheadMargins } from '@/lib/pdf-letterhead';
 import type { Client, ClientPortfolio, PortfolioDocument } from '@/types';
 
 /* -------------------------------------------------------------------------- */
@@ -616,7 +616,7 @@ export async function exportClientPortfolioPdf({
   companyName,
   sellerName,
 }: ClientReportInput): Promise<void> {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: pdfPageFormat(companyId) });
   const letterhead = await applyLetterhead(doc, companyId);
   paintPageBackground(doc, letterhead);
 
@@ -694,7 +694,7 @@ export async function exportSellerPortfolioPdf({
   clients,
   portfolios,
 }: SellerReportInput): Promise<void> {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: pdfPageFormat(companyId) });
   const letterhead = await applyLetterhead(doc, companyId);
   paintPageBackground(doc, letterhead);
 

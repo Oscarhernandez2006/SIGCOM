@@ -46,7 +46,7 @@ import { QtyControl } from '@/components/brand/QtyControl';
 import { DeliverySchedulePicker } from '@/components/DeliverySchedulePicker';
 import { ClientSellerInfoModal } from '@/components/ClientSellerInfoModal';
 import { isScheduleComplete, formatDeliverySchedule } from '@/lib/delivery-schedule';
-import { getMinOrderTotal } from '@/lib/companies';
+import { getMinOrderTotal, isNamNamCompany, NAMNAM_MIN_UNITS } from '@/lib/companies';
 import { useCompany } from '@/company/useCompany';
 import { useAuth } from '@/auth/useAuth';
 import {
@@ -148,8 +148,10 @@ const AMBER = { bg: '#FEF3C7', border: '#FDE68A', text: '#92400E', icon: '#B4530
 export function NewOrderPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const tipo = (searchParams.get('tipo') ?? 'cortes') as 'cortes' | 'canales' | 'subproductos';
+  const tipo = (searchParams.get('tipo') ?? 'cortes') as 'cortes' | 'canales' | 'subproductos' | 'namnam';
   const isSubproducto = tipo === 'subproductos';
+  // Ñam Ñam (comida para mascotas): misma lógica de cortes con inventario propio.
+  const isNamNam = tipo === 'namnam';
   const { user } = useAuth();
   const [step, setStep] = useState<Step>(1);
   const [customerSearch, setCustomerSearch] = useState('');
@@ -253,7 +255,7 @@ export function NewOrderPage() {
   const { data: products = [], isFetching: productsLoading } = useProductsForList(
     productSearch,
     customer?.priceList,
-    isSubproducto ? 'subproducto' : undefined,
+    isSubproducto ? 'subproducto' : isNamNam ? 'namnam' : undefined,
   );
   // Productos estrella/favoritos de la compañía (para priorizar y avisar).
   const { data: featured = [] } = useFeaturedProducts();
@@ -283,7 +285,7 @@ export function NewOrderPage() {
       ),
     [sortedProducts, isSubproducto],
   );
-  const visibleProducts = species === 'CERDO' ? cerdoProducts : resProducts;
+  const visibleProducts = isNamNam ? sortedProducts : species === 'CERDO' ? cerdoProducts : resProducts;
   const createOrder = useCreateOrder();
 
   const totals = useMemo(() => {
@@ -301,7 +303,7 @@ export function NewOrderPage() {
 
   // Tope mínimo de pedido según la compañía activa. Los subproductos no tienen
   // monto mínimo.
-  const minOrderTotal = isSubproducto ? 0 : getMinOrderTotal(company?.id);
+  const minOrderTotal = isSubproducto || isNamNam ? 0 : getMinOrderTotal(company?.id);
   // El mínimo es por día por cliente: si el cliente ya pidió hoy, no se exige.
   const { data: customerOrderedToday = false } = useCustomerHasOrderToday(customer?.id);
   const belowMinimum = minOrderTotal > 0 && totals.subtotal < minOrderTotal && !customerOrderedToday;
@@ -309,6 +311,8 @@ export function NewOrderPage() {
   const hoursOk = withinHours || company?.id === 'MTAT';
 
   const totalUnits = useMemo(() => cart.reduce((acc, l) => acc + l.quantity, 0), [cart]);
+  // Ñam Ñam: mínimo por unidades (no por valor).
+  const belowNamNamUnits = isNamNam && totalUnits < NAMNAM_MIN_UNITS;
 
   const selectCustomer = (c: Client) => {
     if (c.id !== customer?.id) {
@@ -370,13 +374,13 @@ export function NewOrderPage() {
     // Segundo pedido del mismo cliente el mismo día (solo cortes): se
     // pregunta si se debe asociar al pedido ya creado (p. ej. para completar
     // un producto que faltó por inventario rotativo).
-    if (!isSubproducto && customerOrderedToday && !associationDecided) {
+    if (!isSubproducto && !isNamNam && customerOrderedToday && !associationDecided) {
       setAssociationStep('ask');
       return;
     }
     // Aviso de productos estrella no incluidos (solo cortes). Si faltan, se
     // muestra el modal informativo antes de crear el pedido.
-    if (!skipFeaturedCheck && !isSubproducto) {
+    if (!skipFeaturedCheck && !isSubproducto && !isNamNam) {
       const missing = featured.filter((f) => !cart.some((l) => l.product.sku === f.sku));
       if (missing.length > 0) {
         setFeaturedWarning(missing);
@@ -422,7 +426,11 @@ export function NewOrderPage() {
           quantity: l.quantity,
           discountPct: l.discountPct,
         })),
-        ...(isSubproducto ? { orderType: 'subproducto' } : {}),
+        ...(isSubproducto
+          ? { orderType: 'subproducto' as const }
+          : isNamNam
+            ? { orderType: 'namnam' as const }
+            : {}),
         idempotencyKey,
         linkedOrderId,
       });
@@ -460,9 +468,10 @@ export function NewOrderPage() {
   }, [retrySubmitAfterSave, sellerInfo]);
 
   // Subproductos / canales: valida el permiso (por si se entra por URL).
-  if (tipo === 'subproductos' || tipo === 'canales') {
+  if (tipo === 'subproductos' || tipo === 'canales' || tipo === 'namnam') {
     const allowed =
-      user?.role === 'admin' || (company?.permissions ?? []).includes(`/pedidos/${tipo}`);
+      (tipo !== 'namnam' || isNamNamCompany(company?.id)) &&
+      (user?.role === 'admin' || (company?.permissions ?? []).includes(`/pedidos/${tipo}`));
     if (!allowed) {
       return (
         <PageBackground className="flex min-h-[60vh] items-center justify-center">
@@ -476,7 +485,7 @@ export function NewOrderPage() {
             <h2 className="text-xl font-extrabold">Sin permiso</h2>
             <p className="text-sm" style={{ color: BRAND.textMuted }}>
               No tienes permiso para tomar pedidos de{' '}
-              {tipo === 'canales' ? 'Canales' : 'Subproductos'}.
+              {tipo === 'canales' ? 'Canales' : tipo === 'namnam' ? 'Ñam Ñam en esta compañía' : 'Subproductos'}.
             </p>
             <BrandButton variant="outlined" onClick={() => navigate('/pedidos')}>
               Volver a Pedidos
@@ -490,7 +499,12 @@ export function NewOrderPage() {
 
   const canContinue = step === 1 ? !!customer : step === 2 ? cart.length > 0 : true;
   const submitDisabled =
-    !customer || cart.length === 0 || !deliveryDate || !hoursOk || createOrder.isPending;
+    !customer ||
+    cart.length === 0 ||
+    !deliveryDate ||
+    !hoursOk ||
+    belowNamNamUnits ||
+    createOrder.isPending;
 
   const goBack = () => {
     if (step === 1) navigate('/pedidos');
@@ -511,7 +525,7 @@ export function NewOrderPage() {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <h2 className="flex-1 truncate text-xl font-extrabold leading-tight tracking-[-0.4px] sm:text-[22px]">
-            {isSubproducto ? 'Nuevo pedido · Subproductos' : 'Nuevo pedido'}
+            {isSubproducto ? 'Nuevo pedido · Subproductos' : isNamNam ? 'Nuevo pedido · Ñam Ñam' : 'Nuevo pedido'}
           </h2>
         </div>
         <ol className="mt-4 flex items-center gap-1.5 sm:gap-2">
@@ -691,6 +705,7 @@ export function NewOrderPage() {
           </TitledCard>
 
           <div className="flex flex-col gap-2.5 sm:flex-row">
+            {!isNamNam && (
             <Segmented
               className="sm:w-72"
               value={species}
@@ -707,6 +722,7 @@ export function NewOrderPage() {
                     ]),
               ]}
             />
+            )}
             <BrandInput
               icon={Search}
               placeholder="Buscar producto o código"
@@ -832,6 +848,18 @@ export function NewOrderPage() {
                 <AmountRow label="IVA" value={formatMoney(totals.taxes)} />
                 <AmountRow label="Total" value={formatMoney(totals.total)} bold />
               </div>
+              {belowNamNamUnits && (
+                <div
+                  className="mt-3 flex items-start gap-2 rounded-xl px-3 py-2.5 text-xs"
+                  style={{ backgroundColor: AMBER.bg, color: AMBER.text }}
+                >
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" style={{ color: AMBER.icon }} />
+                  <span>
+                    El pedido de Ñam Ñam debe tener mínimo {NAMNAM_MIN_UNITS} unidades. Te faltan{' '}
+                    <strong>{NAMNAM_MIN_UNITS - totalUnits}</strong>.
+                  </span>
+                </div>
+              )}
               {belowMinimum && (
                 <div
                   className="mt-3 flex items-start gap-2 rounded-xl px-3 py-2.5 text-xs"

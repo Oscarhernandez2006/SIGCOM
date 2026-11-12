@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   XCircle,
   Link2,
+  PawPrint,
 } from 'lucide-react';
 import {
   useAdminOrders,
@@ -274,6 +275,7 @@ export function AdminOrdersPage() {
                 <option value="">Todos los tipos</option>
                 <option value="corte">Cortes</option>
                 <option value="subproducto">Subproductos</option>
+                <option value="namnam">Ñam Ñam</option>
               </select>
             </div>
             <div className="space-y-1">
@@ -373,6 +375,12 @@ export function AdminOrdersPage() {
                         {o.type === 'subproducto' && (
                           <span className="mt-1 flex w-fit items-center rounded-full bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-blue-600 dark:text-blue-400">
                             Subproducto
+                          </span>
+                        )}
+                        {o.type === 'namnam' && (
+                          <span className="mt-1 flex w-fit items-center gap-1 rounded-full bg-pink-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-pink-600 dark:text-pink-400">
+                            <PawPrint className="h-3 w-3" />
+                            Ñam Ñam
                           </span>
                         )}
                       </td>

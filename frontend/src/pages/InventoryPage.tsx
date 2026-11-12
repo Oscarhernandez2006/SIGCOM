@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Package,
+  PawPrint,
   Check,
   AlertCircle,
   AlertTriangle,
@@ -54,8 +55,8 @@ export function InventoryPage() {
   const [pendingSpecies, setPendingSpecies] = useState<'RES' | 'CERDO' | null>(
     null,
   );
-  // Tipo de inventario a gestionar/cargar: cortes o subproductos.
-  const [invType, setInvType] = useState<'corte' | 'subproducto'>('corte');
+  // Tipo de inventario a gestionar/cargar: cortes, subproductos o Ñam Ñam.
+  const [invType, setInvType] = useState<'corte' | 'subproducto' | 'namnam'>('corte');
 
   // Selecciona la primera compañía disponible (o ajusta si la actual ya no es válida).
   useEffect(() => {
@@ -64,7 +65,7 @@ export function InventoryPage() {
     }
   }, [companies, companyId]);
 
-  // El inventario de subproductos se administra en AGROPECUARIA.
+  // Los inventarios de subproductos y Ñam Ñam se administran en AGROPECUARIA.
   const supportsSubproductos = companyId === '3';
   const effectiveType = supportsSubproductos ? invType : 'corte';
 
@@ -251,11 +252,26 @@ export function InventoryPage() {
             >
               Subproductos
             </button>
+            <button
+              type="button"
+              onClick={() => setInvType('namnam')}
+              className={cn(
+                'flex h-9 items-center gap-1.5 rounded-full px-4 text-[13px] font-bold transition-colors',
+                invType === 'namnam'
+                  ? 'bg-[#DB2777] text-white'
+                  : 'border border-[#E2E8F0] bg-white text-[#4B5563] hover:bg-[#F4FAF6]',
+              )}
+            >
+              <PawPrint className="h-4 w-4" />
+              Ñam Ñam
+            </button>
           </div>
           <p className="text-xs text-[#6B7280]">
             El Excel debe corresponder al tipo seleccionado. Si eliges{' '}
-            <strong className="text-[#111827]">{effectiveType}</strong>, el
-            sistema bloqueará referencias del otro inventario.
+            <strong className="text-[#111827]">
+              {effectiveType === 'namnam' ? 'Ñam Ñam (comida para mascotas)' : effectiveType}
+            </strong>
+            , el sistema bloqueará referencias de los otros inventarios.
           </p>
         </div>
       )}

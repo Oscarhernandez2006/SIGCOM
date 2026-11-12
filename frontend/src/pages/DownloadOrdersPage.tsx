@@ -17,7 +17,7 @@ import {
   useSetOrderPicked,
   useSetOrderPickedBulk,
 } from '@/hooks/useAdminApi';
-import { COMPANIES } from '@/lib/companies';
+import { COMPANIES, NAMNAM_COMPANIES } from '@/lib/companies';
 import { cn, orderNos } from '@/lib/utils';
 import { BRAND } from '@/lib/brand';
 import { PageBackground, Hero, BrandButton, StatusPill } from '@/components/brand/PageShell';
@@ -54,15 +54,17 @@ export function DownloadOrdersPage({
   orderType = 'corte',
   category,
 }: {
-  orderType?: 'corte' | 'subproducto';
+  orderType?: 'corte' | 'subproducto' | 'namnam';
   category?: 'CERDO' | 'RES';
 }) {
-  // Los subproductos solo existen en AGROPECUARIA (#3), así que en esa vista
-  // solo se muestra esa compañía.
+  // Los subproductos y Ñam Ñam solo existen en AGROPECUARIA (#3), así que en
+  // esas vistas solo se muestra esa compañía.
   const availableCompanies =
     orderType === 'subproducto'
       ? COMPANIES.filter((c) => c.id === '3')
-      : COMPANIES;
+      : orderType === 'namnam'
+        ? COMPANIES.filter((c) => NAMNAM_COMPANIES.includes(c.id))
+        : COMPANIES;
   const [companyId, setCompanyId] = useState(availableCompanies[0].id);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
@@ -175,7 +177,9 @@ export function DownloadOrdersPage({
   const title =
     orderType === 'subproducto'
       ? `Subproductos · ${category === 'RES' ? 'Res' : 'Cerdo'}`
-      : 'Cortes';
+      : orderType === 'namnam'
+        ? 'Ñam Ñam'
+        : 'Cortes';
   const pendingCount = list.filter((o) => !o.picked).length;
   const downloadedCount = list.filter((o) => o.downloadedAt).length;
 

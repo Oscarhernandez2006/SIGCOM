@@ -583,8 +583,8 @@ interface CreateOrderInput {
   deliveryScheduleData?: DeliverySchedule;
   deliveryDate: string;
   items: { sku: string; quantity: number; discountPct: number }[];
-  /** Tipo de pedido: 'corte' (por defecto) o 'subproducto'. */
-  orderType?: 'corte' | 'subproducto';
+  /** Tipo de pedido: 'corte' (por defecto), 'subproducto' o 'namnam'. */
+  orderType?: 'corte' | 'subproducto' | 'namnam';
   /** Vendedor al que se asocia el pedido (solo subproductos). */
   sellerId?: string;
   /**

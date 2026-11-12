@@ -20,14 +20,19 @@ import { Order, OrderStatus, DeliveryType } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { CreateOrderDto, CreateOrderItemDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
-import { ClientsService } from '../clients/clients.service';
+import {
+  ClientsService,
+  exceedsBranchCredit,
+  findBranchCredit,
+  PortfolioBranchCredit,
+} from '../clients/clients.service';
 import { ClientRecord } from '../clients/entities/client-record.entity';
 import { PriceListsService } from '../price-lists/price-lists.service';
 import { OrdersErpClient, ErpOrderRegistro, ErpOrderState } from './orders-erp.client';
 import { UsersService } from '../users/users.service';
 import { User, UserRole } from '../users/entities/user.entity';
 import { Product } from '../products/entities/product.entity';
-import { getMinOrderTotal, getWarehouse, COMPANIES, baseCompanyId, getOperationCenter, virtualOperationCentersForBase } from '../../common/companies';
+import { getMinOrderTotal, getWarehouse, COMPANIES, baseCompanyId, getOperationCenter, virtualOperationCentersForBase, NAMNAM_TYPE, NAMNAM_MIN_UNITS, NAMNAM_ORDER_ENDPOINT, isNamNamCompany, isNamNamDocType } from '../../common/companies';
 import { buildOrderPdf } from './order-pdf';
 import {
   bogotaToday,
@@ -48,6 +53,14 @@ export interface SiesaOrderState {
   despachado: boolean;
 }
 
+/** Estado de cartera del cliente usado para retener o no un pedido. */
+interface CarteraStatus {
+  balance: number;
+  hasOverdue: boolean;
+  creditLimit: number;
+  /** Cupo de la sucursal del pedido según Siesa (si se conoce). */
+  credit?: PortfolioBranchCredit;
+}
 /**
  * Margen de asentamiento tras enviar un pedido a Siesa. En Siesa la decisión es
  * inmediata: el pedido entra (aparece su consecutivo) o rebota (no aparece). Solo
@@ -108,6 +121,11 @@ export class OrdersService {
     // a nombre del usuario que sube el pedido (con su cédula se cargan a Siesa).
     // Si llega un sellerId (compatibilidad), se respeta.
     const orderType = dto.orderType ?? 'corte';
+    if (orderType === NAMNAM_TYPE && !isNamNamCompany(companyId)) {
+      throw new BadRequestException(
+        'Los pedidos de Ñam Ñam no están habilitados para esta compañía.',
+      );
+    }
     let orderSeller = seller;
     if (orderType === 'subproducto' && dto.sellerId) {
       orderSeller = await this.usersService.findById(dto.sellerId);
@@ -161,9 +179,21 @@ export class OrdersService {
       // permite crear el pedido (la transacción se revierte y el stock no se
       // descuenta).
       const total = Number((subtotal + taxes).toFixed(2));
-      // Los subproductos no tienen monto mínimo de pedido.
+      // Ñam Ñam: el mínimo es por unidades (no por valor).
+      if (orderType === NAMNAM_TYPE) {
+        const units = dto.items.reduce((s, it) => s + Number(it.quantity), 0);
+        if (units < NAMNAM_MIN_UNITS) {
+          throw new BadRequestException(
+            `El pedido de Ñam Ñam debe tener mínimo ${NAMNAM_MIN_UNITS} ` +
+              `unidades en total. Unidades actuales: ${units}.`,
+          );
+        }
+      }
+      // Los subproductos y Ñam Ñam no tienen monto mínimo de pedido.
       const minTotal =
-        orderType === 'subproducto' ? 0 : getMinOrderTotal(companyId);
+        orderType === 'subproducto' || orderType === NAMNAM_TYPE
+          ? 0
+          : getMinOrderTotal(companyId);
       if (minTotal > 0 && total < minTotal) {
         // El pedido mínimo es POR DÍA POR CLIENTE: si el cliente ya tiene un
         // pedido creado hoy, los siguientes pasan sin importar el valor.
@@ -194,10 +224,12 @@ export class OrdersService {
       const isSubproducto = orderType === 'subproducto';
       const cartera = isSubproducto
         ? { balance: 0, hasOverdue: false, creditLimit: 0 }
-        : await this.resolveCarteraStatus(companyId, customer.code);
-      const exceedsCredit =
-        cartera.creditLimit > 0 &&
-        cartera.balance + total > cartera.creditLimit;
+        : await this.resolveCarteraStatus(
+              companyId,
+              customer.code,
+              customer.branch,
+            );
+      const exceedsCredit = this.exceedsCredit(cartera, total);
       let needsApproval = cartera.balance > 0 || exceedsCredit;
       const carteraBalance = cartera.balance;
 
@@ -461,21 +493,24 @@ export class OrdersService {
 
   /**
    * Evalúa la cartera del cliente para decidir la retención del pedido. Devuelve
-   * el saldo total, si está en mora (documentos vencidos con saldo) y el cupo de
-   * crédito (0 si el ERP no lo provee). Ante una falla del servicio externo
-   * devuelve valores neutros (sin mora ni cupo) para no bloquear la venta por
-   * una caída del endpoint de cartera.
+   * el saldo total, si está en mora (documentos vencidos con saldo, respetando
+   * los días de gracia), el cupo de crédito (0 si el ERP no lo provee) y el cupo
+   * de la sucursal del pedido. Ante una falla del servicio externo devuelve
+   * valores neutros (sin mora ni cupo) para no bloquear la venta por una caída
+   * del endpoint de cartera.
    */
   private async resolveCarteraStatus(
     companyId: string,
     code: string,
-  ): Promise<{ balance: number; hasOverdue: boolean; creditLimit: number }> {
+    branch?: string,
+  ): Promise<CarteraStatus> {
     try {
       const portfolio = await this.clientsService.getPortfolio(companyId, code);
       return {
         balance: portfolio.totalBalance > 0 ? portfolio.totalBalance : 0,
         hasOverdue: portfolio.hasOverdue,
         creditLimit: portfolio.creditLimit > 0 ? portfolio.creditLimit : 0,
+        credit: findBranchCredit(portfolio, branch),
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -485,6 +520,24 @@ export class OrdersService {
       );
       return { balance: 0, hasOverdue: false, creditLimit: 0 };
     }
+  }
+
+  /**
+   * El pedido supera el cupo. Con el cupo de la sucursal (Siesa) solo se
+   * retiene si Siesa tiene activo el bloqueo por cupo y el saldo de la sucursal
+   * más el pedido supera el cupo con su tolerancia. Sin datos de la sucursal se
+   * usa el cupo general contra el saldo total.
+   */
+  private exceedsCredit(cartera: CarteraStatus, amount: number): boolean {
+    if (cartera.credit) {
+      return (
+        cartera.credit.blocked &&
+        exceedsBranchCredit(cartera.credit, cartera.credit.balance, amount)
+      );
+    }
+    return (
+      cartera.creditLimit > 0 && cartera.balance + amount > cartera.creditLimit
+    );
   }
 
   /**
@@ -923,10 +976,9 @@ export class OrdersService {
     const cartera = await this.resolveCarteraStatus(
       order.companyId,
       order.customer.code,
+      order.customer.branch,
     );
-    const exceedsCredit =
-      cartera.creditLimit > 0 &&
-      cartera.balance + Number(order.total) > cartera.creditLimit;
+    const exceedsCredit = this.exceedsCredit(cartera, Number(order.total));
     const needsApproval = cartera.balance > 0 || exceedsCredit;
 
     if (needsApproval) {
@@ -1122,7 +1174,7 @@ export class OrdersService {
   ): Promise<Record<string, SiesaOrderState>> {
     const orders = await this.ordersRepository.find({
       where: { companyId, seller: { id: sellerId } },
-      select: { id: true, orderNumber: true },
+      select: { id: true, orderNumber: true, type: true },
     });
     if (orders.length === 0) return {};
 
@@ -1144,11 +1196,10 @@ export class OrdersService {
 
     const result: Record<string, SiesaOrderState> = {};
     for (const order of orders) {
-      const referencia = parseInt(order.orderNumber, 10);
-      if (Number.isNaN(referencia)) continue;
-      const state = byReferencia.get(referencia);
+      const state = this.stateForOrder(byReferencia, order);
       if (!state) continue;
-      result[order.orderNumber] = {
+      // Se indexa por id: Ñam Ñam y cortes pueden compartir número.
+      result[order.id] = {
         estado: state.DESC_ESTADO,
         facturado: Number(state.FACTURADO) === 1,
         despachado: Number(state.DESPACHADO) === 1,
@@ -1189,17 +1240,37 @@ export class OrdersService {
    * `documento_venta` que enviamos al subir el pedido y equivale a nuestro
    * `orderNumber`. Así el pedido #1 se cruza con el documento cuyo
    * `NUM_REFERENCIA` es 1, sin depender del consecutivo interno de Siesa.
+   * Ñam Ñam tiene numeración propia (documento OPÑ), así que se indexa aparte
+   * para no cruzarlo con un corte del mismo número.
    */
   private indexStatesByReferencia(
     states: ErpOrderState[],
-  ): Map<number, ErpOrderState> {
-    const byReferencia = new Map<number, ErpOrderState>();
+  ): Record<'namnam' | 'other', Map<number, ErpOrderState>> {
+    const index = {
+      namnam: new Map<number, ErpOrderState>(),
+      other: new Map<number, ErpOrderState>(),
+    };
     for (const state of states) {
       const referencia = parseInt(state.NUM_REFERENCIA, 10);
       if (Number.isNaN(referencia)) continue;
-      byReferencia.set(referencia, state);
+      index[isNamNamDocType(state.TIPO_DOC) ? 'namnam' : 'other'].set(
+        referencia,
+        state,
+      );
     }
-    return byReferencia;
+    return index;
+  }
+
+  /** Estado de Siesa de un pedido según su tipo y número. */
+  private stateForOrder(
+    index: Record<'namnam' | 'other', Map<number, ErpOrderState>>,
+    order: Pick<Order, 'type' | 'orderNumber'>,
+  ): ErpOrderState | undefined {
+    const referencia = parseInt(order.orderNumber, 10);
+    if (Number.isNaN(referencia)) return undefined;
+    return index[order.type === NAMNAM_TYPE ? 'namnam' : 'other'].get(
+      referencia,
+    );
   }
 
   /**
@@ -1249,6 +1320,7 @@ export class OrdersService {
       select: {
         id: true,
         orderNumber: true,
+        type: true,
         syncedAt: true,
         siesaEstado: true,
         seller: { id: true },
@@ -1269,9 +1341,8 @@ export class OrdersService {
     let updated = 0;
     for (const order of syncedOrders) {
       // Se cruza por NUM_REFERENCIA (nuestro orderNumber / documento_venta).
-      const referencia = parseInt(order.orderNumber, 10);
-      if (Number.isNaN(referencia)) continue;
-      const state = byReferencia.get(referencia);
+      if (Number.isNaN(parseInt(order.orderNumber, 10))) continue;
+      const state = this.stateForOrder(byReferencia, order);
 
       // No apareció en el ERP: en Siesa el rebote es inmediato (o entra o
       // rebota). Solo se respeta un pequeño margen de asentamiento para que la
@@ -1670,6 +1741,12 @@ export class OrdersService {
           }
         });
         result = await this.erpClient.uploadSubproductos(bovino, porcino);
+      } else if (order.type === NAMNAM_TYPE) {
+        result = await this.erpClient.uploadOrder(
+          order.companyId,
+          registros,
+          NAMNAM_ORDER_ENDPOINT,
+        );
       } else {
         result = await this.erpClient.uploadOrder(order.companyId, registros);
       }
@@ -1727,6 +1804,24 @@ export class OrdersService {
     count: number,
   ): Promise<string[]> {
     const repo = manager.getRepository(Order);
+
+    // Ñam Ñam lleva su propia numeración por compañía (documento OPÑ en Siesa).
+    if (type === NAMNAM_TYPE) {
+      await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
+        `order-seq:${companyId}:${NAMNAM_TYPE}`,
+      ]);
+      const row = await repo
+        .createQueryBuilder('o')
+        .select('COALESCE(MAX(CAST(o.order_number AS INTEGER)), 0)', 'max')
+        .where('o.company_id = :companyId AND o.type = :type', {
+          companyId,
+          type: NAMNAM_TYPE,
+        })
+        .getRawOne<{ max: string }>();
+      const first = Number(row?.max ?? 0) + 1;
+      return Array.from({ length: count }, (_, i) => String(first + i));
+    }
+
     // Clave del pool: los subproductos usan la compañía base (Agropecuaria).
     const key = type === 'subproducto' ? baseCompanyId(companyId) : companyId;
 

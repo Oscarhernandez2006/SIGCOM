@@ -60,7 +60,7 @@ export function DuplicateOrderModal({
   const { data: products = [] } = useProductsForList(
     productSearch,
     order.customer.priceList,
-    order.type === 'subproducto' ? 'subproducto' : undefined,
+    order.type === 'subproducto' || order.type === 'namnam' ? order.type : undefined,
   );
   const createOrder = useCreateOrder();
 
@@ -145,7 +145,9 @@ export function DuplicateOrderModal({
         })),
         ...(order.type === 'subproducto'
           ? { orderType: 'subproducto' as const, sellerId: order.seller.id }
-          : {}),
+          : order.type === 'namnam'
+            ? { orderType: 'namnam' as const }
+            : {}),
       });
       setCreatedOrder(created);
     } catch (err) {

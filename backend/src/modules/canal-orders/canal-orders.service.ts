@@ -20,7 +20,11 @@ import { DispatchCanalOrderDto } from './dto/dispatch-canal-order.dto';
 import pdfParse from 'pdf-parse';
 import { User, UserRole } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
-import { ClientsService } from '../clients/clients.service';
+import {
+  ClientsService,
+  exceedsBranchCredit,
+  findBranchCredit,
+} from '../clients/clients.service';
 import { OrdersErpClient, ErpOrderRegistro } from '../orders/orders-erp.client';
 import { getWarehouse } from '../../common/companies';
 
@@ -47,6 +51,10 @@ export interface CupoInfo {
   available: number;
   exceeds: boolean;
   hasOverdue: boolean;
+  /** Siesa bloquea pedidos que superen el cupo (BLOQUEO_CUPO). */
+  blocked: boolean;
+  /** Porcentaje de tolerancia sobre el cupo (PORC_TOLERANCIA). */
+  tolerancePct: number;
 }
 
 interface ParsedFrigoDoc {
@@ -343,7 +351,12 @@ export class CanalOrdersService implements OnModuleInit {
     order.controlledAt = new Date();
 
     // Snapshot del cupo para que cartera lo vea al abrir el pedido.
-    const cupo = await this.getCupoInfo(companyId, order.clientCode, order.id);
+    const cupo = await this.getCupoInfo(
+      companyId,
+      order.clientCode,
+      order.id,
+      order.clientBranch,
+    );
     order.creditLimit = cupo.creditLimit;
     order.invoicedBalance = cupo.invoicedBalance;
     order.pendingOrdersTotal = cupo.pendingOrdersTotal;
@@ -368,24 +381,37 @@ export class CanalOrdersService implements OnModuleInit {
   /**
    * Calcula el cupo del cliente: cupo autorizado, lo facturado (cartera) y lo
    * que ya está pedido sin facturar. La suma de facturado + pendiente + este
-   * pedido no debe superar el cupo autorizado.
+   * pedido no debe superar el cupo autorizado (más la tolerancia de Siesa).
+   * Si se conoce la sucursal, se usa el cupo y el saldo de esa sucursal.
    */
   async getCupoInfo(
     companyId: string,
     clientCode: string,
     excludeOrderId?: string,
+    branch?: string,
   ): Promise<CupoInfo> {
     let creditLimit = 0;
     let invoicedBalance = 0;
     let hasOverdue = false;
+    let blocked = false;
+    let tolerancePct = 0;
     try {
       const portfolio = await this.clientsService.getPortfolio(
         companyId,
         clientCode,
       );
-      creditLimit = portfolio.creditLimit > 0 ? portfolio.creditLimit : 0;
-      invoicedBalance = portfolio.totalBalance > 0 ? portfolio.totalBalance : 0;
       hasOverdue = portfolio.hasOverdue;
+      const credit = findBranchCredit(portfolio, branch);
+      if (credit) {
+        creditLimit = credit.creditLimit > 0 ? credit.creditLimit : 0;
+        invoicedBalance = credit.balance > 0 ? credit.balance : 0;
+        blocked = credit.blocked;
+        tolerancePct = credit.tolerancePct;
+      } else {
+        creditLimit = portfolio.creditLimit > 0 ? portfolio.creditLimit : 0;
+        invoicedBalance =
+          portfolio.totalBalance > 0 ? portfolio.totalBalance : 0;
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn(
@@ -416,6 +442,8 @@ export class CanalOrdersService implements OnModuleInit {
       pendingOrdersTotal,
       available,
       hasOverdue,
+      blocked,
+      tolerancePct,
       exceeds: false,
     };
   }
@@ -432,13 +460,17 @@ export class CanalOrdersService implements OnModuleInit {
     });
     const result: (CanalOrder & { cupo: CupoInfo })[] = [];
     for (const order of orders) {
-      const cupo = await this.getCupoInfo(companyId, order.clientCode, order.id);
-      cupo.exceeds =
-        cupo.creditLimit > 0 &&
-        cupo.invoicedBalance +
-          cupo.pendingOrdersTotal +
-          Number(order.totalValue) >
-          cupo.creditLimit;
+      const cupo = await this.getCupoInfo(
+        companyId,
+        order.clientCode,
+        order.id,
+        order.clientBranch,
+      );
+      cupo.exceeds = exceedsBranchCredit(
+        cupo,
+        cupo.invoicedBalance + cupo.pendingOrdersTotal,
+        Number(order.totalValue),
+      );
       result.push(Object.assign(order, { cupo }));
     }
     return result;

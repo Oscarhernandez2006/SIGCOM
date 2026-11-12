@@ -28,6 +28,7 @@ const MODULE_GROUPS = [
       { key: '/pedidos', label: 'Pedidos' },
       { key: '/pedidos/canales', label: 'Pedidos · Canales' },
       { key: '/pedidos/subproductos', label: 'Pedidos · Subproductos' },
+      { key: '/pedidos/namnam', label: 'Pedidos · Ñam Ñam' },
       { key: '/cotizaciones', label: 'Cotizaciones' },
       { key: '/clientes', label: 'Cartera de Clientes' },
       { key: '/disponibilidad', label: 'Disponibilidad' },
@@ -50,11 +51,19 @@ const MODULE_GROUPS = [
         key: '/admin/descargar-pedidos-subproductos-res',
         label: 'Descargar subproductos · Res',
       },
+      {
+        key: '/admin/descargar-pedidos-namnam',
+        label: 'Descargar pedidos · Ñam Ñam',
+      },
       { key: '/admin/listas-precios', label: 'Listas de precios' },
       { key: '/admin/clientes', label: 'Clientes' },
       { key: '/admin/presupuestos', label: 'Presupuestos' },
       { key: '/admin/rentabilidad', label: 'Rentabilidad · Costos' },
       { key: '/admin/cartera', label: 'Aprobación de cartera' },
+      {
+        key: '/admin/certificados-referencia',
+        label: 'Certificados de Referencia Comercial',
+      },
       {
         key: '/admin/controlador-subproductos',
         label: 'Controlador Subproductos',

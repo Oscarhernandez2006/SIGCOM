@@ -14,7 +14,7 @@ import {
 import {
   SIESA_DISPATCHED,
   SIESA_INVOICED,
-  SUBPRODUCT_PILL,
+  orderTypePill,
   orderNote,
   siesaStyle,
   statusStyle,
@@ -76,8 +76,8 @@ export function OrderDetailModal({
             {siesa?.despachado && (
               <StatusPill label={SIESA_DISPATCHED.label} color={SIESA_DISPATCHED.color} outlined />
             )}
-            {order.type === 'subproducto' && (
-              <StatusPill label={SUBPRODUCT_PILL.label} color={SUBPRODUCT_PILL.color} />
+            {orderTypePill(order.type) && (
+              <StatusPill label={orderTypePill(order.type)!.label} color={orderTypePill(order.type)!.color} />
             )}
           </div>
           <p className="mt-3.5 text-2xl font-extrabold tracking-[-0.6px] sm:text-3xl">

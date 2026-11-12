@@ -8,7 +8,7 @@ import { ApprovalCountdown } from '@/components/ApprovalCountdown';
 import {
   SIESA_DISPATCHED,
   SIESA_INVOICED,
-  SUBPRODUCT_PILL,
+  orderTypePill,
   orderNote,
   siesaStyle,
   statusStyle,
@@ -57,8 +57,8 @@ export function OrderCard({
             <span className="text-base font-extrabold">
               #{orderNos(order.orderNumber, order.secondNumber)}
             </span>
-            {order.type === 'subproducto' && (
-              <StatusPill label={SUBPRODUCT_PILL.label} color={SUBPRODUCT_PILL.color} />
+            {orderTypePill(order.type) && (
+              <StatusPill label={orderTypePill(order.type)!.label} color={orderTypePill(order.type)!.color} />
             )}
             <span className="ml-auto shrink-0 text-xs" style={{ color: BRAND.textSoft }}>
               {formatShortDateTimeDay(order.createdAt)} · {formatTime(order.createdAt)}

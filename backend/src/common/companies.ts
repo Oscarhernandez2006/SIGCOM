@@ -181,7 +181,36 @@ export const SUBPRODUCTO_DOC_TYPES = ['SPB', 'SPP'];
 export function getOrderDocTypes(companyId: string): string[] {
   const types = [getOrderDocType(companyId)];
   if (baseCompanyId(companyId) === '3') types.push(...SUBPRODUCTO_DOC_TYPES);
+  if (isNamNamCompany(companyId)) types.push(NAMNAM_DOC_TYPE);
   return types;
+}
+
+/* ------------------------- Ñam Ñam (comida para mascotas) ------------------------- */
+
+/** Tipo de pedido / inventario de Ñam Ñam. */
+export const NAMNAM_TYPE = 'namnam';
+
+/** Compañías que venden Ñam Ñam (solo AGROPECUARIA). */
+export const NAMNAM_COMPANIES = ['3'];
+
+/** Endpoint del ERP para subir los pedidos de Ñam Ñam. */
+export const NAMNAM_ORDER_ENDPOINT = 'ventas/pedidos-opn';
+
+/** Tipo de documento de los pedidos de Ñam Ñam en Siesa. */
+export const NAMNAM_DOC_TYPE = 'OPÑ';
+
+/** Mínimo de unidades (suma de cantidades) de un pedido de Ñam Ñam. */
+export const NAMNAM_MIN_UNITS = 20;
+
+export function isNamNamCompany(companyId: string): boolean {
+  return NAMNAM_COMPANIES.includes(companyId);
+}
+
+/** El documento de Siesa es de Ñam Ñam (tolera la Ñ mal codificada: "OP?", "OPÃ‘"). */
+export function isNamNamDocType(tipoDoc: string | null | undefined): boolean {
+  const t = (tipoDoc ?? '').trim().toUpperCase();
+  if (t === NAMNAM_DOC_TYPE || t === 'OPN') return true;
+  return t.startsWith('OP') && /[^A-Z0-9]/.test(t.slice(2));
 }
 
 /**

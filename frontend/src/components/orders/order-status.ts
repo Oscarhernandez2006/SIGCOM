@@ -42,6 +42,14 @@ export function siesaStyle(state?: SiesaState | string | null): StatusStyle | nu
 export const SIESA_INVOICED: StatusStyle = { label: 'Facturado', color: '#4F46E5' };
 export const SIESA_DISPATCHED: StatusStyle = { label: 'Despachado', color: '#0D9488' };
 export const SUBPRODUCT_PILL: StatusStyle = { label: 'Subproducto', color: '#7C3AED' };
+export const NAMNAM_PILL: StatusStyle = { label: 'Ñam Ñam', color: '#DB2777' };
+
+/** Etiqueta del tipo de pedido (cortes no lleva). */
+export function orderTypePill(type?: string): StatusStyle | null {
+  if (type === 'subproducto') return SUBPRODUCT_PILL;
+  if (type === 'namnam') return NAMNAM_PILL;
+  return null;
+}
 
 /** Agrupación de estados para los filtros (igual que en la API móvil). */
 export type OrderGroup = 'in_progress' | 'synced' | 'issues' | 'cancelled';

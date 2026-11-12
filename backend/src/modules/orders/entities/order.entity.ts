@@ -37,7 +37,16 @@ export enum DeliveryType {
 }
 
 @Entity('orders')
-@Unique('uq_order_company_number', ['companyId', 'orderNumber'])
+// Numeración única por compañía; Ñam Ñam tiene la suya (índices parciales,
+// ver scripts/add-namnam-order-numbering.js).
+@Index('uq_order_company_number_main', ['companyId', 'orderNumber'], {
+  unique: true,
+  where: `type <> 'namnam'`,
+})
+@Index('uq_order_company_number_namnam', ['companyId', 'orderNumber'], {
+  unique: true,
+  where: `type = 'namnam'`,
+})
 @Unique('uq_order_company_idempotency_key', ['companyId', 'idempotencyKey'])
 export class Order extends BaseEntity {
   /** Compañía a la que pertenece el pedido (aislamiento por tenant). */
@@ -59,8 +68,8 @@ export class Order extends BaseEntity {
   secondNumber?: string;
 
   /**
-   * Tipo de pedido: 'corte' (por defecto) o 'subproducto'. Los subproductos
-   * usan el inventario de subproductos y se cargan al ERP de Agropecuaria.
+   * Tipo de pedido: 'corte' (por defecto), 'subproducto' o 'namnam' (comida
+   * para mascotas, numeración propia, sube a `ventas/pedidos-opn`).
    */
   @Column({ default: 'corte' })
   type: string;

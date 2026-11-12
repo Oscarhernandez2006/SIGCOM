@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { applyLetterhead } from '@/lib/pdf-letterhead';
+import { applyLetterhead, pdfPageFormat } from '@/lib/pdf-letterhead';
 import type { CanalOrder } from '@/types';
 
 type RGB = [number, number, number];
@@ -34,7 +34,7 @@ export async function exportCanalOrdersPdf({
   companyName,
   orders,
 }: CanalPdfInput): Promise<void> {
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: pdfPageFormat(companyId) });
   const w = doc.internal.pageSize.getWidth();
   const letterhead = await applyLetterhead(doc, companyId);
 

@@ -36,6 +36,7 @@ export interface PortfolioRaw {
   CODIGO?: string;
   RAZON_SOCIAL?: string;
   SUCURSAL?: string;
+  DESC_SUCURSAL?: string;
   CO?: string;
   TIPO_DOC_CRUCE?: string;
   DESCRIPCION?: string;
@@ -45,11 +46,17 @@ export interface PortfolioRaw {
   DEBITO?: number;
   CREDITO?: number;
   SALDO?: number;
-  // Cupo de crédito del cliente si el ERP lo incluye en la fila (nombre de
-  // campo variable según la instancia de Siesa). Best-effort: si no viene,
-  // la validación de cupo se omite y solo se evalúa la mora.
-  CUPO?: number;
+  // Cupo de crédito de la sucursal (se repite en cada fila de la sucursal).
   CUPO_CREDITO?: number;
+  SALDO_TOTAL_SUCURSAL?: number;
+  CUPO_DISPONIBLE?: number;
+  /** "SI" / "NO": Siesa bloquea pedidos que superen el cupo. */
+  BLOQUEO_CUPO?: string;
+  PORC_TOLERANCIA?: number;
+  DIAS_GRACIA?: number;
+  FECHA_CUPO?: string | null;
+  // Nombres alternos del cupo usados por versiones anteriores de la consulta.
+  CUPO?: number;
   VLR_CUPO?: number;
   CUPO_APROBADO?: number;
 }

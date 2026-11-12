@@ -211,7 +211,7 @@ export function useRemoveCompany() {
 export function useCompanyProducts(
   companyId: string,
   search: string,
-  type?: 'corte' | 'subproducto',
+  type?: 'corte' | 'subproducto' | 'namnam',
 ) {
   return useQuery({
     queryKey: ['admin', 'products', companyId, search, type],
@@ -569,7 +569,7 @@ export interface CreateManualProductInput {
   sku: string;
   name: string;
   stock: number;
-  type?: 'corte' | 'subproducto';
+  type?: 'corte' | 'subproducto' | 'namnam';
 }
 
 export interface UpdateManualProductInput {
@@ -577,7 +577,7 @@ export interface UpdateManualProductInput {
   id: string;
   name: string;
   stock: number;
-  type?: 'corte' | 'subproducto';
+  type?: 'corte' | 'subproducto' | 'namnam';
 }
 
 /** Carga diaria del inventario desde Excel (reemplaza el inventario). */
@@ -587,7 +587,7 @@ export function useImportInventory() {
     mutationFn: async (input: {
       companyId: string;
       file: File;
-      type?: 'corte' | 'subproducto';
+      type?: 'corte' | 'subproducto' | 'namnam';
       species?: 'RES' | 'CERDO';
     }) => {
       const form = new FormData();
@@ -1489,7 +1489,7 @@ export interface DownloadableOrder {
 /** Pedidos subidos a Siesa (no rebotados ni anulados) de una compañía. */
 export function useDownloadableOrders(
   companyId: string,
-  type: 'corte' | 'subproducto' = 'corte',
+  type: 'corte' | 'subproducto' | 'namnam' = 'corte',
   category?: 'CERDO' | 'RES',
 ) {
   return useQuery({
@@ -1513,7 +1513,7 @@ export function useDownloadOrders() {
     mutationFn: async (input: {
       companyId: string;
       orderIds: string[];
-      type: 'corte' | 'subproducto';
+      type: 'corte' | 'subproducto' | 'namnam';
       category?: 'CERDO' | 'RES';
     }) => {
       const res = await api.post('/admin/orders/download', input, {
@@ -1557,7 +1557,7 @@ export function useSetOrderPicked() {
       companyId: string;
       orderId: string;
       picked: boolean;
-      type: 'corte' | 'subproducto';
+      type: 'corte' | 'subproducto' | 'namnam';
       category?: 'CERDO' | 'RES';
     }) => {
       const res = await api.patch(
@@ -1614,7 +1614,7 @@ export function useSetOrderPickedBulk() {
       companyId: string;
       orderIds: string[];
       picked: boolean;
-      type: 'corte' | 'subproducto';
+      type: 'corte' | 'subproducto' | 'namnam';
       category?: 'CERDO' | 'RES';
     }) => {
       const res = await api.patch<{ updated: number }>(

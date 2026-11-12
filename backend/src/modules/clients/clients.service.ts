@@ -29,6 +29,7 @@ interface NormalizedClient {
 /** Documento de cartera (factura pendiente por cobrar) ya normalizado. */
 export interface PortfolioDocument {
   branch: string;
+  branchName?: string;
   costCenter?: string;
   docType?: string;
   description?: string;
@@ -54,7 +55,54 @@ export interface ClientPortfolio {
   hasOverdue: boolean;
   /** Cupo de crédito del cliente si el ERP lo provee (0 si se desconoce). */
   creditLimit: number;
+  /** Cupo de crédito por sucursal (Siesa maneja el cupo por sucursal). */
+  branches: PortfolioBranchCredit[];
   documents: PortfolioDocument[];
+}
+
+/** Cupo de crédito de una sucursal del cliente según Siesa. */
+export interface PortfolioBranchCredit {
+  branch: string;
+  branchName?: string;
+  creditLimit: number;
+  /** Saldo total de la sucursal en cartera. */
+  balance: number;
+  /** Cupo disponible (cupo - saldo); puede ser negativo. */
+  available: number;
+  /** Siesa bloquea pedidos que superen el cupo. */
+  blocked: boolean;
+  tolerancePct: number;
+  graceDays: number;
+  /** Fecha del cupo (YYYY-MM-DD). */
+  creditDate?: string;
+  /**
+   * `erp`: viene en la consulta actual. `stored`: la sucursal no tiene
+   * documentos abiertos y se toma el último cupo guardado (saldo 0).
+   */
+  source: 'erp' | 'stored';
+}
+
+/** Cupo de la sucursal indicada, o `undefined` si no se conoce. */
+export function findBranchCredit(
+  portfolio: ClientPortfolio,
+  branch?: string | null,
+): PortfolioBranchCredit | undefined {
+  const code = (branch ?? '').trim() || '001';
+  return portfolio.branches.find((b) => b.branch === code);
+}
+
+/**
+ * Indica si un pedido de `amount` haría que la sucursal supere su cupo
+ * (incluida la tolerancia). Sin cupo asignado no se valida.
+ */
+export function exceedsBranchCredit(
+  credit: { creditLimit: number; tolerancePct: number } | undefined,
+  usedBalance: number,
+  amount: number,
+): boolean {
+  if (!credit || credit.creditLimit <= 0) return false;
+  const limit = credit.creditLimit * (1 + credit.tolerancePct / 100);
+  return usedBalance + amount > limit;
 }
 
 @Injectable()
@@ -384,16 +432,23 @@ export class ClientsService {
       code,
     );
     const documents = rows.map((r) => this.normalizePortfolio(r));
+    const branches = await this.resolveBranchCredits(companyId, code, rows);
+    const graceOf = new Map(branches.map((b) => [b.branch, b.graceDays]));
     const totalBalance = documents.reduce((sum, d) => sum + d.balance, 0);
     const today = this.bogotaToday();
     const overdueBalance = documents.reduce(
       (sum, d) =>
-        d.balance > 0 && this.isOverdue(d.dueDate, today)
+        d.balance > 0 &&
+        this.isOverdue(d.dueDate, today, graceOf.get(d.branch) ?? 0)
           ? sum + d.balance
           : sum,
       0,
     );
     const name = this.clean(rows.find((r) => r.RAZON_SOCIAL)?.RAZON_SOCIAL);
+    const branchLimit = branches.reduce(
+      (max, b) => Math.max(max, b.creditLimit),
+      0,
+    );
 
     return {
       nit: code,
@@ -402,18 +457,148 @@ export class ClientsService {
       totalBalance: Number(totalBalance.toFixed(2)),
       overdueBalance: Number(overdueBalance.toFixed(2)),
       hasOverdue: overdueBalance > 0,
-      creditLimit: Number(creditLimit) || 0,
+      creditLimit: Math.max(Number(creditLimit) || 0, branchLimit),
+      branches,
       documents,
     };
   }
 
   /**
-   * Un documento está en mora si su fecha de vencimiento ya pasó (respecto a
-   * hoy, hora de Colombia) y todavía tiene saldo por cobrar.
+   * Cupo por sucursal: toma el de la consulta de cartera, lo guarda en
+   * `client_records` y, para las sucursales sin documentos abiertos (que no
+   * vienen en la consulta), usa el último cupo guardado con saldo 0.
    */
-  private isOverdue(dueDate: string | undefined, today: string): boolean {
+  private async resolveBranchCredits(
+    companyId: string,
+    code: string,
+    rows: PortfolioRaw[],
+  ): Promise<PortfolioBranchCredit[]> {
+    const fromErp = new Map<string, PortfolioBranchCredit>();
+    const sums = new Map<string, number>();
+    for (const r of rows) {
+      const branch = this.clean(r.SUCURSAL) ?? '001';
+      sums.set(branch, (sums.get(branch) ?? 0) + (Number(r.SALDO) || 0));
+      if (!fromErp.has(branch)) {
+        fromErp.set(branch, this.branchCredit(branch, r));
+      }
+    }
+    for (const [branch, credit] of fromErp) {
+      // Si la consulta no trae el saldo de la sucursal, se suma por documento.
+      if (Number.isNaN(credit.balance)) {
+        credit.balance = Number((sums.get(branch) ?? 0).toFixed(2));
+        credit.available = Number(
+          (credit.creditLimit - credit.balance).toFixed(2),
+        );
+      }
+    }
+
+    let records: ClientRecord[] = [];
+    try {
+      records = await this.repository.find({ where: { companyId, code } });
+    } catch (error) {
+      this.logger.warn(
+        `No se pudieron leer los clientes ${code} (compañía ${companyId}): ` +
+          `${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+
+    const now = new Date();
+    const updates: Promise<unknown>[] = [];
+    const result: PortfolioBranchCredit[] = [];
+    for (const credit of fromErp.values()) {
+      const record = records.find((r) => r.branch === credit.branch);
+      credit.branchName ??= record?.branchName;
+      result.push(credit);
+      if (record) {
+        updates.push(
+          this.repository.update(record.id, {
+            creditLimit: credit.creditLimit,
+            creditBalance: credit.balance,
+            creditAvailable: credit.available,
+            creditBlocked: credit.blocked,
+            creditTolerancePct: credit.tolerancePct,
+            creditGraceDays: credit.graceDays,
+            creditDate: credit.creditDate ?? null,
+            creditUpdatedAt: now,
+          }),
+        );
+      }
+    }
+    for (const record of records) {
+      if (fromErp.has(record.branch) || !record.creditUpdatedAt) continue;
+      const limit = Number(record.creditLimit) || 0;
+      result.push({
+        branch: record.branch,
+        branchName: record.branchName,
+        creditLimit: limit,
+        balance: 0,
+        available: limit,
+        blocked: record.creditBlocked === true,
+        tolerancePct: Number(record.creditTolerancePct) || 0,
+        graceDays: Number(record.creditGraceDays) || 0,
+        creditDate: record.creditDate ?? undefined,
+        source: 'stored',
+      });
+    }
+
+    if (updates.length > 0) {
+      try {
+        await Promise.all(updates);
+      } catch (error) {
+        this.logger.warn(
+          `No se pudo guardar el cupo del cliente ${code} ` +
+            `(compañía ${companyId}): ` +
+            `${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+
+    return result.sort((a, b) => a.branch.localeCompare(b.branch));
+  }
+
+  /** Cupo de la sucursal a partir de una fila de la consulta de cartera. */
+  private branchCredit(branch: string, r: PortfolioRaw): PortfolioBranchCredit {
+    const limit =
+      Number(r.CUPO_CREDITO ?? r.CUPO ?? r.VLR_CUPO ?? r.CUPO_APROBADO ?? 0) ||
+      0;
+    const rawBalance = r.SALDO_TOTAL_SUCURSAL;
+    const balance =
+      rawBalance === null || rawBalance === undefined
+        ? Number.NaN
+        : Number(rawBalance) || 0;
+    const rawAvailable = r.CUPO_DISPONIBLE;
+    return {
+      branch,
+      branchName: this.clean(r.DESC_SUCURSAL),
+      creditLimit: limit,
+      balance,
+      available:
+        rawAvailable === null || rawAvailable === undefined
+          ? limit - balance
+          : Number(rawAvailable) || 0,
+      blocked: (r.BLOQUEO_CUPO ?? '').trim().toUpperCase() === 'SI',
+      tolerancePct: Number(r.PORC_TOLERANCIA) || 0,
+      graceDays: Number(r.DIAS_GRACIA) || 0,
+      creditDate: this.dateOnly(r.FECHA_CUPO),
+      source: 'erp',
+    };
+  }
+
+  /**
+   * Un documento está en mora si su fecha de vencimiento más los días de
+   * gracia ya pasó (respecto a hoy, hora de Colombia) y todavía tiene saldo.
+   */
+  private isOverdue(
+    dueDate: string | undefined,
+    today: string,
+    graceDays = 0,
+  ): boolean {
     if (!dueDate) return false;
-    return dueDate.slice(0, 10) < today;
+    const due = dueDate.slice(0, 10);
+    if (graceDays <= 0) return due < today;
+    const limit = new Date(`${due}T00:00:00Z`);
+    limit.setUTCDate(limit.getUTCDate() + graceDays);
+    return limit.toISOString().slice(0, 10) < today;
   }
 
   /** Fecha de hoy (YYYY-MM-DD) en horario de Colombia (America/Bogota). */
@@ -430,6 +615,7 @@ export class ClientsService {
   private normalizePortfolio(raw: PortfolioRaw): PortfolioDocument {
     return {
       branch: this.clean(raw.SUCURSAL) ?? '001',
+      branchName: this.clean(raw.DESC_SUCURSAL),
       costCenter: this.clean(raw.CO),
       docType: this.clean(raw.TIPO_DOC_CRUCE),
       description: this.clean(raw.DESCRIPCION),

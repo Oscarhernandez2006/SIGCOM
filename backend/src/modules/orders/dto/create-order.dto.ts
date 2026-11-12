@@ -75,12 +75,12 @@ export class CreateOrderDto {
   deliveryScheduleData?: DeliveryScheduleDto;
 
   /**
-   * Tipo de pedido: 'corte' (por defecto) o 'subproducto'. Los subproductos
-   * usan su propio inventario y un vendedor seleccionado.
+   * Tipo de pedido: 'corte' (por defecto), 'subproducto' o 'namnam'. Los
+   * subproductos y Ñam Ñam usan su propio inventario.
    */
-  @IsIn(['corte', 'subproducto'])
+  @IsIn(['corte', 'subproducto', 'namnam'])
   @IsOptional()
-  orderType?: 'corte' | 'subproducto';
+  orderType?: 'corte' | 'subproducto' | 'namnam';
 
   /**
    * Vendedor al que se asocia el pedido (solo subproductos). Cuando lo sube un

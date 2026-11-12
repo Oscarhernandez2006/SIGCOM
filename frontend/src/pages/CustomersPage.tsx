@@ -11,6 +11,7 @@ import {
   Store,
   FileText,
   Clock,
+  CreditCard,
 } from 'lucide-react';
 import { isAxiosError } from 'axios';
 import { useClients, useClientPortfolio, useClientPortfolios } from '@/hooks/useApi';
@@ -31,7 +32,7 @@ import {
   Segmented,
 } from '@/components/brand/PageShell';
 import { FadeIn } from '@/components/dashboard/primitives';
-import type { Client, ClientPortfolio, PortfolioDocument } from '@/types';
+import type { Client, ClientPortfolio, PortfolioBranchCredit, PortfolioDocument } from '@/types';
 
 const RED = '#DC2626';
 const AMBER = '#B45309';
@@ -439,6 +440,26 @@ function PortfolioModal({
               </div>
             </TitledCard>
 
+            <TitledCard title="Cupo de crédito" icon={CreditCard}>
+              {(data.branches ?? []).length === 0 ? (
+                <p className="text-sm" style={{ color: BRAND.textSoft }}>
+                  Siesa no reportó cupo para este cliente.
+                </p>
+              ) : (
+                [...data.branches]
+                  .sort((a, b) => Number(b.branch === client.branch) - Number(a.branch === client.branch))
+                  .map((c, i) => (
+                    <BranchCredit
+                      key={c.branch}
+                      credit={c}
+                      current={c.branch === client.branch}
+                      showBranch={data.branches.length > 1}
+                      divider={i > 0}
+                    />
+                  ))
+              )}
+            </TitledCard>
+
             {aging.length > 0 && (
               <TitledCard title="Antigüedad de saldos" icon={Clock}>
                 <div className="space-y-2">
@@ -504,7 +525,7 @@ function PortfolioModal({
                         <p className="text-xs" style={{ color: BRAND.textSoft }}>
                           {d.invoiceDate ? `Factura ${formatDate(d.invoiceDate)}` : ''}
                           {d.dueDate ? ` · Vence ${formatDate(d.dueDate)}` : ''}
-                          {d.branch ? ` · ${d.branch}` : ''}
+                          {d.branch ? ` · ${d.branchName ? `${d.branch} ${d.branchName}` : d.branch}` : ''}
                         </p>
                       </div>
                       <div className="shrink-0 text-right">
@@ -547,6 +568,69 @@ function Stat({ label, value, color }: { label: string; value: string; color?: s
       <p className="truncate text-[15px] font-extrabold" style={{ color: color ?? BRAND.text }}>
         {value}
       </p>
+    </div>
+  );
+}
+
+/** Cupo de crédito de una sucursal (CUPO_CREDITO, SALDO_TOTAL_SUCURSAL, CUPO_DISPONIBLE…). */
+function BranchCredit({
+  credit: c,
+  current,
+  showBranch,
+  divider,
+}: {
+  credit: PortfolioBranchCredit;
+  current: boolean;
+  showBranch: boolean;
+  divider: boolean;
+}) {
+  const hasLimit = c.creditLimit > 0;
+  const exceeded = hasLimit && c.available < 0;
+  const usedPct = hasLimit ? Math.min(100, (c.balance / c.creditLimit) * 100) : 0;
+  return (
+    <div className={cn(divider && 'mt-3 pt-3')} style={divider ? { borderTop: `1px solid ${BRAND.border}` } : undefined}>
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        {showBranch && (
+          <p className="min-w-0 flex-1 truncate text-sm font-bold">
+            Sucursal {c.branch}
+            {c.branchName ? ` · ${c.branchName}` : ''}
+            {current ? ' (esta)' : ''}
+          </p>
+        )}
+        <StatusPill
+          label={c.blocked ? 'Bloqueo por cupo' : 'Sin bloqueo por cupo'}
+          color={c.blocked ? AMBER : BRAND.textSoft}
+        />
+        {exceeded && <StatusPill label="Cupo excedido" color={RED} />}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <Stat label="Cupo asignado" value={hasLimit ? formatMoney(c.creditLimit) : 'Sin cupo'} />
+        <Stat label="Saldo sucursal" value={formatMoney(c.balance)} />
+        <Stat
+          label="Cupo disponible"
+          value={hasLimit ? formatMoney(c.available) : '—'}
+          color={exceeded ? RED : hasLimit ? BRAND.primary : undefined}
+        />
+        <Stat label="Tolerancia" value={`${c.tolerancePct.toLocaleString('es-CO')} %`} />
+        <Stat label="Días de gracia" value={formatInt(c.graceDays)} />
+        <Stat label="Fecha cupo" value={c.creditDate ? formatDate(c.creditDate) : '—'} />
+      </div>
+
+      {hasLimit && (
+        <div className="mt-3 h-2 overflow-hidden rounded" style={{ backgroundColor: BRAND.field }}>
+          <div
+            className="h-full rounded"
+            style={{ width: `${Math.max(2, usedPct)}%`, backgroundColor: exceeded ? RED : BRAND.primary }}
+          />
+        </div>
+      )}
+
+      {c.source === 'stored' && (
+        <p className="mt-2 text-xs" style={{ color: BRAND.textSoft }}>
+          Sin documentos abiertos en esta sucursal: se muestra el último cupo consultado.
+        </p>
+      )}
     </div>
   );
 }

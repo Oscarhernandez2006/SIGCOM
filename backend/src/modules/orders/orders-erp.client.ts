@@ -96,15 +96,20 @@ export class OrdersErpClient {
     private readonly config: ConfigService,
   ) {}
 
-  /** Sube las líneas de un pedido al ERP. Lanza si la respuesta no es exitosa. */
+  /**
+   * Sube las líneas de un pedido al ERP. Lanza si la respuesta no es exitosa.
+   * `endpointOverride` permite subir a un endpoint distinto al de la compañía
+   * (p. ej. los pedidos de Ñam Ñam van a `ventas/pedidos-opn`).
+   */
   async uploadOrder(
     companyId: string,
     registros: ErpOrderRegistro[],
+    endpointOverride?: string,
   ): Promise<ErpUploadResult> {
     const baseUrl = this.config.get<string>('priceLists.baseUrl');
     const token = this.config.get<string>('priceLists.token');
     const timeout = this.config.get<number>('ordersUpload.timeoutMs');
-    const endpoint = getOrderEndpoint(companyId);
+    const endpoint = endpointOverride ?? getOrderEndpoint(companyId);
 
     // Se registra el cliente y la sucursal de cada línea que se envía al ERP
     // para poder auditar qué sucursal viaja realmente y descartar que el código

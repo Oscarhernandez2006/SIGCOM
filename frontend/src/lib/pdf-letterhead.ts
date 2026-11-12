@@ -1,4 +1,5 @@
 import type { jsPDF } from 'jspdf';
+import letterhead3 from '@/assets/letterheads/3.jpg';
 import letterhead8 from '@/assets/letterheads/8.jpg';
 
 /**
@@ -6,7 +7,10 @@ import letterhead8 from '@/assets/letterheads/8.jpg';
  * fracción del alto de página que ocupan el logo y el pie.
  */
 const LETTERHEADS: Record<string, { src: string; top: number; bottom: number }> = {
+  '3': { src: letterhead3, top: 0.215, bottom: 0.14 },
   '8': { src: letterhead8, top: 0.215, bottom: 0.14 },
+  // MONTERIA TAT es Agropecuaria en Siesa: usa su membrete.
+  MTAT: { src: letterhead3, top: 0.215, bottom: 0.14 },
 };
 
 /** Márgenes (pt) que deja libres el membrete aplicado. */
@@ -37,6 +41,14 @@ function toDataUrl(src: string): Promise<string> {
 }
 
 /**
+ * Tamaño de hoja para los PDF de una compañía: los membretes están diseñados
+ * en carta; en A4 (más angosta) se recortaba el borde derecho del pie.
+ */
+export function pdfPageFormat(companyId?: string): 'letter' | 'a4' {
+  return companyId && LETTERHEADS[companyId] ? 'letter' : 'a4';
+}
+
+/**
  * Dibuja el membrete de la compañía de fondo en la página actual y en todas
  * las que se agreguen después. Devuelve `null` si la compañía no tiene.
  */
@@ -57,7 +69,7 @@ export async function applyLetterhead(
 
   const draw = () => {
     const pageH = doc.internal.pageSize.getHeight();
-    // Ajustado al alto de la página (sin deformar); en A4 se recorta el borde derecho.
+    // Ajustado al alto de la página (sin deformar); en hoja carta encaja exacto.
     doc.addImage(dataUrl, 'JPEG', 0, 0, (pageH * width) / height, pageH, 'letterhead', 'FAST');
   };
   draw();
