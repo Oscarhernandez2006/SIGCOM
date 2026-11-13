@@ -1360,15 +1360,18 @@ export async function downloadPriceListPdf(
   window.URL.revokeObjectURL(url);
 }
 
-/** Descarga la plantilla de inventario (.xlsx). */
-export async function downloadInventoryTemplate() {
+/** Descarga la plantilla de inventario (.xlsx) del tipo indicado. */
+export async function downloadInventoryTemplate(
+  type: 'corte' | 'subproducto' | 'namnam' = 'corte',
+) {
   const res = await api.get('/products/template', {
+    params: { type },
     responseType: 'blob',
   });
   const url = window.URL.createObjectURL(res.data as Blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'plantilla_inventario.xlsx';
+  link.download = `plantilla_inventario_${type}.xlsx`;
   document.body.appendChild(link);
   link.click();
   link.remove();

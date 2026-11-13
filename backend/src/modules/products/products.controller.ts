@@ -112,15 +112,15 @@ export class ProductsController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
   @Get('template')
-  downloadTemplate(@Res() res: Response) {
-    const buffer = buildInventoryTemplate();
+  downloadTemplate(@Res() res: Response, @Query('type') type = 'corte') {
+    const buffer = buildInventoryTemplate(type);
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     );
     res.setHeader(
       'Content-Disposition',
-      'attachment; filename="plantilla_inventario.xlsx"',
+      `attachment; filename="plantilla_inventario_${type === 'subproducto' || type === 'namnam' ? type : 'corte'}.xlsx"`,
     );
     res.send(buffer);
   }

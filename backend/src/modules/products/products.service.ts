@@ -466,7 +466,8 @@ export class ProductsService {
     }
 
     // Si ya hay catálogo base del tipo, no se permiten referencias desconocidas.
-    if (selectedSkus.size === 0) return;
+    // Ñam Ñam no tiene catálogo que sincronizar: su Excel ES el catálogo.
+    if (selectedSkus.size === 0 || type === NAMNAM_TYPE) return;
 
     const unknownRefs = rows
       .filter((r) => !selectedSkus.has(this.normalizeSku(r.reference)))

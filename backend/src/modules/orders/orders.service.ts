@@ -847,7 +847,7 @@ export class OrdersService {
       }
       // Tras editar, vuelve a quedar pendiente por envío y se limpia el error.
       order.status = OrderStatus.CONFIRMED;
-      order.syncError = undefined;
+      order.syncError = null;
 
       return ordersRepo.save(order);
     });
@@ -946,7 +946,7 @@ export class OrdersService {
       if (dto.deliveryDate !== undefined) order.deliveryDate = dto.deliveryDate;
       // Vuelve a quedar pendiente de control y se limpia cualquier error previo.
       order.status = OrderStatus.PENDING_CONTROL;
-      order.syncError = undefined;
+      order.syncError = null;
       return ordersRepo.save(order);
     });
   }
@@ -1737,7 +1737,14 @@ export class OrdersService {
                   `${order.id}; se envía por el endpoint de porcino.`,
               );
             }
-            porcino.push({ ...registros[i], documento_venta: porcinoDoc });
+            // Cada documento lleva su propia O.C.: el ERP mapea
+            // `npedido_sigcom` a la orden de compra, y Siesa no permite repetirla
+            // (si el porcino usara la del bovino, el bovino era rechazado).
+            porcino.push({
+              ...registros[i],
+              documento_venta: porcinoDoc,
+              npedido_sigcom: porcinoDoc,
+            });
           }
         });
         result = await this.erpClient.uploadSubproductos(bovino, porcino);
@@ -1758,7 +1765,7 @@ export class OrdersService {
       // la única clave fiable para cruzar el estado del pedido con el ERP. Si
       // no se pudo extraer, queda sin asociar y no se sincroniza su estado.
       order.siesaDocumentId = result.consecutivo;
-      order.syncError = undefined;
+      order.syncError = null;
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Error desconocido';

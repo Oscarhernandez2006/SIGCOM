@@ -310,7 +310,7 @@ export function InventoryPage() {
                 />
                 Cargar Excel
               </BrandButton>
-              <BrandButton variant="outlined" className="h-9 px-3" onClick={() => downloadInventoryTemplate()}
+              <BrandButton variant="outlined" className="h-9 px-3" onClick={() => downloadInventoryTemplate(effectiveType)}
               >
                 <Download className="h-4 w-4" />
                 Descargar plantilla

@@ -233,8 +233,9 @@ export class Order extends BaseEntity {
   @Column({ name: 'siesa_tracking_done', default: false })
   siesaTrackingDone: boolean;
 
-  @Column({ name: 'sync_error', nullable: true })
-  syncError?: string;
+  // null (no undefined) para que TypeORM borre el error al reenviar con éxito.
+  @Column({ name: 'sync_error', type: 'varchar', nullable: true })
+  syncError?: string | null;
 
   /**
    * Momento en que el pedido se descargó por última vez desde el módulo de

@@ -124,10 +124,17 @@ export function parseInventoryExcel(buffer: Buffer): InventoryRow[] {
 }
 
 /** Genera un Excel de plantilla con encabezados y un ejemplo. */
-export function buildInventoryTemplate(): Buffer {
+/** Fila de ejemplo de la plantilla según el tipo de inventario. */
+const TEMPLATE_EXAMPLES: Record<string, [string, string, number, string]> = {
+  corte: ['1001', 'LOMO FINO', 10, 'corte'],
+  subproducto: ['3002', 'CACHETE', 10, 'subproducto'],
+  namnam: ['9523', 'SNACK CARNE DE RES', 10, 'namnam'],
+};
+
+export function buildInventoryTemplate(type = 'corte'): Buffer {
   const data = [
     ['Referencia', 'Descripción', 'Stock', 'Tipo inventario'],
-    ['1001', 'LOMO FINO', 10, 'corte'],
+    TEMPLATE_EXAMPLES[type] ?? TEMPLATE_EXAMPLES.corte,
   ];
   const sheet = XLSX.utils.aoa_to_sheet(data);
   sheet['!cols'] = [{ wch: 16 }, { wch: 40 }, { wch: 10 }, { wch: 18 }];
