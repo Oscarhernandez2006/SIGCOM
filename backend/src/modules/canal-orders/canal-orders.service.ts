@@ -26,7 +26,7 @@ import {
   findBranchCredit,
 } from '../clients/clients.service';
 import { OrdersErpClient, ErpOrderRegistro } from '../orders/orders-erp.client';
-import { getWarehouse } from '../../common/companies';
+import { erpSellerDocument, getWarehouse } from '../../common/companies';
 
 /** Estados que "ocupan cupo" (pedidos sin facturar todavía). */
 const CUPO_ACTIVE_STATUSES = [
@@ -751,7 +751,7 @@ export class CanalOrdersService implements OnModuleInit {
       fecha: toErpDate(today),
       cliente: order.clientCode,
       sucursal: order.clientBranch ?? '001',
-      vendedor: seller?.documentId ?? '',
+      vendedor: erpSellerDocument(seller?.documentId),
       fecha_de_entrega: toErpDate(order.dispatchDate ?? today),
       bodega: warehouse,
       referencia: item.itemRef,

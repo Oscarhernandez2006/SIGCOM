@@ -32,7 +32,7 @@ import { OrdersErpClient, ErpOrderRegistro, ErpOrderState } from './orders-erp.c
 import { UsersService } from '../users/users.service';
 import { User, UserRole } from '../users/entities/user.entity';
 import { Product } from '../products/entities/product.entity';
-import { getMinOrderTotal, getWarehouse, COMPANIES, baseCompanyId, getOperationCenter, virtualOperationCentersForBase, NAMNAM_TYPE, NAMNAM_MIN_UNITS, NAMNAM_ORDER_ENDPOINT, isNamNamCompany, isNamNamDocType } from '../../common/companies';
+import { getMinOrderTotal, getWarehouse, COMPANIES, baseCompanyId, getOperationCenter, virtualOperationCentersForBase, NAMNAM_TYPE, NAMNAM_MIN_UNITS, NAMNAM_ORDER_ENDPOINT, isNamNamCompany, isNamNamDocType, erpSellerDocument } from '../../common/companies';
 import { buildOrderPdf } from './order-pdf';
 import {
   bogotaToday,
@@ -1306,7 +1306,35 @@ export class OrdersService {
     return updated;
   }
 
-  /** Sincroniza anulaciones y rebotes de Siesa para una compañía. */
+  /**
+   * Pedidos en error de los últimos 3 días cuyo fallo NO fue un rechazo de
+   * Siesa (fue de conexión: Cloudflare, timeout, 5xx). Se excluyen los
+   * subproductos divididos en dos documentos, porque encontrar uno no prueba
+   * que el otro también entró.
+   */
+  private async findTransientFailures(companyId: string): Promise<Order[]> {
+    const since = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    const failed = await this.ordersRepository.find({
+      where: {
+        companyId,
+        status: OrderStatus.FAILED,
+        createdAt: MoreThanOrEqual(since),
+      },
+      select: {
+        id: true,
+        orderNumber: true,
+        secondNumber: true,
+        type: true,
+        syncError: true,
+      },
+      loadEagerRelations: false,
+    });
+    return failed.filter(
+      (o) => !o.secondNumber && !/siesa rechaz/i.test(o.syncError ?? ''),
+    );
+  }
+
+  /** Sincroniza anulaciones, rebotes y errores de conexión de una compañía. */
   private async syncSiesaStatusesForCompany(companyId: string): Promise<number> {
     // Solo los pedidos que ya subimos al ERP y que aún no llegaron a su estado
     // final (Despachado) pueden cambiar de estado, anularse o rebotar.
@@ -1326,7 +1354,11 @@ export class OrdersService {
         seller: { id: true },
       },
     });
-    if (syncedOrders.length === 0) return 0;
+    // Pedidos que quedaron en error por una falla de conexión (p. ej. el
+    // timeout de Cloudflare): Siesa a menudo SÍ los recibió aunque la
+    // respuesta no llegó. Se buscan en Siesa para recuperarlos.
+    const failedOrders = await this.findTransientFailures(companyId);
+    if (syncedOrders.length === 0 && failedOrders.length === 0) return 0;
 
     const states = await this.erpClient.getOrderStates(companyId);
     // Una lista vacía no prueba que los pedidos no entraron: suele ser una
@@ -1339,6 +1371,19 @@ export class OrdersService {
     );
 
     let updated = 0;
+    for (const order of failedOrders) {
+      if (!this.stateForOrder(byReferencia, order)) continue;
+      await this.ordersRepository.update(
+        { id: order.id, status: OrderStatus.FAILED },
+        { status: OrderStatus.SYNCED, syncError: null, syncedAt: new Date() },
+      );
+      this.logger.log(
+        `Pedido ${order.orderNumber} (compañía ${companyId}) estaba en error ` +
+          `pero sí entró a Siesa; se marca como enviado.`,
+      );
+      updated += 1;
+    }
+
     for (const order of syncedOrders) {
       // Se cruza por NUM_REFERENCIA (nuestro orderNumber / documento_venta).
       if (Number.isNaN(parseInt(order.orderNumber, 10))) continue;
@@ -1649,7 +1694,7 @@ export class OrdersService {
    */
   private async buildErpRegistros(order: Order): Promise<ErpOrderRegistro[]> {
     // El "vendedor" en el ERP es el documento (cédula) del usuario de la app.
-    const sellerDocument = order.seller.documentId;
+    const sellerDocument = erpSellerDocument(order.seller.documentId);
     const warehouse = getWarehouse(order.companyId);
     const orderDate = bogotaToday();
     // El ERP espera las fechas como YYYYMMDD (sin guiones).

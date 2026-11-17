@@ -49,6 +49,23 @@ export function isDashboardExcludedSellerDoc(
   return doc !== '' && DASHBOARD_EXCLUDED_SELLER_DOCS.some((d) => d.trim() === doc);
 }
 
+/**
+ * Cédula del vendedor que se envía a Siesa cuando no es la misma del usuario
+ * en SIGCOM (la cédula del usuario es su login y no se cambia).
+ * Clave: cédula del usuario en SIGCOM → cédula del vendedor en Siesa.
+ */
+export const ERP_SELLER_DOC_OVERRIDES: Record<string, string> = {
+  '123456789': '1129536792', // VENDEDOR EMPLEADOS → vendedor 028
+};
+
+/** Cédula con la que el ERP identifica al vendedor del usuario. */
+export function erpSellerDocument(
+  documentId: string | null | undefined,
+): string {
+  const doc = (documentId ?? '').trim();
+  return ERP_SELLER_DOC_OVERRIDES[doc] ?? doc;
+}
+
 export function isValidCompany(id: string | undefined): id is string {
   return !!id && COMPANY_IDS.includes(id);
 }
