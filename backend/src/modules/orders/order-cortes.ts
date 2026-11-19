@@ -42,6 +42,38 @@ export function bogotaToday(): string {
   return bogotaParts(new Date()).date;
 }
 
+/** Máximo de días hacia adelante para la fecha de entrega de un pedido. */
+export const MAX_DELIVERY_DAYS_AHEAD = 60;
+
+/**
+ * Valida la fecha de entrega (YYYY-MM-DD): no puede ser pasada ni de más de
+ * MAX_DELIVERY_DAYS_AHEAD días. Evita años mal digitados (p. ej. "0026"),
+ * que Siesa rechaza. Devuelve el mensaje de error o null si es válida.
+ */
+export function deliveryDateError(
+  value: string | null | undefined,
+  today = bogotaToday(),
+): string | null {
+  const date = (value ?? '').trim().slice(0, 10);
+  const parsed = new Date(`${date}T00:00:00Z`);
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+    Number.isNaN(parsed.getTime()) ||
+    parsed.toISOString().slice(0, 10) !== date
+  ) {
+    return 'La fecha de entrega no es válida.';
+  }
+  const max = new Date(`${today}T00:00:00Z`);
+  max.setUTCDate(max.getUTCDate() + MAX_DELIVERY_DAYS_AHEAD);
+  if (date < today || date > max.toISOString().slice(0, 10)) {
+    return (
+      `La fecha de entrega (${date}) debe estar entre hoy y los próximos ` +
+      `${MAX_DELIVERY_DAYS_AHEAD} días. Revisa el año.`
+    );
+  }
+  return null;
+}
+
 /**
  * Ventana operativa diaria (hora de Colombia):
  *   - Los pedidos solo se pueden CREAR a partir de las 7:00 a.m.

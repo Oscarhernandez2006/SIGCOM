@@ -40,7 +40,9 @@ import {
   isOrderCreationOpenFor,
   formatScheduleTime,
   APPROVAL_WINDOW_HOURS,
+  deliveryDateError,
 } from './order-cortes';
+import { userFacingErpError } from '../../common/erp-errors';
 import { SettingsService } from '../settings/settings.service';
 
 /** Trazabilidad de un pedido en Siesa para mostrar al vendedor. */
@@ -90,6 +92,9 @@ export class OrdersService {
     dto: CreateOrderDto,
     seller: User,
   ): Promise<Order> {
+    const dateError = deliveryDateError(dto.deliveryDate);
+    if (dateError) throw new BadRequestException(dateError);
+
     // Reintento por conexión lenta/inestable: si el vendedor ya envió esta
     // misma intención de pedido (misma clave), se devuelve el pedido ya
     // creado en vez de duplicarlo.
@@ -835,7 +840,14 @@ export class OrdersService {
         order.deliveryType = dto.deliveryType;
       if (dto.deliverySchedule !== undefined)
         order.deliverySchedule = dto.deliverySchedule;
-      if (dto.deliveryDate !== undefined) order.deliveryDate = dto.deliveryDate;
+      if (
+        dto.deliveryDate !== undefined &&
+        dto.deliveryDate !== order.deliveryDate
+      ) {
+        const dateError = deliveryDateError(dto.deliveryDate);
+        if (dateError) throw new BadRequestException(dateError);
+        order.deliveryDate = dto.deliveryDate;
+      }
       // Actualiza el horario predeterminado del cliente.
       if (dto.deliveryScheduleData && order.customer) {
         await manager
@@ -943,7 +955,14 @@ export class OrdersService {
       if (dto.notes !== undefined) order.notes = dto.notes;
       if (dto.logisticsNote !== undefined)
         order.logisticsNote = dto.logisticsNote;
-      if (dto.deliveryDate !== undefined) order.deliveryDate = dto.deliveryDate;
+      if (
+        dto.deliveryDate !== undefined &&
+        dto.deliveryDate !== order.deliveryDate
+      ) {
+        const dateError = deliveryDateError(dto.deliveryDate);
+        if (dateError) throw new BadRequestException(dateError);
+        order.deliveryDate = dto.deliveryDate;
+      }
       // Vuelve a quedar pendiente de control y se limpia cualquier error previo.
       order.status = OrderStatus.PENDING_CONTROL;
       order.syncError = null;
@@ -1816,7 +1835,7 @@ export class OrdersService {
         error instanceof Error ? error.message : 'Error desconocido';
       this.logger.error(`Fallo subiendo pedido ${order.id} al ERP: ${message}`);
       order.status = OrderStatus.FAILED;
-      order.syncError = message;
+      order.syncError = userFacingErpError(message);
     }
 
     return this.ordersRepository.save(order);

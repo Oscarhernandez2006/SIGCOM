@@ -40,7 +40,7 @@ import {
 import { useOrderSchedule } from '@/hooks/useAdminApi';
 import { CanalOrderForm } from '@/components/CanalOrderForm';
 import { cn, orderNos } from '@/lib/utils';
-import { formatInt, formatMoney } from '@/lib/format';
+import { formatInt, formatMoney, shiftDays, todayISO } from '@/lib/format';
 import { BRAND } from '@/lib/brand';
 import { QtyControl } from '@/components/brand/QtyControl';
 import { DeliverySchedulePicker } from '@/components/DeliverySchedulePicker';
@@ -369,6 +369,10 @@ export function NewOrderPage() {
     if (!customer || cart.length === 0) return;
     if (!deliveryDate) {
       setSubmitError('Selecciona la fecha de entrega del pedido.');
+      return;
+    }
+    if (deliveryDate < todayISO() || deliveryDate > shiftDays(todayISO(), 60)) {
+      setSubmitError('La fecha de entrega debe estar entre hoy y los próximos 60 días. Revisa el año.');
       return;
     }
     // Segundo pedido del mismo cliente el mismo día (solo cortes): se
@@ -907,7 +911,8 @@ export function NewOrderPage() {
                 <BrandInput
                   type="date"
                   value={deliveryDate}
-                  min={new Date().toISOString().slice(0, 10)}
+                  min={todayISO()}
+                  max={shiftDays(todayISO(), 60)}
                   onChange={(e) => {
                     setDeliveryDate(e.target.value);
                     if (e.target.value) setSubmitError('');

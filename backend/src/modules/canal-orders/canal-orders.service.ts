@@ -27,6 +27,7 @@ import {
 } from '../clients/clients.service';
 import { OrdersErpClient, ErpOrderRegistro } from '../orders/orders-erp.client';
 import { erpSellerDocument, getWarehouse } from '../../common/companies';
+import { userFacingErpError } from '../../common/erp-errors';
 
 /** Estados que "ocupan cupo" (pedidos sin facturar todavía). */
 const CUPO_ACTIVE_STATUSES = [
@@ -804,7 +805,7 @@ export class CanalOrdersService implements OnModuleInit {
         error instanceof Error ? error.message : 'Error desconocido';
       this.logger.error(`Fallo enviando canal ${order.id} a Siesa: ${message}`);
       order.status = CanalOrderStatus.FAILED;
-      order.syncError = message;
+      order.syncError = userFacingErpError(message);
     }
 
     return this.canalOrdersRepository.save(order);
