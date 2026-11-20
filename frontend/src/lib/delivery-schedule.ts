@@ -31,8 +31,11 @@ export function isScheduleComplete(
     !!schedule &&
     Array.isArray(schedule.days) &&
     schedule.days.length > 0 &&
-    !!schedule.hourFrom &&
-    !!schedule.hourTo
+    schedule.days.every((day) => Number.isInteger(day) && day >= 0 && day <= 6) &&
+    typeof schedule.hourFrom === 'string' &&
+    /^([01]\d|2[0-3]):[0-5]\d$/.test(schedule.hourFrom) &&
+    typeof schedule.hourTo === 'string' &&
+    /^([01]\d|2[0-3]):[0-5]\d$/.test(schedule.hourTo)
   );
 }
 

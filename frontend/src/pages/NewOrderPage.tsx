@@ -375,6 +375,10 @@ export function NewOrderPage() {
       setSubmitError('La fecha de entrega debe estar entre hoy y los próximos 60 días. Revisa el año.');
       return;
     }
+    if (deliverySchedule && !isScheduleComplete(deliverySchedule)) {
+      setSubmitError('Selecciona al menos un día y completa las horas de recibido.');
+      return;
+    }
     // Segundo pedido del mismo cliente el mismo día (solo cortes): se
     // pregunta si se debe asociar al pedido ya creado (p. ej. para completar
     // un producto que faltó por inventario rotativo).

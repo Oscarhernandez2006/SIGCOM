@@ -34,18 +34,22 @@ export function DeliverySchedulePicker({
     const days = current.includes(day)
       ? current.filter((d) => d !== day)
       : [...current, day].sort((a, b) => a - b);
+    if (days.length === 0) {
+      onChange(null);
+      return;
+    }
     onChange({
       days,
-      hourFrom: value?.hourFrom || DEFAULT_FROM,
-      hourTo: value?.hourTo || DEFAULT_TO,
+      hourFrom: value?.hourFrom ?? DEFAULT_FROM,
+      hourTo: value?.hourTo ?? DEFAULT_TO,
     });
   };
 
   const handleHourChange = (field: 'hourFrom' | 'hourTo', hour: string) => {
     onChange({
       days: value?.days ?? [],
-      hourFrom: field === 'hourFrom' ? hour : value?.hourFrom || DEFAULT_FROM,
-      hourTo: field === 'hourTo' ? hour : value?.hourTo || DEFAULT_TO,
+      hourFrom: field === 'hourFrom' ? hour : value?.hourFrom ?? DEFAULT_FROM,
+      hourTo: field === 'hourTo' ? hour : value?.hourTo ?? DEFAULT_TO,
     });
   };
 
@@ -87,7 +91,7 @@ export function DeliverySchedulePicker({
           </span>
           <input
             type="time"
-            value={value?.hourFrom || DEFAULT_FROM}
+            value={value?.hourFrom ?? DEFAULT_FROM}
             onChange={(e) => handleHourChange('hourFrom', e.target.value)}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
           />
@@ -98,7 +102,7 @@ export function DeliverySchedulePicker({
           </span>
           <input
             type="time"
-            value={value?.hourTo || DEFAULT_TO}
+            value={value?.hourTo ?? DEFAULT_TO}
             onChange={(e) => handleHourChange('hourTo', e.target.value)}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
           />
