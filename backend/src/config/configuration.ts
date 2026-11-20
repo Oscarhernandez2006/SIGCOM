@@ -48,9 +48,10 @@ export default () => ({
   // Carga de pedidos al ERP (mismo gateway que priceLists, pero con más
   // margen: en horas pico de cierre de pedidos el ERP responde más lento y
   // 30s no alcanzaba, generando pedidos marcados "Error" que en realidad sí
-  // se habían creado en Siesa.
+  // se habían creado en Siesa. Debe superar el límite de Cloudflare (100 s)
+  // para que no cortemos nosotros antes que el gateway.
   ordersUpload: {
-    timeoutMs: parseInt(process.env.ORDERS_UPLOAD_TIMEOUT_MS ?? '60000', 10),
+    timeoutMs: parseInt(process.env.ORDERS_UPLOAD_TIMEOUT_MS ?? '120000', 10),
   },
 
   // Despacho: endpoints de Siesa con las facturas TAT que se suben a Drivin.

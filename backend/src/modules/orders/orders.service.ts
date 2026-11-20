@@ -42,7 +42,10 @@ import {
   APPROVAL_WINDOW_HOURS,
   deliveryDateError,
 } from './order-cortes';
-import { userFacingErpError } from '../../common/erp-errors';
+import {
+  isAlreadyImportedError,
+  userFacingErpError,
+} from '../../common/erp-errors';
 import { SettingsService } from '../settings/settings.service';
 
 /** Trazabilidad de un pedido en Siesa para mostrar al vendedor. */
@@ -71,6 +74,12 @@ interface CarteraStatus {
  * esto, si el consecutivo no aparece, el pedido se considera REBOTADO.
  */
 const BOUNCE_SETTLE_MS = 15_000;
+
+/** Espera desde el último intento antes de reenviar solo un pedido con falla de conexión. */
+const AUTO_RESEND_AFTER_MS = 5 * 60_000;
+
+/** Durante cuánto tiempo (desde su creación) se reintenta solo un pedido con falla de conexión. */
+const AUTO_RESEND_WINDOW_MS = 24 * 60 * 60_000;
 
 @Injectable()
 export class OrdersService {
@@ -1345,12 +1354,54 @@ export class OrdersService {
         secondNumber: true,
         type: true,
         syncError: true,
+        createdAt: true,
+        updatedAt: true,
       },
       loadEagerRelations: false,
     });
     return failed.filter(
-      (o) => !o.secondNumber && !/siesa rechaz/i.test(o.syncError ?? ''),
+      (o) =>
+        !o.secondNumber &&
+        (!/siesa rechaz/i.test(o.syncError ?? '') ||
+          isAlreadyImportedError(o.syncError)),
     );
+  }
+
+  /**
+   * Reenvía solo un pedido que quedó en error por conexión y que, pasados
+   * AUTO_RESEND_AFTER_MS desde el último intento, sigue sin aparecer en Siesa
+   * (ese margen evita reenviar uno que sí entró y Siesa aún no lo reporta). Se
+   * reintenta durante AUTO_RESEND_WINDOW_MS desde su creación. El pedido se
+   * "reserva" pasándolo a SYNCING de forma atómica, así no se envía dos veces
+   * si el usuario pulsa reenviar al mismo tiempo.
+   */
+  private async autoResendTransientFailure(candidate: Order): Promise<boolean> {
+    // Siesa ya tiene ese documento: reenviar daría el mismo rechazo. Se espera
+    // a que aparezca en los estados para marcarlo como enviado.
+    if (isAlreadyImportedError(candidate.syncError)) return false;
+    const now = Date.now();
+    if (now - new Date(candidate.updatedAt).getTime() < AUTO_RESEND_AFTER_MS) {
+      return false;
+    }
+    if (now - new Date(candidate.createdAt).getTime() > AUTO_RESEND_WINDOW_MS) {
+      return false;
+    }
+    const claim = await this.ordersRepository.update(
+      { id: candidate.id, status: OrderStatus.FAILED },
+      { status: OrderStatus.SYNCING },
+    );
+    if (!claim.affected) return false;
+
+    const order = await this.ordersRepository.findOne({
+      where: { id: candidate.id },
+    });
+    if (!order) return false;
+    this.logger.log(
+      `Reenvío automático del pedido ${order.orderNumber} ` +
+        `(compañía ${order.companyId}) tras una falla de conexión con Siesa.`,
+    );
+    const result = await this.pushOrder(order);
+    return result.status === OrderStatus.SYNCED;
   }
 
   /** Sincroniza anulaciones, rebotes y errores de conexión de una compañía. */
@@ -1391,7 +1442,10 @@ export class OrdersService {
 
     let updated = 0;
     for (const order of failedOrders) {
-      if (!this.stateForOrder(byReferencia, order)) continue;
+      if (!this.stateForOrder(byReferencia, order)) {
+        if (await this.autoResendTransientFailure(order)) updated += 1;
+        continue;
+      }
       await this.ordersRepository.update(
         { id: order.id, status: OrderStatus.FAILED },
         { status: OrderStatus.SYNCED, syncError: null, syncedAt: new Date() },
@@ -1836,9 +1890,41 @@ export class OrdersService {
       this.logger.error(`Fallo subiendo pedido ${order.id} al ERP: ${message}`);
       order.status = OrderStatus.FAILED;
       order.syncError = userFacingErpError(message);
+      // "Ya fue actualizado por otra importación": el documento YA existe en
+      // Siesa (un intento anterior sí entró aunque la respuesta se perdió). Si
+      // se confirma en Siesa, el pedido queda enviado en vez de en error.
+      if (
+        isAlreadyImportedError(message) &&
+        (await this.existsInSiesa(order))
+      ) {
+        this.logger.log(
+          `Pedido ${order.orderNumber} (compañía ${order.companyId}) ya existía ` +
+            `en Siesa por un envío anterior; se marca como enviado.`,
+        );
+        order.status = OrderStatus.SYNCED;
+        order.syncedAt = new Date();
+        order.syncError = null;
+      }
     }
 
     return this.ordersRepository.save(order);
+  }
+
+  /**
+   * ¿El pedido ya está en Siesa? Los subproductos divididos (res + cerdo) no se
+   * confirman así: encontrar un documento no prueba que entró el otro.
+   */
+  private async existsInSiesa(order: Order): Promise<boolean> {
+    if (order.secondNumber) return false;
+    try {
+      const states = await this.erpClient.getOrderStates(order.companyId);
+      const index = this.indexStatesByReferencia(
+        this.filterStatesForCompany(order.companyId, states),
+      );
+      return !!this.stateForOrder(index, order);
+    } catch {
+      return false;
+    }
   }
 
   /**

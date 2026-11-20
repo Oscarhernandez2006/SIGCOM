@@ -15,3 +15,14 @@ export function userFacingErpError(message: string | null | undefined): string {
   if (/^siesa rechaz/i.test(text)) return text;
   return ERP_CONNECTION_ERROR_MESSAGE;
 }
+
+/**
+ * Rechazo de Siesa porque el documento YA existe ("ya fue actualizado por
+ * otra importación"): un envío anterior sí entró aunque su respuesta se
+ * perdió (p. ej. por Cloudflare). No es un consecutivo repetido.
+ */
+export function isAlreadyImportedError(
+  message: string | null | undefined,
+): boolean {
+  return /actualizado por otra importaci/i.test(message ?? '');
+}
