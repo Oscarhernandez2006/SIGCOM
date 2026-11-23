@@ -13,7 +13,6 @@ import {
   baseCompanyId,
   isDashboardExcludedSellerDoc,
   DASHBOARD_EXCLUDED_SELLER_DOCS,
-  DASHBOARD_EXCLUDED_SELLER_NAMES,
 } from '../../common/companies';
 import { sameSellerName } from '../../common/seller-names';
 import { ChannelSalesClient, ChannelSaleRaw } from '../channel-sales/channel-sales.client';
@@ -537,7 +536,7 @@ export class DashboardService {
   }
 
   /**
-   * Venta (valor bruto, sin IVA) y unidades de CARNES FRIAS desde
+    * Venta neta (bruto menos descuentos) y unidades de CARNES FRIAS desde
    * `ventas-periodo-inversiones`. Es mensual: solo aplica si el rango empieza el
    * día 1 y llega a fin de mes o a hoy, y si todos los períodos tienen datos;
    * si no, devuelve null para usar la facturación diaria.
@@ -546,7 +545,6 @@ export class DashboardService {
     from: string,
     to: string,
     sellerName: string | null,
-    exclude?: { names: Set<string> },
   ): Promise<{ revenue: number; units: number } | null> {
     if (from.slice(8) !== '01') return null;
     if (to !== this.endOfMonth(to) && to < bogotaToday()) return null;
@@ -558,20 +556,13 @@ export class DashboardService {
     const withData = new Set(rows.map((r) => String(r.periodo)));
     if (!periods.every((p) => withData.has(p))) return null;
 
-    const excluded = [
-      ...DASHBOARD_EXCLUDED_SELLER_NAMES,
-      ...(exclude ? [...exclude.names] : []),
-    ];
     let revenue = 0;
     let units = 0;
     for (const r of rows) {
       const name = (r.vendedor ?? '').trim();
-      if (sellerName !== null) {
-        if (!sameSellerName(sellerName, name)) continue;
-      } else if (excluded.some((x) => sameSellerName(x, name))) {
-        continue;
-      }
-      revenue += Number(r.vr_bruto) || 0;
+      if (sellerName !== null && !sameSellerName(sellerName, name)) continue;
+      revenue +=
+        (Number(r.vr_bruto) || 0) - (Number(r.vr_descuentos) || 0);
       units += Number(r.cantidad) || 0;
     }
     return { revenue, units };
@@ -912,7 +903,6 @@ export class DashboardService {
         from,
         to,
         allSellers ? null : (seller?.name ?? ''),
-        erpExclude,
       );
       if (inv) {
         revenue = inv.revenue;
