@@ -99,7 +99,9 @@ export class AdminOrdersController {
       throw new BadRequestException('Falta la compañía.');
     }
     const orderType =
-      type === 'subproducto' || type === 'namnam' ? type : 'corte';
+      type === 'subproducto' || type === 'namnam' || type === 'agroindustrial'
+        ? type
+        : 'corte';
     const cat =
       (category ?? '').toUpperCase() === 'RES' ? 'RES' : 'CERDO';
     await this.adminOrdersService.assertCanDownloadType(

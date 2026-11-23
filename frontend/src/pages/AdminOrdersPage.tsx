@@ -276,6 +276,7 @@ export function AdminOrdersPage() {
                 <option value="corte">Cortes</option>
                 <option value="subproducto">Subproductos</option>
                 <option value="namnam">Ñam Ñam</option>
+                <option value="agroindustrial">Agroindustrial</option>
               </select>
             </div>
             <div className="space-y-1">
@@ -376,6 +377,9 @@ export function AdminOrdersPage() {
                           <span className="mt-1 flex w-fit items-center rounded-full bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-blue-600 dark:text-blue-400">
                             Subproducto
                           </span>
+                        )}
+                        {o.type === 'agroindustrial' && (
+                          <span className="ml-2 text-teal-700">Agroindustrial</span>
                         )}
                         {o.type === 'namnam' && (
                           <span className="mt-1 flex w-fit items-center gap-1 rounded-full bg-pink-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-pink-600 dark:text-pink-400">

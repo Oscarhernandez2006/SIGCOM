@@ -46,7 +46,7 @@ import { QtyControl } from '@/components/brand/QtyControl';
 import { DeliverySchedulePicker } from '@/components/DeliverySchedulePicker';
 import { ClientSellerInfoModal } from '@/components/ClientSellerInfoModal';
 import { isScheduleComplete, formatDeliverySchedule } from '@/lib/delivery-schedule';
-import { getMinOrderTotal, isNamNamCompany, NAMNAM_MIN_UNITS } from '@/lib/companies';
+import { getMinOrderTotal, isNamNamCompany, NAMNAM_MIN_UNITS, isAgroindustrialCompany } from '@/lib/companies';
 import { useCompany } from '@/company/useCompany';
 import { useAuth } from '@/auth/useAuth';
 import {
@@ -148,10 +148,11 @@ const AMBER = { bg: '#FEF3C7', border: '#FDE68A', text: '#92400E', icon: '#B4530
 export function NewOrderPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const tipo = (searchParams.get('tipo') ?? 'cortes') as 'cortes' | 'canales' | 'subproductos' | 'namnam';
+  const tipo = (searchParams.get('tipo') ?? 'cortes') as 'cortes' | 'canales' | 'subproductos' | 'namnam' | 'agroindustrial';
   const isSubproducto = tipo === 'subproductos';
   // Ñam Ñam (comida para mascotas): misma lógica de cortes con inventario propio.
   const isNamNam = tipo === 'namnam';
+  const isAgroindustrial = tipo === 'agroindustrial';
   const { user } = useAuth();
   const [step, setStep] = useState<Step>(1);
   const [customerSearch, setCustomerSearch] = useState('');
@@ -255,7 +256,7 @@ export function NewOrderPage() {
   const { data: products = [], isFetching: productsLoading } = useProductsForList(
     productSearch,
     customer?.priceList,
-    isSubproducto ? 'subproducto' : isNamNam ? 'namnam' : undefined,
+    isSubproducto ? 'subproducto' : isNamNam ? 'namnam' : isAgroindustrial ? 'agroindustrial' : undefined,
   );
   // Productos estrella/favoritos de la compañía (para priorizar y avisar).
   const { data: featured = [] } = useFeaturedProducts();
@@ -285,7 +286,11 @@ export function NewOrderPage() {
       ),
     [sortedProducts, isSubproducto],
   );
-  const visibleProducts = isNamNam ? sortedProducts : species === 'CERDO' ? cerdoProducts : resProducts;
+  const visibleProducts = isNamNam || isAgroindustrial
+    ? sortedProducts
+    : species === 'CERDO'
+      ? cerdoProducts
+      : resProducts;
   const createOrder = useCreateOrder();
 
   const totals = useMemo(() => {
@@ -303,7 +308,7 @@ export function NewOrderPage() {
 
   // Tope mínimo de pedido según la compañía activa. Los subproductos no tienen
   // monto mínimo.
-  const minOrderTotal = isSubproducto || isNamNam ? 0 : getMinOrderTotal(company?.id);
+  const minOrderTotal = isSubproducto || isNamNam || isAgroindustrial ? 0 : getMinOrderTotal(company?.id);
   // El mínimo es por día por cliente: si el cliente ya pidió hoy, no se exige.
   const { data: customerOrderedToday = false } = useCustomerHasOrderToday(customer?.id);
   const belowMinimum = minOrderTotal > 0 && totals.subtotal < minOrderTotal && !customerOrderedToday;
@@ -382,13 +387,13 @@ export function NewOrderPage() {
     // Segundo pedido del mismo cliente el mismo día (solo cortes): se
     // pregunta si se debe asociar al pedido ya creado (p. ej. para completar
     // un producto que faltó por inventario rotativo).
-    if (!isSubproducto && !isNamNam && customerOrderedToday && !associationDecided) {
+    if (!isSubproducto && !isNamNam && !isAgroindustrial && customerOrderedToday && !associationDecided) {
       setAssociationStep('ask');
       return;
     }
     // Aviso de productos estrella no incluidos (solo cortes). Si faltan, se
     // muestra el modal informativo antes de crear el pedido.
-    if (!skipFeaturedCheck && !isSubproducto && !isNamNam) {
+    if (!skipFeaturedCheck && !isSubproducto && !isNamNam && !isAgroindustrial) {
       const missing = featured.filter((f) => !cart.some((l) => l.product.sku === f.sku));
       if (missing.length > 0) {
         setFeaturedWarning(missing);
@@ -438,6 +443,8 @@ export function NewOrderPage() {
           ? { orderType: 'subproducto' as const }
           : isNamNam
             ? { orderType: 'namnam' as const }
+            : isAgroindustrial
+              ? { orderType: 'agroindustrial' as const }
             : {}),
         idempotencyKey,
         linkedOrderId,
@@ -476,9 +483,11 @@ export function NewOrderPage() {
   }, [retrySubmitAfterSave, sellerInfo]);
 
   // Subproductos / canales: valida el permiso (por si se entra por URL).
-  if (tipo === 'subproductos' || tipo === 'canales' || tipo === 'namnam') {
+  if (tipo === 'subproductos' || tipo === 'canales' || tipo === 'namnam' || tipo === 'agroindustrial') {
     const allowed =
       (tipo !== 'namnam' || isNamNamCompany(company?.id)) &&
+      (tipo !== 'agroindustrial' || isAgroindustrialCompany(company?.id)) &&
+      (tipo !== 'agroindustrial' || user?.role === 'admin' || (company?.permissions ?? []).includes('/pedidos/agroindustrial') || (user?.permissions ?? []).includes('/pedidos/agroindustrial')) &&
       (user?.role === 'admin' || (company?.permissions ?? []).includes(`/pedidos/${tipo}`));
     if (!allowed) {
       return (
@@ -713,7 +722,7 @@ export function NewOrderPage() {
           </TitledCard>
 
           <div className="flex flex-col gap-2.5 sm:flex-row">
-            {!isNamNam && (
+            {!isNamNam && !isAgroindustrial && (
             <Segmented
               className="sm:w-72"
               value={species}

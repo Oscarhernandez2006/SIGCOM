@@ -32,7 +32,7 @@ import { OrdersErpClient, ErpOrderRegistro, ErpOrderState } from './orders-erp.c
 import { UsersService } from '../users/users.service';
 import { User, UserRole } from '../users/entities/user.entity';
 import { Product } from '../products/entities/product.entity';
-import { getMinOrderTotal, getWarehouse, COMPANIES, baseCompanyId, getOperationCenter, virtualOperationCentersForBase, NAMNAM_TYPE, NAMNAM_MIN_UNITS, NAMNAM_ORDER_ENDPOINT, isNamNamCompany, isNamNamDocType, erpSellerDocument } from '../../common/companies';
+import { getMinOrderTotal, getWarehouse, COMPANIES, baseCompanyId, getOperationCenter, virtualOperationCentersForBase, NAMNAM_TYPE, NAMNAM_MIN_UNITS, NAMNAM_ORDER_ENDPOINT, isNamNamCompany, isNamNamDocType, erpSellerDocument, AGROINDUSTRIAL_TYPE, AGROINDUSTRIAL_ORDER_ENDPOINT, AGROINDUSTRIAL_WAREHOUSE, AGROINDUSTRIAL_DEFAULT_PRICE_LIST } from '../../common/companies';
 import { buildOrderPdf } from './order-pdf';
 import {
   bogotaToday,
@@ -205,7 +205,9 @@ export class OrdersService {
       }
       // Los subproductos y Ñam Ñam no tienen monto mínimo de pedido.
       const minTotal =
-        orderType === 'subproducto' || orderType === NAMNAM_TYPE
+        orderType === 'subproducto' ||
+        orderType === NAMNAM_TYPE ||
+        orderType === AGROINDUSTRIAL_TYPE
           ? 0
           : getMinOrderTotal(companyId);
       if (minTotal > 0 && total < minTotal) {
@@ -1765,6 +1767,17 @@ export class OrdersService {
    * Construye las líneas (registros) del pedido en el formato del ERP. Una
    * línea por cada ítem del pedido.
    */
+  private resolveAgroindustrialPriceList(priceList?: string | null): '400' | '401' {
+    const normalized = String(priceList ?? '').trim();
+    if (normalized === '401') return '401';
+    if (normalized === '400' || normalized === '') {
+      return AGROINDUSTRIAL_DEFAULT_PRICE_LIST;
+    }
+    throw new BadRequestException(
+      'Agroindustrial solo admite las listas de precios 400 o 401.',
+    );
+  }
+
   private async buildErpRegistros(order: Order): Promise<ErpOrderRegistro[]> {
     // El "vendedor" en el ERP es el documento (cédula) del usuario de la app.
     const sellerDocument = erpSellerDocument(order.seller.documentId);
@@ -1871,6 +1884,14 @@ export class OrdersService {
           order.companyId,
           registros,
           NAMNAM_ORDER_ENDPOINT,
+        );
+      } else if (order.type === AGROINDUSTRIAL_TYPE) {
+        const priceList = this.resolveAgroindustrialPriceList(order.customer.priceList);
+        result = await this.erpClient.uploadOrder(
+          order.companyId,
+          registros.map((r) => ({ ...r, bodega: AGROINDUSTRIAL_WAREHOUSE })),
+          AGROINDUSTRIAL_ORDER_ENDPOINT,
+          priceList,
         );
       } else {
         result = await this.erpClient.uploadOrder(order.companyId, registros);

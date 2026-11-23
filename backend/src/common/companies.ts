@@ -219,6 +219,27 @@ export const NAMNAM_DOC_TYPE = 'OPÑ';
 /** Mínimo de unidades (suma de cantidades) de un pedido de Ñam Ñam. */
 export const NAMNAM_MIN_UNITS = 20;
 
+/* ------------------------- Agroindustrial ------------------------- */
+
+/** Tipo de pedido / inventario de Agroindustrial dentro de Agropecuaria. */
+export const AGROINDUSTRIAL_TYPE = 'agroindustrial';
+
+/** Compañías que venden Agroindustrial (línea de AGROPECUARIA). */
+export const AGROINDUSTRIAL_COMPANIES = ['3'];
+
+/** Endpoint ERP para pedidos de Agroindustrial. */
+export const AGROINDUSTRIAL_ORDER_ENDPOINT = 'ventas/pedidos-agroindustrial';
+
+/** Bodega propia de la línea Agroindustrial. */
+export const AGROINDUSTRIAL_WAREHOUSE = '30301';
+
+/** Lista de precios de Agroindustrial por defecto. */
+export const AGROINDUSTRIAL_DEFAULT_PRICE_LIST = '400';
+
+export function isAgroindustrialCompany(companyId: string): boolean {
+  return AGROINDUSTRIAL_COMPANIES.includes(baseCompanyId(companyId));
+}
+
 export function isNamNamCompany(companyId: string): boolean {
   return NAMNAM_COMPANIES.includes(companyId);
 }

@@ -68,8 +68,8 @@ export class Order extends BaseEntity {
   secondNumber?: string;
 
   /**
-   * Tipo de pedido: 'corte' (por defecto), 'subproducto' o 'namnam' (comida
-   * para mascotas, numeración propia, sube a `ventas/pedidos-opn`).
+   * Tipo de pedido: corte, subproducto, Ñam Ñam o Agroindustrial.
+   * Solo Ñam Ñam tiene numeración propia; los demás comparten PVA.
    */
   @Column({ default: 'corte' })
   type: string;

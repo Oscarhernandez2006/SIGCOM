@@ -49,3 +49,9 @@ export const NAMNAM_MIN_UNITS = 20;
 export function isNamNamCompany(companyId?: string): boolean {
   return !!companyId && NAMNAM_COMPANIES.includes(companyId);
 }
+
+/** Línea Agroindustrial dentro de Agropecuaria. */
+export const AGROINDUSTRIAL_COMPANIES = ['3'];
+export function isAgroindustrialCompany(companyId?: string): boolean {
+  return !!companyId && AGROINDUSTRIAL_COMPANIES.includes(companyId);
+}

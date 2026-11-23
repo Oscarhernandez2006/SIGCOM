@@ -15,9 +15,13 @@ import {
   baseCompanyId,
   isNamNamCompany,
   NAMNAM_TYPE,
+  AGROINDUSTRIAL_TYPE,
+  AGROINDUSTRIAL_COMPANIES,
+  AGROINDUSTRIAL_DEFAULT_PRICE_LIST,
+  AGROINDUSTRIAL_WAREHOUSE,
 } from '../../common/companies';
 
-type InventoryType = 'corte' | 'subproducto' | 'namnam';
+type InventoryType = 'corte' | 'subproducto' | 'namnam' | 'agroindustrial';
 
 /**
  * Producto vendible para un cliente: proviene de su lista de precios (siempre
@@ -55,6 +59,7 @@ export class ProductsService {
     'corte',
     'subproducto',
     'namnam',
+    'agroindustrial',
   ] as const;
 
   private normalizeInventoryType(type?: string): InventoryType {
@@ -69,6 +74,11 @@ export class ProductsService {
     if (type === NAMNAM_TYPE && !isNamNamCompany(companyId)) {
       throw new BadRequestException(
         'El inventario de Ñam Ñam no está habilitado para esta compañía.',
+      );
+    }
+    if (type === AGROINDUSTRIAL_TYPE && !AGROINDUSTRIAL_COMPANIES.includes(companyId)) {
+      throw new BadRequestException(
+        'El inventario de Agroindustrial no está habilitado para esta compañía.',
       );
     }
   }
@@ -143,6 +153,34 @@ export class ProductsService {
    * inventario para mostrar el stock. Los que tienen stock se muestran
    * primero (prioridad), pero todos son vendibles.
    */
+  async findAgroindustrialSellable(priceList: string, search?: string): Promise<SellableProduct[]> {
+    const normalized = priceList.trim();
+    if (normalized !== '400' && normalized !== '401') {
+      throw new BadRequestException(
+        'Agroindustrial solo admite las listas de precios 400 o 401.',
+      );
+    }
+    const rows = await this.priceListsService.getAgroindustrialInventory(normalized);
+    const query = search?.trim().toLowerCase();
+    return rows
+      .filter((row) => {
+        if (!query) return true;
+        return `${row.referencia ?? ''} ${row.descripcion ?? ''}`
+          .toLowerCase()
+          .includes(query);
+      })
+      .map((row) => ({
+        sku: String(row.referencia ?? '').trim(),
+        name: String(row.descripcion ?? '').trim(),
+        price: Number(row.precio) || 0,
+        unitOfMeasure: row.um ?? row.um_precio ?? 'UN',
+        stock: Number(row.disponible) || 0,
+        taxRate: 0,
+        category: 'AGROINDUSTRIAL',
+      }))
+      .filter((row) => row.sku);
+  }
+
   async findSellableForList(
     companyId: string,
     listCode: string,

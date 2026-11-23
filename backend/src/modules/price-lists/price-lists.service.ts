@@ -24,6 +24,10 @@ export class PriceListsService {
     private readonly dataSource: DataSource,
   ) {}
 
+  getAgroindustrialInventory(priceList: '400' | '401' = '400') {
+    return this.client.fetchAgroindustrialInventory(priceList);
+  }
+
   /** Mapa `SKU -> categoría` (CERDO / RES) de los subproductos, desde el ERP. */
   getSubproductoCategories(companyId: string): Promise<Map<string, string>> {
     return this.client.fetchSubproductoCategories(baseCompanyId(companyId));

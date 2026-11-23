@@ -14,6 +14,7 @@ export const SELLER_MODULES: ModuleDef[] = [
   { key: '/pedidos/canales', label: 'Pedidos · Canales' },
   { key: '/pedidos/subproductos', label: 'Pedidos · Subproductos' },
   { key: '/pedidos/namnam', label: 'Pedidos · Ñam Ñam' },
+  { key: '/pedidos/agroindustrial', label: 'Pedidos · Agroindustrial' },
   { key: '/cotizaciones', label: 'Cotizaciones' },
   { key: '/clientes', label: 'Cartera de Clientes' },
   { key: '/disponibilidad', label: 'Disponibilidad' },

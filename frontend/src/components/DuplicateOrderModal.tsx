@@ -147,7 +147,9 @@ export function DuplicateOrderModal({
           ? { orderType: 'subproducto' as const, sellerId: order.seller.id }
           : order.type === 'namnam'
             ? { orderType: 'namnam' as const }
-            : {}),
+            : order.type === 'agroindustrial'
+              ? { orderType: 'agroindustrial' as const }
+              : {}),
       });
       setCreatedOrder(created);
     } catch (err) {

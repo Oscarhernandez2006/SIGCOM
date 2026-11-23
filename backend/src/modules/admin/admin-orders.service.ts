@@ -25,7 +25,7 @@ const DOWNLOAD_SUBPRODUCTOS_RES_PERMISSION =
   '/admin/descargar-pedidos-subproductos-res';
 const DOWNLOAD_NAMNAM_PERMISSION = '/admin/descargar-pedidos-namnam';
 
-type OrderType = 'corte' | 'subproducto' | 'namnam';
+type OrderType = 'corte' | 'subproducto' | 'namnam' | 'agroindustrial';
 
 /** Normaliza la categoría de subproducto ('CERDO' por defecto). */
 function normalizeCategory(category?: string): 'CERDO' | 'RES' {
@@ -34,7 +34,9 @@ function normalizeCategory(category?: string): 'CERDO' | 'RES' {
 
 /** Normaliza el tipo de pedido recibido ('corte' por defecto). */
 function normalizeOrderType(type?: string): OrderType {
-  return type === 'subproducto' || type === 'namnam' ? type : 'corte';
+  return type === 'subproducto' || type === 'namnam' || type === 'agroindustrial'
+    ? type
+    : 'corte';
 }
 
 /** Resumen de un pedido descargable (para la tabla del administrador). */

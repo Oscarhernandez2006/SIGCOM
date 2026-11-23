@@ -105,6 +105,7 @@ export class OrdersErpClient {
     companyId: string,
     registros: ErpOrderRegistro[],
     endpointOverride?: string,
+    priceList?: '400' | '401',
   ): Promise<ErpUploadResult> {
     const baseUrl = this.config.get<string>('priceLists.baseUrl');
     const token = this.config.get<string>('priceLists.token');
@@ -132,7 +133,14 @@ export class OrdersErpClient {
         this.http.post<unknown>(
           `${baseUrl}/${endpoint}`,
           { registros },
-          { params: { token }, timeout },
+          {
+            params: {
+              token,
+              ...(priceList ? { lista: priceList } : {}),
+            },
+            headers: priceList ? { 'X-API-Key': token } : undefined,
+            timeout,
+          },
         ),
       );
       // Se registra la respuesta cruda para conocer el formato exacto del ERP

@@ -235,7 +235,7 @@ export interface Order {
   id: string;
   orderNumber: string;
   /** Tipo de pedido: 'corte' (por defecto), 'subproducto' o 'namnam' (Ñam Ñam). */
-  type?: 'corte' | 'subproducto' | 'namnam';
+  type?: 'corte' | 'subproducto' | 'namnam' | 'agroindustrial';
   /** Segundo consecutivo (subproductos divididos en dos documentos Siesa). */
   secondNumber?: string | null;
   customer: Client;

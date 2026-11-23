@@ -584,7 +584,7 @@ interface CreateOrderInput {
   deliveryDate: string;
   items: { sku: string; quantity: number; discountPct: number }[];
   /** Tipo de pedido: 'corte' (por defecto), 'subproducto' o 'namnam'. */
-  orderType?: 'corte' | 'subproducto' | 'namnam';
+  orderType?: 'corte' | 'subproducto' | 'namnam' | 'agroindustrial';
   /** Vendedor al que se asocia el pedido (solo subproductos). */
   sellerId?: string;
   /**

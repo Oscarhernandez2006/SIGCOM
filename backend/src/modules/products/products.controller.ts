@@ -48,6 +48,9 @@ export class ProductsController {
     @Query('priceList') priceList?: string,
     @Query('type') type = 'corte',
   ) {
+    if (type === 'agroindustrial' && priceList) {
+      return this.productsService.findAgroindustrialSellable(priceList, search);
+    }
     if (priceList) {
       return this.productsService.findSellableForList(
         companyId,

@@ -40,6 +40,25 @@ interface SubproductoResponse {
   data: SubproductoRaw[];
 }
 
+export interface AgroindustrialInventoryRaw {
+  codigo?: string;
+  referencia?: string;
+  descripcion?: string;
+  um?: string;
+  bodega?: string;
+  existencia?: number;
+  comprometida?: number;
+  disponible?: number;
+  lista_precios?: string;
+  precio?: number | null;
+  um_precio?: string;
+}
+
+export interface AgroindustrialInventoryResponse {
+  total?: number;
+  data?: AgroindustrialInventoryRaw[];
+}
+
 /** Fila cruda del endpoint de ventas por vendedor y producto (mensual). */
 export interface VendorProductSaleRaw {
   /** Fecha del movimiento (YYYY-MM-DD). El ERP la renombró de `fecha` a `dia`. */

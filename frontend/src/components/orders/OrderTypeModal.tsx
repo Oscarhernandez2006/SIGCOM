@@ -1,9 +1,9 @@
-import { Beef, ChevronRight, Layers, PackageOpen, PawPrint, X } from 'lucide-react';
+import { Beef, ChevronRight, Layers, PackageOpen, PawPrint, Factory, X } from 'lucide-react';
 import { BRAND } from '@/lib/brand';
 import { Modal } from '@/components/brand/PageShell';
-import { NAMNAM_COMPANIES } from '@/lib/companies';
+import { NAMNAM_COMPANIES, AGROINDUSTRIAL_COMPANIES } from '@/lib/companies';
 
-export type OrderKind = 'cortes' | 'canales' | 'subproductos' | 'namnam';
+export type OrderKind = 'cortes' | 'canales' | 'subproductos' | 'namnam' | 'agroindustrial';
 
 /** Tipos de pedido disponibles en el modal selector. */
 const ORDER_TYPES: {
@@ -38,6 +38,15 @@ const ORDER_TYPES: {
     icon: PackageOpen,
     color: '#F59E0B',
     permission: '/pedidos/subproductos',
+  },
+  {
+    tipo: 'agroindustrial',
+    label: 'Agroindustrial',
+    description: 'Toma de pedido de productos Agroindustrial.',
+    icon: Factory,
+    color: '#0F766E',
+    permission: '/pedidos/agroindustrial',
+    companies: AGROINDUSTRIAL_COMPANIES,
   },
   {
     tipo: 'namnam',
