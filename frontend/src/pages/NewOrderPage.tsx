@@ -253,9 +253,15 @@ export function NewOrderPage() {
     customer?.id,
     associationStep === 'list',
   );
+  const agroindustrialPriceList = isAgroindustrial
+    ? `${customer?.priceListName ?? customer?.priceList ?? ''}`.toUpperCase().includes('401') ||
+      `${customer?.priceListName ?? customer?.priceList ?? ''}`.toUpperCase().includes('MAY')
+      ? '401'
+      : '400'
+    : undefined;
   const { data: products = [], isFetching: productsLoading } = useProductsForList(
     productSearch,
-    customer?.priceList,
+    isAgroindustrial ? agroindustrialPriceList : customer?.priceList,
     isSubproducto ? 'subproducto' : isNamNam ? 'namnam' : isAgroindustrial ? 'agroindustrial' : undefined,
   );
   // Productos estrella/favoritos de la compañía (para priorizar y avisar).
@@ -542,7 +548,13 @@ export function NewOrderPage() {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <h2 className="flex-1 truncate text-xl font-extrabold leading-tight tracking-[-0.4px] sm:text-[22px]">
-            {isSubproducto ? 'Nuevo pedido · Subproductos' : isNamNam ? 'Nuevo pedido · Ñam Ñam' : 'Nuevo pedido'}
+            {isSubproducto
+              ? 'Nuevo pedido · Subproductos'
+              : isNamNam
+                ? 'Nuevo pedido · Ñam Ñam'
+                : isAgroindustrial
+                  ? 'Nuevo pedido · Agroindustrial'
+                  : 'Nuevo pedido'}
           </h2>
         </div>
         <ol className="mt-4 flex items-center gap-1.5 sm:gap-2">

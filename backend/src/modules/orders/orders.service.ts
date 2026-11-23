@@ -1768,14 +1768,9 @@ export class OrdersService {
    * línea por cada ítem del pedido.
    */
   private resolveAgroindustrialPriceList(priceList?: string | null): '400' | '401' {
-    const normalized = String(priceList ?? '').trim();
-    if (normalized === '401') return '401';
-    if (normalized === '400' || normalized === '') {
-      return AGROINDUSTRIAL_DEFAULT_PRICE_LIST;
-    }
-    throw new BadRequestException(
-      'Agroindustrial solo admite las listas de precios 400 o 401.',
-    );
+    const normalized = String(priceList ?? '').trim().toUpperCase();
+    if (normalized.includes('401') || normalized.includes('MAY')) return '401';
+    return AGROINDUSTRIAL_DEFAULT_PRICE_LIST;
   }
 
   private async buildErpRegistros(order: Order): Promise<ErpOrderRegistro[]> {

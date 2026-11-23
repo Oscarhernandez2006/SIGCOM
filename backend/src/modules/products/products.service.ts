@@ -154,12 +154,8 @@ export class ProductsService {
    * primero (prioridad), pero todos son vendibles.
    */
   async findAgroindustrialSellable(priceList: string, search?: string): Promise<SellableProduct[]> {
-    const normalized = priceList.trim();
-    if (normalized !== '400' && normalized !== '401') {
-      throw new BadRequestException(
-        'Agroindustrial solo admite las listas de precios 400 o 401.',
-      );
-    }
+    const raw = priceList.trim().toUpperCase();
+    const normalized = raw.includes('401') || raw.includes('MAY') ? '401' : '400';
     const rows = await this.priceListsService.getAgroindustrialInventory(normalized);
     const query = search?.trim().toLowerCase();
     return rows
