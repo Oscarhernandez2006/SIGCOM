@@ -268,6 +268,32 @@ export class PriceListsClient {
     private readonly config: ConfigService,
   ) {}
 
+  /** Inventario y precios vigentes de la línea Agroindustrial. */
+  async fetchAgroindustrialInventory(
+    priceList: '400' | '401' = '400',
+  ): Promise<AgroindustrialInventoryRaw[]> {
+    if (priceList !== '400' && priceList !== '401') {
+      throw new Error('Agroindustrial solo admite las listas 400 o 401.');
+    }
+
+    const baseUrl = this.config.get<string>('priceLists.baseUrl');
+    const token = this.config.get<string>('priceLists.token');
+    const timeout = this.config.get<number>('priceLists.timeoutMs');
+
+    const response = await firstValueFrom(
+      this.http.get<AgroindustrialInventoryResponse>(
+        `${baseUrl}/ventas/inventario-agroindustrial`,
+        {
+          params: { lista: priceList, bodega: '30301', token },
+          headers: { 'X-API-Key': token },
+          timeout,
+        },
+      ),
+    );
+
+    return response.data?.data ?? [];
+  }
+
   /** Trae todas las filas de listas de precios de una compañía. */
   async fetchPriceLists(companyId: string): Promise<PriceListRaw[]> {
     const baseUrl = this.config.get<string>('priceLists.baseUrl');
