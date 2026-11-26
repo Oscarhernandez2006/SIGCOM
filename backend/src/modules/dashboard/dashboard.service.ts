@@ -17,7 +17,7 @@ import {
 import { sameSellerName } from '../../common/seller-names';
 import { ChannelSalesClient, ChannelSaleRaw } from '../channel-sales/channel-sales.client';
 import { PriceListsService } from '../price-lists/price-lists.service';
-import { VendorProductSaleRaw } from '../price-lists/price-lists.client';
+import { VendorClientSaleRaw, VendorProductSaleRaw } from '../price-lists/price-lists.client';
 
 /** Estados que representan una venta real (excluye borradores y cancelados). */
 const SALE_STATUSES = [
@@ -779,6 +779,7 @@ export class DashboardService {
     let revenuePct: number | null;
     let kilosPct: number | null;
     let profitability: SellerCommercialDashboard['profitability'] = null;
+    let juanClientSales: VendorClientSaleRaw[] | undefined;
 
     if (useErp) {
       // AGROPECUARIA: ventas facturadas en Siesa (valor_neto) y kilos.
@@ -787,11 +788,43 @@ export class DashboardService {
         this.getErpSales(nitSet, from, to, costMap, erpExclude),
         this.getErpSales(nitSet, prevFrom, prevTo, undefined, erpExclude),
       ]);
-      revenue = erp.revenue;
-      totalKilos = erp.kilos;
+      let extraRevenue = 0;
+      let extraKilos = 0;
+      let extraPrevRevenue = 0;
+      let extraPrevKilos = 0;
+      const sellerNit = (seller?.documentId ?? '').trim();
+      if (!allSellers && sellerNit === '72004911') {
+        const [currentSales, previousSales] = await Promise.all([
+          this.priceListsService.getVendorClientSales(companyId, from, to),
+          this.priceListsService.getVendorClientSales(companyId, prevFrom, prevTo),
+        ]);
+        juanClientSales = currentSales;
+        const extraExito = (rows: VendorClientSaleRaw[]) =>
+          rows.reduce(
+            (total, row) => {
+              if (
+                (row.NitCliente ?? '').trim() === '890900608' &&
+                (row.CodigoVendedor ?? '').trim() !== sellerNit
+              ) {
+                total.revenue += Number(row.ValorSubtotal) || 0;
+                total.kilos += Number(row.KilosTotal) || 0;
+              }
+              return total;
+            },
+            { revenue: 0, kilos: 0 },
+          );
+        const current = extraExito(currentSales);
+        const previous = extraExito(previousSales);
+        extraRevenue = current.revenue;
+        extraKilos = current.kilos;
+        extraPrevRevenue = previous.revenue;
+        extraPrevKilos = previous.kilos;
+      }
+      revenue = erp.revenue + extraRevenue;
+      totalKilos = erp.kilos + extraKilos;
       // Rentabilidad con el COSTO REAL del ERP (consulta general). Solo se
       // muestra si hay costo (>0); si no, queda "sin datos".
-      if (erp.cost > 0) {
+      if (erp.cost > 0 && extraRevenue === 0 && extraKilos === 0) {
         const margin = erp.revenue - erp.cost;
         profitability = {
           cost: erp.cost,
@@ -811,15 +844,17 @@ export class DashboardService {
       salesByChannel = erp.byCanal;
       salesByCategory = erp.byCategory;
       revenuePct =
-        erpPrev.revenue > 0
+        erpPrev.revenue + extraPrevRevenue > 0
           ? Number(
-              (((revenue - erpPrev.revenue) / erpPrev.revenue) * 100).toFixed(1),
+              (((revenue - (erpPrev.revenue + extraPrevRevenue)) /
+                (erpPrev.revenue + extraPrevRevenue)) * 100).toFixed(1),
             )
           : null;
       kilosPct =
-        erpPrev.kilos > 0
+        erpPrev.kilos + extraPrevKilos > 0
           ? Number(
-              (((totalKilos - erpPrev.kilos) / erpPrev.kilos) * 100).toFixed(1),
+              (((totalKilos - (erpPrev.kilos + extraPrevKilos)) /
+                (erpPrev.kilos + extraPrevKilos)) * 100).toFixed(1),
             )
           : null;
     } else {
@@ -944,14 +979,15 @@ export class DashboardService {
         // incluye cualquier canal (cuentas nacionales/EDI que nunca pasan por
         // pedidos de la app, como Éxito o PriceSmart).
         const sellerNit = (seller?.documentId ?? '').trim();
-        const clientSales = await this.priceListsService
+        const clientSales = juanClientSales ?? await this.priceListsService
           .getVendorClientSales(baseCompanyId(companyId), from, to)
           .catch(() => []);
         for (const row of clientSales) {
           const code = (row.CodigoVendedor ?? '').trim();
-          if (sellerNit && code !== sellerNit) continue;
           const nit = (row.NitCliente ?? '').trim();
           if (!nit) continue;
+          const isJuanSierraExito = sellerNit === '72004911' && nit === '890900608';
+          if (sellerNit && code !== sellerNit && !isJuanSierraExito) continue;
           revByCode.set(
             nit,
             (revByCode.get(nit) ?? 0) + (Number(row.ValorSubtotal) || 0),

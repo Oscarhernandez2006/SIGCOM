@@ -58,6 +58,7 @@ Reglas ESLint que muerden: `react-hooks/set-state-in-effect` (hay errores **pree
 
 ## SIGCOM WEB · backend (`backend/src`)
 
+- **Juan Sierra y Éxito**: en el dashboard de Agropecuaria, las ventas y kilos de Éxito (NIT 890900608) facturados a nombre de otros vendedores se suman a los totales y al comparativo de Juan Sierra (cédula 72004911); el presupuesto por cliente incluye todas las filas de Éxito. Se usa `/ventas/vendedor-clientes-mes`, agregado por vendedor y cliente: no permite completar tendencia diaria, categorías ni costos de esas ventas adicionales. La API puede cambiar el orden entre páginas; SIGCOM solicita 5000 filas por página, pero la API debe garantizar orden estable para rangos mayores.
 - NestJS. `modules/`: auth, users, admin, orders, canal-orders, quotes, clients, customers, products, price-lists, product-costs, featured-products, budgets, dashboard, channel-sales, siesa, dispatch, bajas, devoluciones, settings, provisioning. `common/`, `config/`, `database/` (TypeORM/Postgres).
 - `.env` en `backend/` (DATABASE_URL apunta al Postgres remoto). Backups de env en la carpeta de sesión de Copilot, no en el repo.
 - Scripts: `npm run start:dev`, `build`, `lint`, `test` (jest).

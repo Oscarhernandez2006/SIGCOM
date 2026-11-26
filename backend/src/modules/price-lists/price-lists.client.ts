@@ -640,7 +640,7 @@ export class PriceListsClient {
     const baseUrl = this.config.get<string>('priceLists.baseUrl');
     const token = this.config.get<string>('priceLists.token');
     const timeout = this.config.get<number>('priceLists.timeoutMs');
-    const PAGE = 1000;
+    const PAGE = 5000;
     const MAX_PAGES = 20;
     try {
       const rows: VendorClientSaleRaw[] = [];
